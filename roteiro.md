@@ -71,7 +71,7 @@ Este documento é a base de conteúdo para o repositório de aulas. Cada aula te
 - O gradiente aponta pra direção de subida mais íngreme. Anda no sentido contrário e você desce.
 - O passo iterativo: calcula gradiente, dá um passo, repete.
 - A metáfora da bola descendo a tigela funciona bem, desde que você mostre a superfície antes.
-
+- Como se acha o fundo da tigela: a derivada mede a inclinação em cada ponto, e no fundo ela é zero. É por isso que a conta de otimização é uma conta de derivada. Aqui basta a ideia visual da inclinação, o gradient descent no bloco seguinte é a aplicação dela.
 **Learning rate (5 min)**
 - Alto demais: pula o fundo e diverge.
 - Baixo demais: converge, mas leva uma eternidade.
