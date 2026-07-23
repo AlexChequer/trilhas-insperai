@@ -1,0 +1,1 @@
+Repositorio para trilha de trainees InsperAI 26.2
