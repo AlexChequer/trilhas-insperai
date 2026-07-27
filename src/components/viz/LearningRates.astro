@@ -1,0 +1,184 @@
+---
+// Aula 1 · Learning rate visto como erro × iteração (a curva de loss).
+// Três taxas na mesma tela: uma diverge, uma é lenta demais, uma é boa.
+---
+
+<div class="viz-lr2" data-viz="lr">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="lr-legenda">
+    <span><i style="background: #dc2626"></i> <b>α = 1,05</b> · diverge</span>
+    <span><i style="background: #d97706"></i> <b>α = 0,02</b> · lento demais</span>
+    <span><i style="background: #16a34a"></i> <b>α = 0,2</b> · bom</span>
+  </div>
+
+  <div class="viz-controles" style="justify-content: center; margin-top: 14px;">
+    <button class="btn" type="button" data-rodar>Rodar</button>
+    <button class="btn btn-secundario" type="button" data-passo-btn>Passo a passo</button>
+    <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+    <span class="viz-passo" data-passo>iteração 0</span>
+  </div>
+</div>
+
+<style>
+  .lr-legenda {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 20px;
+    margin-top: 12px;
+    font-size: 0.95rem;
+    color: var(--texto-suave);
+  }
+  .lr-legenda span { display: inline-flex; align-items: center; gap: 8px; }
+  .lr-legenda i { width: 22px; height: 4px; border-radius: 999px; display: inline-block; }
+  .lr-legenda b { font-family: var(--fonte-dados); color: var(--insper-azul-aco); }
+  .viz-passo {
+    align-self: center;
+    font-family: var(--fonte-dados);
+    font-weight: 600;
+    color: var(--texto-suave);
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="lr"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const N = 18;
+    const YMAX = 8;
+    const MARGEM = { topo: 20, dir: 22, base: 48, esq: 62 };
+    const INICIO: [number, number] = [1.6, 1.15]; // ponto de partida na tigela J = w² + b²
+    const CONFIG = [
+      { lr: 1.05, cor: "#dc2626" },
+      { lr: 0.02, cor: "#d97706" },
+      { lr: 0.2, cor: "#16a34a" },
+    ];
+
+    // custo a cada iteração do gradient descent (tigela redonda, mínimo = 0)
+    function serie(lr: number) {
+      let w = INICIO[0], b = INICIO[1];
+      const js = [w * w + b * b];
+      for (let i = 0; i < N; i++) {
+        w -= lr * 2 * w; b -= lr * 2 * b;
+        js.push(w * w + b * b);
+      }
+      return js;
+    }
+    const SERIES = CONFIG.map((c) => ({ cor: c.cor, js: serie(c.lr) }));
+
+    let passo = 0;
+    let timer: number | null = null;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const px = (i: number) => { const p = plot(); return p.x + (i / N) * p.w; };
+    // sem clamp: a curva que diverge sai pela parte de cima (o recorte cuida do resto)
+    const py = (erro: number) => { const p = plot(); return p.y + (1 - erro / YMAX) * p.h; };
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+
+      // grade + rótulos y (erro)
+      ctx.strokeStyle = "#eef2f8"; ctx.fillStyle = "#8b95a5";
+      ctx.lineWidth = 1; ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let e = 0; e <= YMAX; e += 2) {
+        const yy = py(e);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(String(e), p.x - 10, yy);
+      }
+      // rótulos x (iteração)
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let i = 0; i <= N; i += 3) {
+        ctx.fillText(String(i), px(i), p.y + p.h + 8);
+      }
+      // eixos + títulos
+      ctx.strokeStyle = "#c7d2e0"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = "#294a6b"; ctx.font = "700 15px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("iteração", p.x + p.w / 2, H - 6);
+      ctx.save(); ctx.translate(16, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("erro", 0, 0); ctx.restore();
+
+      // curvas (recorta na área do gráfico; diverge sai por cima)
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h + 2); ctx.clip();
+      for (const s of SERIES) {
+        ctx.strokeStyle = s.cor; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.beginPath();
+        for (let i = 0; i <= passo; i++) {
+          const X = px(i), Y = py(s.js[i]);
+          if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+        }
+        ctx.stroke();
+        // ponto atual
+        const i = passo;
+        if (s.js[i] <= YMAX) {
+          ctx.beginPath(); ctx.arc(px(i), py(s.js[i]), 5, 0, Math.PI * 2);
+          ctx.fillStyle = s.cor; ctx.fill();
+          ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      const el = raiz.querySelector<HTMLElement>("[data-passo]");
+      if (el) el.textContent = "iteração " + passo;
+    }
+
+    function rodar() {
+      if (timer !== null) return;
+      if (passo >= N) { passo = 0; desenhar(); }
+      timer = window.setInterval(() => {
+        passo++; desenhar();
+        if (passo >= N) { if (timer !== null) window.clearInterval(timer); timer = null; }
+      }, 520);
+    }
+    function passoUnico() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
+      if (passo >= N) return;
+      passo++; desenhar();
+    }
+    function reiniciar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
+      passo = 0; desenhar();
+    }
+    raiz.querySelector<HTMLButtonElement>("[data-rodar]")!.addEventListener("click", rodar);
+    raiz.querySelector<HTMLButtonElement>("[data-passo-btn]")!.addEventListener("click", passoUnico);
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", reiniciar);
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      H = Math.round(Math.min(Math.max(W * 0.5, 280), 460));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+
+    ajustar();
+  });
+</script>

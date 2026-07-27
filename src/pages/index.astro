@@ -1,0 +1,84 @@
+---
+import Base from "../layouts/Base.astro";
+import { getCollection } from "astro:content";
+import { BLOCOS } from "../data/aulas";
+
+// Quais aulas já têm página escrita (viram link no arco).
+const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
+
+let prontas = 0;
+let total = 0;
+for (const bloco of BLOCOS) {
+  for (const a of bloco.aulas) {
+    prontas += a.prontas;
+    total += a.total;
+  }
+}
+const pct = total ? Math.round((prontas / total) * 100) : 0;
+
+function selo(a: (typeof BLOCOS)[number]["aulas"][number], ativa: boolean) {
+  if (ativa) return { texto: "explorar", classe: "selo-pronta" };
+  if (a.total === 0) return { texto: "aula prática", classe: "selo-breve" };
+  if (a.aberto) return { texto: "em aberto", classe: "selo-breve" };
+  return { texto: "em breve", classe: "selo-breve" };
+}
+---
+
+<Base title="Trilha de Trainees — InsperAI">
+  <div class="site">
+    <header class="capa">
+      <p class="capa-sobrancelha">
+        InsperAI · Programa de Trainee · 2º semestre de 2026
+      </p>
+      <h1>De uma <em>reta</em> até um <em>agente que aprende</em>.</h1>
+      <p>
+        Treze aulas, um arco só. Cada visualização deixa você mexer em uma coisa
+        e ver a consequência na hora — que é como esses conceitos entram na
+        cabeça de verdade.
+      </p>
+      <div class="capa-progresso">
+        {prontas} de {total} visualizações prontas
+        <div class="capa-barra"><i style={`width:${pct}%`}></i></div>
+      </div>
+    </header>
+
+    <main class="arco">
+      {
+        BLOCOS.map((bloco) => (
+          <Fragment>
+            <p class="bloco-rotulo">{bloco.nome}</p>
+            {bloco.aulas.map((a) => {
+              const ativa = escritas.has(a.slug);
+              const s = selo(a, ativa);
+              return ativa ? (
+                <a class="estacao" href={`/aulas/${a.slug}`}>
+                  <span class="estacao-marca">{a.n}</span>
+                  <span class="estacao-titulo">
+                    {a.titulo}
+                    <span class={`selo ${s.classe}`}>{s.texto}</span>
+                    <span class="seta">→</span>
+                  </span>
+                  <span class="estacao-desc">{a.desc}</span>
+                </a>
+              ) : (
+                <div class="estacao estacao-muda">
+                  <span class="estacao-marca">{a.n}</span>
+                  <span class="estacao-titulo">
+                    {a.titulo}
+                    <span class={`selo ${s.classe}`}>{s.texto}</span>
+                  </span>
+                  <span class="estacao-desc">{a.desc}</span>
+                </div>
+              );
+            })}
+          </Fragment>
+        ))
+      }
+    </main>
+
+    <footer class="viz-rodape" style="margin-top: 8px;">
+      Feito para rodar em site estático (Vercel ou GitHub Pages). Abre no
+      projetor e no celular.
+    </footer>
+  </div>
+</Base>

@@ -1,0 +1,25 @@
+---
+import { getCollection, render } from "astro:content";
+import Aula from "../../layouts/Aula.astro";
+
+export async function getStaticPaths() {
+  const aulas = (await getCollection("aulas")).sort(
+    (a, b) => a.data.ordem - b.data.ordem,
+  );
+  return aulas.map((entry, i) => ({
+    params: { slug: entry.id },
+    props: {
+      entry,
+      prev: aulas[i - 1] ?? null,
+      next: aulas[i + 1] ?? null,
+    },
+  }));
+}
+
+const { entry, prev, next } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<Aula data={entry.data} prev={prev} next={next}>
+  <Content />
+</Aula>

@@ -1,0 +1,242 @@
+---
+// Aula 1 · Dispersão preço × metragem. Dois sliders (w, b) ajustam a reta;
+// os resíduos e o custo total atualizam ao vivo.
+---
+
+<div class="viz-corpo" data-viz="residuos">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Custo total</p>
+      <p class="stat-valor" data-custo>—</p>
+      <span class="stat-unidade">o erro de todos os pontos, somado</span>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Inclinação (w) <span class="valor" data-w-val>—</span></label>
+        <input type="range" data-w min="-2" max="12" step="0.05" value="2.85" />
+      </div>
+      <div class="slider-campo" style="margin-top: 14px;">
+        <label>Deslocamento (b) <span class="valor" data-b-val>—</span></label>
+        <input type="range" data-b min="-200" max="700" step="5" value="323" />
+      </div>
+      <p class="stat-caminho">previsão = <strong>w</strong>·metragem + <strong>b</strong></p>
+    </div>
+
+    <div class="viz-legenda">
+      <span><i style="background: var(--coral)"></i> previu a menos</span>
+      <span><i style="background: var(--ciano)"></i> previu a mais</span>
+    </div>
+
+    <div class="viz-controles">
+      <button class="btn" type="button" data-melhor>Mostrar melhor reta</button>
+      <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+    </div>
+
+    <p class="stat-caminho" data-texto-melhor hidden></p>
+  </aside>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="residuos"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const sliderW = raiz.querySelector<HTMLInputElement>("[data-w]")!;
+    const sliderB = raiz.querySelector<HTMLInputElement>("[data-b]")!;
+    const elWVal = raiz.querySelector<HTMLElement>("[data-w-val]")!;
+    const elBVal = raiz.querySelector<HTMLElement>("[data-b-val]")!;
+    const elCusto = raiz.querySelector<HTMLElement>("[data-custo]")!;
+    const elTextoMelhor = raiz.querySelector<HTMLElement>("[data-texto-melhor]")!;
+    const btnMelhor = raiz.querySelector<HTMLButtonElement>("[data-melhor]")!;
+    const btnReiniciar = raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!;
+
+    const PONTOS: [number, number][] = [
+      [45, 320], [60, 380], [75, 500], [90, 460], [110, 640], [125, 700],
+      [140, 680], [160, 850], [175, 900], [195, 1010], [210, 980],
+      [230, 1180], [250, 1220], [270, 1300],
+    ];
+    const DOMINIO = { xMin: 20, xMax: 290, yMin: 0, yMax: 1500 };
+    const MARGEM = { topo: 26, dir: 22, base: 56, esq: 74 };
+    const INICIAL = { w: 2.85, b: 323 };
+
+    const COR = {
+      roxo: "#7c3aed", azul: "#2563eb", azulAco: "#294a6b",
+      coral: "#f4603e", ciano: "#0ea5e9",
+      grade: "#eef2f8", eixo: "#c7d2e0", ponto: "#3730a3", melhor: "#16a34a",
+    };
+    const nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+    const nf2 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let mostrarMelhor = false;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    const w = () => parseFloat(sliderW.value);
+    const b = () => parseFloat(sliderB.value);
+    const prever = (x: number, mw: number, mb: number) => mw * x + mb;
+    function custo(mw: number, mb: number) {
+      let s = 0;
+      for (const [x, y] of PONTOS) { const e = prever(x, mw, mb) - y; s += e * e; }
+      return s / PONTOS.length;
+    }
+
+    const MELHOR = (() => {
+      const n = PONTOS.length;
+      let sx = 0, sy = 0, sxy = 0, sxx = 0;
+      for (const [x, y] of PONTOS) { sx += x; sy += y; sxy += x * y; sxx += x * x; }
+      const mw = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+      const mb = (sy - mw * sx) / n;
+      return { w: mw, b: mb };
+    })();
+    const CUSTO_MELHOR = custo(MELHOR.w, MELHOR.b);
+
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const px = (x: number) => { const p = plot(); return p.x + (x - DOMINIO.xMin) / (DOMINIO.xMax - DOMINIO.xMin) * p.w; };
+    const py = (y: number) => { const p = plot(); return p.y + (1 - (y - DOMINIO.yMin) / (DOMINIO.yMax - DOMINIO.yMin)) * p.h; };
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function reta(mw: number, mb: number, cor: string | null, tracejada: boolean) {
+      if (!ctx) return;
+      const yA = Math.max(DOMINIO.yMin, Math.min(DOMINIO.yMax, prever(DOMINIO.xMin, mw, mb)));
+      const yB = Math.max(DOMINIO.yMin, Math.min(DOMINIO.yMax, prever(DOMINIO.xMax, mw, mb)));
+      // desenha a reta completa (pode sair do gráfico); recorta na área do plot
+      const p = plot();
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+      ctx.lineCap = "round";
+      if (tracejada) { ctx.setLineDash([9, 8]); ctx.lineWidth = 3.5; ctx.strokeStyle = cor!; }
+      else {
+        ctx.lineWidth = 5;
+        const g = ctx.createLinearGradient(px(DOMINIO.xMin), 0, px(DOMINIO.xMax), 0);
+        g.addColorStop(0, COR.roxo); g.addColorStop(1, COR.azul); ctx.strokeStyle = g;
+      }
+      ctx.beginPath();
+      ctx.moveTo(px(DOMINIO.xMin), py(prever(DOMINIO.xMin, mw, mb)));
+      ctx.lineTo(px(DOMINIO.xMax), py(prever(DOMINIO.xMax, mw, mb)));
+      ctx.stroke();
+      ctx.restore();
+      void yA; void yB;
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+      const mw = w(), mb = b();
+
+      // grade
+      ctx.lineWidth = 1; ctx.strokeStyle = COR.grade; ctx.fillStyle = "#8b95a5";
+      ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let y = 0; y <= DOMINIO.yMax; y += 300) {
+        const yy = py(y);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(nf0.format(y), p.x - 10, yy);
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let x = 50; x <= 290; x += 50) {
+        const xx = px(x);
+        ctx.beginPath(); ctx.moveTo(xx, p.y); ctx.lineTo(xx, p.y + p.h); ctx.stroke();
+        ctx.fillText(nf0.format(x), xx, p.y + p.h + 8);
+      }
+      // eixos
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 15px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("metragem (m²)", p.x + p.w / 2, H - 6);
+      ctx.save(); ctx.translate(16, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("preço (R$ mil)", 0, 0); ctx.restore();
+
+      // resíduos
+      ctx.lineWidth = 3.5;
+      for (const [x, y] of PONTOS) {
+        const prev = prever(x, mw, mb);
+        ctx.strokeStyle = prev < y ? COR.coral : COR.ciano;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.moveTo(px(x), py(y)); ctx.lineTo(px(x), py(prev)); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      if (mostrarMelhor) reta(MELHOR.w, MELHOR.b, COR.melhor, true);
+      reta(mw, mb, null, false);
+
+      for (const [x, y] of PONTOS) {
+        ctx.beginPath(); ctx.arc(px(x), py(y), 6.5, 0, Math.PI * 2);
+        ctx.fillStyle = COR.ponto; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      }
+    }
+
+    function corDoCusto(c: number) {
+      const razao = c / CUSTO_MELHOR;
+      const t = Math.min(Math.max((razao - 1) / 3, 0), 1);
+      const hue = 140 * (1 - t);
+      return `hsl(${hue.toFixed(0)}, 72%, 92%)`;
+    }
+    function atualizar() {
+      const mw = w(), mb = b();
+      elWVal.textContent = nf2.format(mw);
+      elBVal.textContent = nf0.format(mb);
+      const c = custo(mw, mb);
+      elCusto.textContent = nf0.format(c);
+      const destaque = raiz.querySelector<HTMLElement>(".stat-destaque");
+      if (destaque) destaque.style.background = `linear-gradient(135deg, ${corDoCusto(c)} 0%, #ffffff 130%)`;
+      elCusto.style.color = COR.azulAco;
+      desenhar();
+    }
+
+    sliderW.addEventListener("input", atualizar);
+    sliderB.addEventListener("input", atualizar);
+
+    btnMelhor.addEventListener("click", () => {
+      mostrarMelhor = !mostrarMelhor;
+      btnMelhor.textContent = mostrarMelhor ? "Ocultar melhor reta" : "Mostrar melhor reta";
+      elTextoMelhor.hidden = !mostrarMelhor;
+      elTextoMelhor.innerHTML =
+        "Menor custo possível: <strong>" + nf0.format(CUSTO_MELHOR) +
+        "</strong> em w = " + nf2.format(MELHOR.w) + ", b = " + nf0.format(MELHOR.b) + ".";
+      desenhar();
+    });
+    btnReiniciar.addEventListener("click", () => {
+      sliderW.value = String(INICIAL.w);
+      sliderB.value = String(INICIAL.b);
+      mostrarMelhor = false;
+      btnMelhor.textContent = "Mostrar melhor reta";
+      elTextoMelhor.hidden = true;
+      atualizar();
+    });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      H = Math.round(Math.min(Math.max(W * 0.62, 300), 560));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+
+    ajustar();
+    atualizar();
+  });
+</script>

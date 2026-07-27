@@ -1,0 +1,19 @@
+# dependências e build
+node_modules/
+dist/
+.astro/
+
+# variáveis de ambiente (regra: nunca commitar)
+.env
+.env.*
+!.env.example
+
+# sistema
+.DS_Store
+
+# artefatos de teste (Playwright MCP)
+.playwright-mcp/
+
+# claude
+.claude/settings.local.json
+CLAUDE.local.md

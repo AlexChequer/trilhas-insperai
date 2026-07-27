@@ -1,0 +1,65 @@
+---
+n: "A1"
+titulo: "Intro a ML + Regressão Linear"
+ordem: 1
+objetivo: "Um ciclo completo de aprendizado num lugar só: um modelo, uma medida de erro, e o mecanismo que corrige o erro — tudo com uma variável, onde dá pra desenhar tudo."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import ResiduosECusto from "../../components/viz/ResiduosECusto.astro";
+import ErrosMaeMseRmse from "../../components/viz/ErrosMaeMseRmse.astro";
+import SuperficieCusto3D from "../../components/viz/SuperficieCusto3D.astro";
+import LearningRates from "../../components/viz/LearningRates.astro";
+
+Programar é escrever a regra à mão. **Aprender é o contrário**: você mostra exemplos com a resposta certa e deixa a máquina achar a regra sozinha. O semestre inteiro funciona assim — exemplos com resposta, generalizando para casos novos.
+
+## O modelo é uma reta
+
+Para prever o preço de um imóvel a partir da metragem, o modelo mais simples é uma reta: **previsão = w·x + b**. Ajustar o modelo é só isso — escolher **w**, a inclinação, e **b**, o deslocamento, que colam a reta nos pontos.
+
+Mas "colar nos pontos" precisa virar número. <span class="destaque">Arraste as pontas da reta</span> abaixo e veja o erro aparecer em cada ponto e o custo total reagir.
+
+<VizEmbed titulo="arraste as pontas da reta">
+  <ResiduosECusto />
+</VizEmbed>
+
+## Medir o erro
+
+Cada traço vertical é um **resíduo**: o quanto a reta errou naquele ponto. Somar os resíduos com sinal daria zero — os de cima cancelam os de baixo —, então elevamos ao quadrado e tiramos a média. Esse número é o **custo**, e é ele que você viu despencar quando a reta melhorou.
+
+Só que nem todo erro pesa igual. O **MSE** eleva ao quadrado, então um outlier explode a conta; o **MAE** trata todo erro na mesma proporção. Ligue e desligue um ponto fora da curva e veja os dois reagirem de formas opostas.
+
+<VizEmbed titulo="ligue e desligue o outlier">
+  <ErrosMaeMseRmse />
+</VizEmbed>
+
+## A tigela do custo
+
+Para cada par (w, b) existe um valor de custo. Isso desenha uma **tigela**, e o fundo dela é o melhor modelo possível. Achar esse fundo é o problema inteiro.
+
+O **gradient descent** é a bola descendo a tigela: o gradiente aponta a subida mais íngreme, então você anda no sentido contrário. A cada passo, corrige $w$ e $b$ um pouco:
+
+$$
+w \leftarrow w - \alpha\,\frac{\partial J}{\partial w}
+\qquad
+b \leftarrow b - \alpha\,\frac{\partial J}{\partial b}
+$$
+
+Aqui $\alpha$ é o tamanho do passo (o _learning rate_) e $\frac{\partial J}{\partial w}$ é a inclinação do custo naquele ponto. No fundo da tigela a inclinação é zero — o gradiente some e o passo para. Gire a tigela abaixo e rode a descida, passo a passo.
+
+<VizEmbed titulo="gire a tigela e rode a descida">
+  <SuperficieCusto3D />
+</VizEmbed>
+
+## O tamanho do passo
+
+Esse $\alpha$ é o **learning rate** — o primeiro hiperparâmetro do semestre. Acompanhe o erro a cada iteração: grande demais, a bola pula o fundo e o erro **explode**; pequeno demais, o erro cai tão devagar que não chega; no ponto certo, ele **mergulha** pro fundo.
+
+<VizEmbed titulo="rode e veja o erro cair — ou explodir">
+  <LearningRates />
+</VizEmbed>
+
+<p class="nota">
+  No fim da aula você sabe explicar o que é um modelo, o que é ajustá-lo, por que
+  existe uma função de custo, e como o gradient descent encontra os parâmetros.
+</p>

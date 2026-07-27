@@ -1,0 +1,155 @@
+---
+// Aula 1 · Superfície de custo J(w,b) em 3D, rotacionável, com o caminho
+// do gradient descent descendo a tigela passo a passo.
+---
+
+<div class="viz-3d" data-viz="superficie">
+  <div class="viz-3d-plot" data-plot></div>
+  <div class="viz-controles" style="justify-content: center; margin-top: 14px;">
+    <button class="btn" type="button" data-rodar>Rodar descida</button>
+    <button class="btn btn-secundario" type="button" data-passo-btn>Passo a passo</button>
+    <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+    <span class="viz-passo" data-passo>passo 0</span>
+  </div>
+  <p class="viz-3d-dica">Arraste para girar · role para dar zoom</p>
+</div>
+
+<style>
+  .viz-3d-plot {
+    width: 100%;
+    height: clamp(340px, 52vw, 520px);
+  }
+  .viz-passo {
+    align-self: center;
+    font-family: var(--fonte-dados);
+    font-weight: 600;
+    color: var(--texto-suave);
+  }
+  .viz-3d-dica {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--texto-suave);
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="superficie"]').forEach(async (raiz) => {
+    const div = raiz.querySelector<HTMLElement>("[data-plot]");
+    if (!div) return;
+    const Plotly = (await import("plotly.js-dist-min")).default;
+
+    const BASE: [number, number][] = [
+      [45, 320], [60, 380], [75, 500], [90, 460], [110, 640], [125, 700],
+      [140, 680], [160, 850], [175, 900], [195, 1010], [210, 980],
+      [230, 1180], [250, 1220], [270, 1300],
+    ];
+    // Padroniza x e y → a tigela fica bem condicionada (redonda), boa pra ilustrar a descida.
+    const media = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
+    const desvio = (a: number[], m: number) => Math.sqrt(media(a.map((v) => (v - m) ** 2)));
+    const xsBrutos = BASE.map((p) => p[0]);
+    const ysBrutos = BASE.map((p) => p[1]);
+    const mx = media(xsBrutos), sx = desvio(xsBrutos, mx);
+    const my = media(ysBrutos), sy = desvio(ysBrutos, my);
+    const xs = xsBrutos.map((x) => (x - mx) / sx);
+    const ys = ysBrutos.map((y) => (y - my) / sy);
+
+    const J = (w: number, b: number) => {
+      let s = 0;
+      for (let i = 0; i < xs.length; i++) { const e = w * xs[i] + b - ys[i]; s += e * e; }
+      return s / xs.length;
+    };
+    const grad = (w: number, b: number) => {
+      let gw = 0, gb = 0;
+      for (let i = 0; i < xs.length; i++) { const e = w * xs[i] + b - ys[i]; gw += xs[i] * e; gb += e; }
+      return [(2 * gw) / xs.length, (2 * gb) / xs.length];
+    };
+
+    const linspace = (a: number, b: number, n: number) =>
+      Array.from({ length: n }, (_, i) => a + (b - a) * (i / (n - 1)));
+    const wGrid = linspace(-0.6, 2.3, 46);
+    const bGrid = linspace(-1.5, 1.5, 46);
+    const Z = bGrid.map((b) => wGrid.map((w) => J(w, b)));
+
+    // caminho do gradient descent (levantado um tico acima da superfície pra não sumir atrás dela)
+    const LIFT = 0.18;
+    const LR = 0.12, PASSOS = 28;
+    const caminho: { w: number; b: number; J: number }[] = [];
+    let w = 2.0, b = 1.15;
+    caminho.push({ w, b, J: J(w, b) });
+    for (let i = 0; i < PASSOS; i++) {
+      const [gw, gb] = grad(w, b);
+      w -= LR * gw; b -= LR * gb;
+      caminho.push({ w, b, J: J(w, b) });
+    }
+
+    const superficie = {
+      type: "surface", x: wGrid, y: bGrid, z: Z,
+      colorscale: [[0, "#dbe4ff"], [0.5, "#7c3aed"], [1, "#1e3a8a"]],
+      opacity: 0.92, showscale: false,
+      contours: { z: { show: true, usecolormap: true, width: 1, project: { z: false } } },
+      hoverinfo: "skip",
+    };
+    const traco = {
+      type: "scatter3d", mode: "lines+markers",
+      x: [caminho[0].w], y: [caminho[0].b], z: [caminho[0].J + LIFT],
+      line: { color: "#f4603e", width: 8 }, marker: { size: 4, color: "#f4603e" },
+      hoverinfo: "skip",
+    };
+    const bola = {
+      type: "scatter3d", mode: "markers",
+      x: [caminho[0].w], y: [caminho[0].b], z: [caminho[0].J + LIFT],
+      marker: { size: 9, color: "#dc2626", line: { color: "#fff", width: 1 } }, hoverinfo: "skip",
+    };
+
+    const layout = {
+      margin: { l: 0, r: 0, t: 0, b: 0 },
+      showlegend: false,
+      scene: {
+        xaxis: { title: { text: "w" }, backgroundcolor: "#f5f8fd", gridcolor: "#dbe2ee" },
+        yaxis: { title: { text: "b" }, backgroundcolor: "#f5f8fd", gridcolor: "#dbe2ee" },
+        zaxis: { title: { text: "custo" }, backgroundcolor: "#f5f8fd", gridcolor: "#dbe2ee" },
+        camera: { eye: { x: 1.7, y: 1.6, z: 1.0 } },
+      },
+      paper_bgcolor: "rgba(0,0,0,0)",
+    };
+    const config = { responsive: true, displayModeBar: false, scrollZoom: true };
+
+    await Plotly.newPlot(div, [superficie, traco, bola], layout, config);
+
+    let passo = 0;
+    let timer: number | null = null;
+
+    function render() {
+      const ate = caminho.slice(0, passo + 1);
+      Plotly.restyle(div, { x: [ate.map((p) => p.w)], y: [ate.map((p) => p.b)], z: [ate.map((p) => p.J + LIFT)] }, [1]);
+      const a = caminho[passo];
+      Plotly.restyle(div, { x: [[a.w]], y: [[a.b]], z: [[a.J + LIFT]] }, [2]);
+      const el = raiz.querySelector<HTMLElement>("[data-passo]");
+      if (el) el.textContent = "passo " + passo;
+    }
+    function rodar() {
+      if (timer !== null) return;
+      if (passo >= PASSOS) { passo = 0; render(); }
+      timer = window.setInterval(() => {
+        passo++; render();
+        if (passo >= PASSOS) { if (timer !== null) window.clearInterval(timer); timer = null; }
+      }, 500);
+    }
+    function passoUnico() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
+      if (passo >= PASSOS) return;
+      passo++; render();
+    }
+    function reiniciar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
+      passo = 0; render();
+    }
+    raiz.querySelector<HTMLButtonElement>("[data-rodar]")!.addEventListener("click", rodar);
+    raiz.querySelector<HTMLButtonElement>("[data-passo-btn]")!.addEventListener("click", passoUnico);
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", reiniciar);
+
+    // acompanha mudança de tamanho (coluna, tela cheia)
+    new ResizeObserver(() => Plotly.Plots.resize(div)).observe(div);
+  });
+</script>

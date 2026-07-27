@@ -1,0 +1,59 @@
+---
+import Base from "./Base.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  data: CollectionEntry<"aulas">["data"];
+  prev: CollectionEntry<"aulas"> | null;
+  next: CollectionEntry<"aulas"> | null;
+}
+const { data, prev, next } = Astro.props;
+---
+
+<Base title={`Aula ${data.n.slice(1)} · ${data.titulo} — InsperAI`}>
+  <div class="site">
+    <header class="topo">
+      <a class="topo-marca" href="/">Insper<span>AI</span> · Trilha de Trainees</a>
+      <a class="voltar" href="/">← todas as aulas</a>
+    </header>
+
+    <section class="aula-hero">
+      <span class="badge">{data.n}</span>
+      <h1>{data.titulo}</h1>
+      <p class="objetivo">{data.objetivo}</p>
+    </section>
+
+    <article class="leitura">
+      <slot />
+    </article>
+
+    <nav class="aula-nav">
+      {
+        prev ? (
+          <a href={`/aulas/${prev.id}`}>
+            <div class="rotulo">Anterior · {prev.data.n}</div>
+            <div class="nome">← {prev.data.titulo}</div>
+          </a>
+        ) : (
+          <a href="/">
+            <div class="rotulo">Começo</div>
+            <div class="nome">← Visão geral do semestre</div>
+          </a>
+        )
+      }
+      {
+        next ? (
+          <a class="direita" href={`/aulas/${next.id}`}>
+            <div class="rotulo">Próxima · {next.data.n}</div>
+            <div class="nome">{next.data.titulo} →</div>
+          </a>
+        ) : (
+          <a class="item-nav direita desativado">
+            <div class="rotulo">Próxima</div>
+            <div class="nome">em breve</div>
+          </a>
+        )
+      }
+    </nav>
+  </div>
+</Base>

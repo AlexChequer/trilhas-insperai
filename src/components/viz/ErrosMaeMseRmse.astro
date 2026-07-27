@@ -1,0 +1,209 @@
+---
+// Aula 1 · Comparação MAE × MSE × RMSE com um outlier que liga/desliga.
+// Lição: o MSE explode, o MAE quase não se move.
+---
+
+<div class="viz-corpo" data-viz="erros">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat" data-card="mae">
+      <p class="stat-rotulo">MAE — erro absoluto</p>
+      <p class="stat-valor"><span data-val>—</span> <span class="stat-unidade">R$ mil</span></p>
+      <p class="stat-caminho" data-fator hidden></p>
+    </div>
+    <div class="stat" data-card="mse">
+      <p class="stat-rotulo">MSE — erro ao quadrado</p>
+      <p class="stat-valor"><span data-val>—</span> <span class="stat-unidade">(R$ mil)²</span></p>
+      <p class="stat-caminho" data-fator hidden></p>
+    </div>
+    <div class="stat" data-card="rmse">
+      <p class="stat-rotulo">RMSE — raiz do MSE</p>
+      <p class="stat-valor"><span data-val>—</span> <span class="stat-unidade">R$ mil</span></p>
+      <p class="stat-caminho" data-fator hidden></p>
+    </div>
+
+    <div class="viz-controles">
+      <button class="btn" type="button" data-toggle>Adicionar outlier</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="erros"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const BASE: [number, number][] = [
+      [45, 320], [60, 380], [75, 500], [90, 460], [110, 640], [125, 700],
+      [140, 680], [160, 850], [175, 900], [195, 1010], [210, 980],
+      [230, 1180], [250, 1220], [270, 1300],
+    ];
+    const ESPECIAL_X = 150;
+    const ESPECIAL_NORMAL = 790; // em cima da tendência
+    const ESPECIAL_OUTLIER = 1400; // bem longe
+    const DOMINIO = { xMin: 20, xMax: 290, yMin: 0, yMax: 1500 };
+    const MARGEM = { topo: 26, dir: 22, base: 56, esq: 74 };
+
+    const COR = {
+      roxo: "#7c3aed", azul: "#2563eb", azulAco: "#294a6b",
+      residuo: "#94a3b8", ponto: "#3730a3", outlier: "#f4603e",
+      grade: "#eef2f8", eixo: "#c7d2e0", verde: "#16a34a", vermelho: "#dc2626",
+    };
+    const nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+    const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+
+    // Reta fixa: mínimos quadrados sobre os pontos-base (o especial não move a reta).
+    const RETA = (() => {
+      const n = BASE.length;
+      let sx = 0, sy = 0, sxy = 0, sxx = 0;
+      for (const [x, y] of BASE) { sx += x; sy += y; sxy += x * y; sxx += x * x; }
+      const w = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+      const b = (sy - w * sx) / n;
+      return { w, b };
+    })();
+    const prever = (x: number) => RETA.w * x + RETA.b;
+
+    let outlierLigado = false;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    function pontos(): [number, number][] {
+      const esp: [number, number] = [ESPECIAL_X, outlierLigado ? ESPECIAL_OUTLIER : ESPECIAL_NORMAL];
+      return [...BASE, esp];
+    }
+    function metricas(ligado: boolean) {
+      const esp = ligado ? ESPECIAL_OUTLIER : ESPECIAL_NORMAL;
+      const pts = [...BASE, [ESPECIAL_X, esp] as [number, number]];
+      let somaAbs = 0, somaQuad = 0;
+      for (const [x, y] of pts) { const e = prever(x) - y; somaAbs += Math.abs(e); somaQuad += e * e; }
+      const mae = somaAbs / pts.length;
+      const mse = somaQuad / pts.length;
+      return { mae, mse, rmse: Math.sqrt(mse) };
+    }
+    const SEM = metricas(false);
+
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const px = (x: number) => { const p = plot(); return p.x + (x - DOMINIO.xMin) / (DOMINIO.xMax - DOMINIO.xMin) * p.w; };
+    const py = (y: number) => { const p = plot(); return p.y + (1 - (y - DOMINIO.yMin) / (DOMINIO.yMax - DOMINIO.yMin)) * p.h; };
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+
+      // grade
+      ctx.lineWidth = 1; ctx.strokeStyle = COR.grade; ctx.fillStyle = "#8b95a5";
+      ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let y = 0; y <= DOMINIO.yMax; y += 300) {
+        const yy = py(y);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(nf0.format(y), p.x - 10, yy);
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let x = 50; x <= 290; x += 50) {
+        const xx = px(x);
+        ctx.beginPath(); ctx.moveTo(xx, p.y); ctx.lineTo(xx, p.y + p.h); ctx.stroke();
+        ctx.fillText(nf0.format(x), xx, p.y + p.h + 8);
+      }
+      // eixos + títulos
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 15px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("metragem (m²)", p.x + p.w / 2, H - 6);
+      ctx.save(); ctx.translate(16, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("preço (R$ mil)", 0, 0); ctx.restore();
+
+      // resíduos
+      const pts = pontos();
+      ctx.lineWidth = 2.5;
+      for (let i = 0; i < pts.length; i++) {
+        const [x, y] = pts[i];
+        const ehEspecial = i === pts.length - 1;
+        ctx.strokeStyle = ehEspecial && outlierLigado ? COR.outlier : COR.residuo;
+        ctx.lineWidth = ehEspecial && outlierLigado ? 4 : 2.5;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.moveTo(px(x), py(y)); ctx.lineTo(px(x), py(prever(x))); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // reta
+      ctx.save(); ctx.lineCap = "round"; ctx.lineWidth = 5;
+      const g = ctx.createLinearGradient(px(DOMINIO.xMin), 0, px(DOMINIO.xMax), 0);
+      g.addColorStop(0, COR.roxo); g.addColorStop(1, COR.azul); ctx.strokeStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(px(DOMINIO.xMin), py(prever(DOMINIO.xMin)));
+      ctx.lineTo(px(DOMINIO.xMax), py(prever(DOMINIO.xMax)));
+      ctx.stroke(); ctx.restore();
+
+      // pontos
+      for (let i = 0; i < pts.length; i++) {
+        const [x, y] = pts[i];
+        const ehEspecial = i === pts.length - 1;
+        const destaque = ehEspecial && outlierLigado;
+        ctx.beginPath(); ctx.arc(px(x), py(y), destaque ? 9 : 6.5, 0, Math.PI * 2);
+        ctx.fillStyle = destaque ? COR.outlier : COR.ponto; ctx.fill();
+        ctx.lineWidth = destaque ? 3 : 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      }
+    }
+
+    function badge(el: HTMLElement, fator: number) {
+      const forte = fator >= 4 ? COR.vermelho : fator >= 2 ? "#d97706" : COR.verde;
+      el.hidden = false;
+      el.innerHTML = `com outlier: <strong style="color:${forte}">×${nf1.format(fator)}</strong>`;
+    }
+    function atualizar() {
+      const m = metricas(outlierLigado);
+      const set = (card: string, val: string, fator: number) => {
+        const c = raiz.querySelector<HTMLElement>(`[data-card="${card}"]`)!;
+        c.querySelector<HTMLElement>("[data-val]")!.textContent = val;
+        const f = c.querySelector<HTMLElement>("[data-fator]")!;
+        if (outlierLigado) badge(f, fator); else f.hidden = true;
+      };
+      set("mae", nf0.format(m.mae), m.mae / SEM.mae);
+      set("mse", nf0.format(m.mse), m.mse / SEM.mse);
+      set("rmse", nf0.format(m.rmse), m.rmse / SEM.rmse);
+
+      const btn = raiz.querySelector<HTMLButtonElement>("[data-toggle]")!;
+      btn.textContent = outlierLigado ? "Remover outlier" : "Adicionar outlier";
+      desenhar();
+    }
+
+    raiz.querySelector<HTMLButtonElement>("[data-toggle]")!.addEventListener("click", () => {
+      outlierLigado = !outlierLigado;
+      atualizar();
+    });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      H = Math.round(Math.min(Math.max(W * 0.62, 300), 560));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+
+    ajustar();
+    atualizar();
+  });
+</script>

@@ -1,0 +1,38 @@
+---
+interface Props {
+  titulo: string;
+}
+const { titulo } = Astro.props;
+---
+
+<figure class="viz-embed larga">
+  <div class="viz-embed-barra">
+    <span class="viz-embed-eyebrow">Visualização · <b>{titulo}</b></span>
+    <button class="btn-telacheia" type="button">⛶ Tela cheia</button>
+  </div>
+  <div class="viz-embed-corpo">
+    <slot />
+  </div>
+</figure>
+
+<script>
+  // Botão de tela cheia de cada figura de visualização.
+  const ignora = () => {};
+  document.querySelectorAll<HTMLElement>(".viz-embed").forEach((fig) => {
+    const btn = fig.querySelector<HTMLButtonElement>(".btn-telacheia");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      if (document.fullscreenElement) {
+        Promise.resolve(document.exitFullscreen()).catch(ignora);
+      } else {
+        Promise.resolve(fig.requestFullscreen()).catch(ignora);
+      }
+    });
+  });
+  document.addEventListener("fullscreenchange", () => {
+    const cheia = !!document.fullscreenElement;
+    document.querySelectorAll(".btn-telacheia").forEach((b) => {
+      b.textContent = cheia ? "⤢ Sair" : "⛶ Tela cheia";
+    });
+  });
+</script>

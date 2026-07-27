@@ -1,0 +1,12 @@
+---
+interface Props {
+  nome: string;
+  desc: string;
+}
+const { nome, desc } = Astro.props;
+---
+
+<div class="em-breve-slot larga">
+  <div class="nome">{nome} <span class="selo selo-breve">em breve</span></div>
+  <div class="desc">{desc}</div>
+</div>
