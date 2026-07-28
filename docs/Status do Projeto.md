@@ -7,9 +7,9 @@ sessão deve olhar._
 
 - **Aula 1: COMPLETA** — 4 visualizações funcionando.
 - **Aulas 2–13:** aparecem no arco da home como "em breve"; ainda sem página `.mdx`.
-- **Infra pronta:** Astro + MDX + KaTeX + Plotly, design system, home (o arco),
-  layout de aula, deploy configurado para Vercel.
-- **Deploy:** código no GitHub; **falta conectar o Vercel** (passo manual do Alex).
+- **Infra pronta:** Astro + MDX + KaTeX + Plotly, **layout estilo documentação**
+  (barra lateral com índice + logos InsperAI), home rica com cards. Ver [[Sistema de Design]].
+- **Deploy:** **no ar na Vercel** (push na `main` = deploy automático).
 
 ## Aulas
 

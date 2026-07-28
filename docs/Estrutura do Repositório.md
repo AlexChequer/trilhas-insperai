@@ -6,6 +6,7 @@ trilha-trainees/
 ├── astro.config.mjs           # Astro + MDX + KaTeX
 ├── package.json
 ├── docs/                      # ESTE vault do Obsidian
+├── public/                    # logos InsperAI (insperai-claro.png / insperai-escuro.png)
 ├── src/
 │   ├── pages/
 │   │   ├── index.astro        # a home (o arco)
@@ -23,7 +24,8 @@ trilha-trainees/
 │   │       └── LearningRates.astro       # A1 · erro × iteração (curva de loss)
 │   ├── layouts/
 │   │   ├── Base.astro           # <html>, imports globais (CSS, KaTeX)
-│   │   └── Aula.astro           # topo + hero + coluna de leitura + nav
+│   │   ├── SiteLayout.astro     # casca: barra lateral (índice + logo) + conteúdo
+│   │   └── Aula.astro           # hero + leitura + rail "nesta aula" + nav
 │   ├── data/aulas.ts            # o arco: as 13 aulas p/ a home (com prontas/total)
 │   ├── styles/global.css        # ver [[Sistema de Design]]
 │   └── plotly.d.ts              # declara o módulo plotly sem tipos

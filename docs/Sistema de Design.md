@@ -10,13 +10,12 @@ Tudo vive em `src/styles/global.css` (tokens + componentes compartilhados).
 - Acentos de dados: coral `#f4603e` (previu a menos), ciano `#0ea5e9` (previu a
   mais), verde `#16a34a`, âmbar `#d97706`, vermelho `#dc2626`.
 
-## A assinatura: "o arco"
+## Logo
 
-O elemento memorável do site é **o arco** — uma linha-gradiente vertical que
-costura o semestre. Na home, as 13 aulas são **estações** numeradas ao longo
-dele; a numeração A1→A13 carrega informação real (a cadeia de pré-requisitos),
-não é enfeite. Encarna o fecho do próprio roteiro: *"de uma reta até agente e
-linguagem"*.
+`public/insperai-claro.png` (marca + wordmark "Insper AI", fundo claro) — usado no
+topo da barra lateral. `public/insperai-escuro.png` (só a marca, fundo escuro) —
+reserva para contexto escuro. A marca é um **grafo de nós** formando "AI", no
+mesmo gradiente roxo→azul.
 
 ## Tipografia
 
@@ -24,13 +23,46 @@ linguagem"*.
 - **Corpo:** stack do sistema (leitura rápida e confiável).
 - **Dados/números:** monospace do sistema (`--fonte-dados`) — número = precisão.
 
-## Layout das páginas de aula
+## PADRÃO DE PÁGINA (layout estilo documentação)
 
-- Coluna de leitura estreita (~700px) para o texto.
-- Visualizações **quebram mais largas** (~980px) como `figure.viz-embed`, cada uma
-  com barra + botão **"Tela cheia"** (`requestFullscreen` na figura).
-- Markdown estiliza direto: `.leitura > h2` (título de seção), `.leitura > p`
-  (prosa). Não precisa de classe em cada parágrafo.
+Este é o padrão atual, definido em `SiteLayout.astro` + `global.css`. **Toda página
+nova usa ele.** Três colunas em telas largas:
+
+```
+┌───────────┬────────────────────────┬──────────────┐
+│ SIDEBAR   │  CONTEÚDO              │  NESTA AULA  │
+│ (índice)  │  hero + texto + vizs   │  (âncoras)   │
+│ logo +    │                        │              │
+│ 13 aulas  │  texto legível ~720px  │  seções ##   │
+│ agrupadas │  vizs .larga = coluna  │  (rail)      │
+│ a atual   │  toda                  │              │
+│ destacada │                        │              │
+└───────────┴────────────────────────┴──────────────┘
+```
+
+- **Barra lateral fixa** (`.sidebar`, ~270px): logo + índice das 13 aulas por
+  bloco, a atual (`.nav-aula.ativa`) com fundo gradiente e borda esquerda roxa.
+  Persiste em todas as páginas. Vem de `data/aulas.ts`.
+- **Conteúdo** (`.leitura`): texto em medida legível (`max-width: 720px`,
+  alinhado à esquerda); visualizações levam a classe `larga` e usam a **coluna
+  inteira**. Markdown estiliza direto (`.leitura > h2`, `.leitura > p`).
+- **Rail "Nesta aula"** (`.rail`): âncoras das seções `##`, vindas de `headings`
+  (do `render(entry)`). Some abaixo de 1120px.
+- **Celular** (< 1000px): a sidebar vira **drawer** (botão ☰ na `.topbar`), o rail
+  some. Sem rolagem horizontal.
+- **Home**: hero + os 6 blocos em cards (`.blocos-grid`), usando a largura toda.
+- **"Tela cheia"** por visualização: `requestFullscreen` na `figure.viz-embed`; a
+  viz redimensiona para preencher a tela (JS lê `document.fullscreenElement`).
+
+> Numa tela **muito** larga (>1400px) sobra vão à direita — é esperado; em tela
+> normal fica equilibrado. Não é bug.
+
+### A assinatura "o arco"
+
+A ideia do **arco** (as 13 aulas como sequência/estações no gradiente) agora vive
+na **barra lateral** (índice vertical) e nos cards da home. A numeração A1→A13
+carrega informação real (a cadeia de pré-requisitos). Encarna o fecho do roteiro:
+*"de uma reta até agente e linguagem"*.
 
 ## Regras invioláveis
 

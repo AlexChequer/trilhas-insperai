@@ -43,6 +43,25 @@ Feitas as 4 visualizações. Aí o Alex pediu ajustes (todos implementados):
 Setup do Vercel (código no GitHub) e criação deste vault, porque o Alex limpa as
 conversas e o contexto precisa sobreviver.
 
+## 6. Redesign para layout estilo documentação + logos
+
+O Alex achou o layout centralizado feio/incompleto e a home básica. Reformulamos
+para o **padrão de página atual** (barra lateral fixa com índice + logo, conteúdo,
+rail "nesta aula"). Detalhe completo em [[Sistema de Design]]. Adicionadas as
+logos InsperAI em `public/`. Home virou hero + 6 blocos em cards.
+
+Dois bugs consertados junto:
+
+- **Tela cheia:** a viz ficava pequena boiando num vazio; agora preenche a tela
+  (o JS lê `document.fullscreenElement` e dimensiona o canvas), e só o botão da
+  figura ativa vira "Sair".
+- **Girar o 3D durante a descida:** o `setInterval` + `Plotly.restyle` recriava a
+  cena a cada passo e **travava a rotação**. Correção definitiva:
+  `Plotly.addFrames` + `Plotly.animate` (atualiza sem recriar a cena) **e** pausar
+  o avanço enquanto o mouse está pressionado (`mousedown`/`mouseup`). Resultado:
+  gira durante a descida; segurar o arraste pausa; soltar continua. (O
+  `uirevision` sozinho **não** resolvia — o problema era o restyle, não a câmera.)
+
 ---
 
 ### Princípios que se mantêm firmes
