@@ -22,17 +22,18 @@ const { titulo } = Astro.props;
     const btn = fig.querySelector<HTMLButtonElement>(".btn-telacheia");
     if (!btn) return;
     btn.addEventListener("click", () => {
-      if (document.fullscreenElement) {
+      if (document.fullscreenElement === fig) {
         Promise.resolve(document.exitFullscreen()).catch(ignora);
-      } else {
+      } else if (!document.fullscreenElement) {
         Promise.resolve(fig.requestFullscreen()).catch(ignora);
       }
     });
   });
+  // só o botão da figura que está em tela cheia vira "Sair".
   document.addEventListener("fullscreenchange", () => {
-    const cheia = !!document.fullscreenElement;
-    document.querySelectorAll(".btn-telacheia").forEach((b) => {
-      b.textContent = cheia ? "⤢ Sair" : "⛶ Tela cheia";
+    document.querySelectorAll<HTMLElement>(".viz-embed").forEach((fig) => {
+      const btn = fig.querySelector<HTMLButtonElement>(".btn-telacheia");
+      if (btn) btn.textContent = document.fullscreenElement === fig ? "⤢ Sair" : "⛶ Tela cheia";
     });
   });
 </script>

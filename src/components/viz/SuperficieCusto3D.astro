@@ -106,6 +106,9 @@
       margin: { l: 0, r: 0, t: 0, b: 0 },
       showlegend: false,
       scene: {
+        // uirevision preserva a câmera do usuário entre atualizações — sem isso, cada
+        // passo da animação reaplicava a câmera inicial e "travava" a rotação.
+        uirevision: "descida",
         xaxis: { title: { text: "w" }, backgroundcolor: "#f5f8fd", gridcolor: "#dbe2ee" },
         yaxis: { title: { text: "b" }, backgroundcolor: "#f5f8fd", gridcolor: "#dbe2ee" },
         zaxis: { title: { text: "custo" }, backgroundcolor: "#f5f8fd", gridcolor: "#dbe2ee" },
@@ -117,33 +120,62 @@
 
     await Plotly.newPlot(div, [superficie, traco, bola], layout, config);
 
+    // Frames pré-computados: animar por frames (em vez de restyle) atualiza os
+    // traços sem recriar a cena 3D — a rotação continua viva durante a descida.
+    const frames = caminho.map((p, i) => ({
+      name: "f" + i,
+      data: [
+        {
+          x: caminho.slice(0, i + 1).map((q) => q.w),
+          y: caminho.slice(0, i + 1).map((q) => q.b),
+          z: caminho.slice(0, i + 1).map((q) => q.J + LIFT),
+        },
+        { x: [p.w], y: [p.b], z: [p.J + LIFT] },
+      ],
+      traces: [1, 2],
+    }));
+    await Plotly.addFrames(div, frames);
+
+    const elPasso = raiz.querySelector<HTMLElement>("[data-passo]");
     let passo = 0;
     let timer: number | null = null;
+    let interagindo = false;
 
-    function render() {
-      const ate = caminho.slice(0, passo + 1);
-      Plotly.restyle(div, { x: [ate.map((p) => p.w)], y: [ate.map((p) => p.b)], z: [ate.map((p) => p.J + LIFT)] }, [1]);
-      const a = caminho[passo];
-      Plotly.restyle(div, { x: [[a.w]], y: [[a.b]], z: [[a.J + LIFT]] }, [2]);
-      const el = raiz.querySelector<HTMLElement>("[data-passo]");
-      if (el) el.textContent = "passo " + passo;
+    // Enquanto o usuário mexe no gráfico (girar/zoom), pausa o avanço para não
+    // interromper o gesto. Ao soltar, a descida continua de onde parou.
+    div.addEventListener("mousedown", () => { interagindo = true; });
+    div.addEventListener("touchstart", () => { interagindo = true; }, { passive: true });
+    window.addEventListener("mouseup", () => { interagindo = false; });
+    window.addEventListener("touchend", () => { interagindo = false; });
+
+    function mostrar(i: number) {
+      passo = i;
+      Plotly.animate(div, ["f" + i], {
+        mode: "immediate",
+        frame: { duration: 0, redraw: true },
+        transition: { duration: 0 },
+      });
+      if (elPasso) elPasso.textContent = "passo " + i;
+    }
+    function parar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
     }
     function rodar() {
       if (timer !== null) return;
-      if (passo >= PASSOS) { passo = 0; render(); }
+      if (passo >= PASSOS) mostrar(0);
       timer = window.setInterval(() => {
-        passo++; render();
-        if (passo >= PASSOS) { if (timer !== null) window.clearInterval(timer); timer = null; }
-      }, 500);
+        if (interagindo) return; // não avança enquanto o usuário gira o gráfico
+        if (passo >= PASSOS) { parar(); return; }
+        mostrar(passo + 1);
+      }, 540);
     }
     function passoUnico() {
-      if (timer !== null) { window.clearInterval(timer); timer = null; }
-      if (passo >= PASSOS) return;
-      passo++; render();
+      parar();
+      if (passo < PASSOS) mostrar(passo + 1);
     }
     function reiniciar() {
-      if (timer !== null) { window.clearInterval(timer); timer = null; }
-      passo = 0; render();
+      parar();
+      mostrar(0);
     }
     raiz.querySelector<HTMLButtonElement>("[data-rodar]")!.addEventListener("click", rodar);
     raiz.querySelector<HTMLButtonElement>("[data-passo-btn]")!.addEventListener("click", passoUnico);
@@ -151,5 +183,6 @@
 
     // acompanha mudança de tamanho (coluna, tela cheia)
     new ResizeObserver(() => Plotly.Plots.resize(div)).observe(div);
+    document.addEventListener("fullscreenchange", () => setTimeout(() => Plotly.Plots.resize(div), 60));
   });
 </script>

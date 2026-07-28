@@ -1,0 +1,78 @@
+---
+import Base from "./Base.astro";
+import { getCollection } from "astro:content";
+import { BLOCOS } from "../data/aulas";
+
+interface Props {
+  title: string;
+  descricao?: string;
+  slugAtual?: string; // aula atual, para destacar no índice
+}
+const { title, descricao, slugAtual } = Astro.props;
+const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
+---
+
+<Base title={title} descricao={descricao}>
+  <div class="app">
+    <header class="topbar">
+      <button class="menu-btn" type="button" aria-label="Abrir índice" data-menu>☰</button>
+      <a href="/" class="topbar-logo"><img src="/insperai-claro.png" alt="InsperAI" /></a>
+    </header>
+
+    <aside class="sidebar" data-sidebar>
+      <a href="/" class="sidebar-logo">
+        <img src="/insperai-claro.png" alt="InsperAI · Trilha de Trainees" />
+      </a>
+      <nav class="sidebar-nav" aria-label="Índice das aulas">
+        {
+          BLOCOS.map((bloco) => (
+            <div class="nav-bloco">
+              <p class="nav-bloco-titulo">{bloco.nome}</p>
+              {bloco.aulas.map((a) => {
+                const ativa = a.slug === slugAtual;
+                const temPagina = escritas.has(a.slug);
+                const cls =
+                  "nav-aula" + (ativa ? " ativa" : "") + (temPagina ? "" : " muda");
+                return temPagina ? (
+                  <a href={`/aulas/${a.slug}`} class={cls} aria-current={ativa ? "page" : undefined}>
+                    <span class="nav-aula-codigo">{a.n}</span>
+                    <span class="nav-aula-titulo">{a.titulo}</span>
+                  </a>
+                ) : (
+                  <span class={cls}>
+                    <span class="nav-aula-codigo">{a.n}</span>
+                    <span class="nav-aula-titulo">{a.titulo}</span>
+                  </span>
+                );
+              })}
+            </div>
+          ))
+        }
+      </nav>
+    </aside>
+
+    <div class="sidebar-backdrop" data-backdrop></div>
+
+    <main class="main">
+      <slot />
+    </main>
+  </div>
+
+  <script>
+    // Drawer no celular.
+    const btn = document.querySelector("[data-menu]");
+    const sidebar = document.querySelector("[data-sidebar]");
+    const backdrop = document.querySelector("[data-backdrop]");
+    const abrir = () => {
+      sidebar?.classList.add("aberta");
+      backdrop?.classList.add("visivel");
+    };
+    const fechar = () => {
+      sidebar?.classList.remove("aberta");
+      backdrop?.classList.remove("visivel");
+    };
+    btn?.addEventListener("click", abrir);
+    backdrop?.addEventListener("click", fechar);
+    sidebar?.querySelectorAll("a").forEach((a) => a.addEventListener("click", fechar));
+  </script>
+</Base>

@@ -165,7 +165,10 @@
       if (!canvas || !ctx) return;
       const dpr = window.devicePixelRatio || 1;
       W = canvas.clientWidth;
-      H = Math.round(Math.min(Math.max(W * 0.5, 280), 460));
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 240, 320), 780)
+        : Math.round(Math.min(Math.max(W * 0.5, 280), 460));
       canvas.style.height = H + "px";
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
@@ -178,6 +181,7 @@
       ultimaLargura = l;
       ajustar();
     }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
 
     ajustar();
   });
