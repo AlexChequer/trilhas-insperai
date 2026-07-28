@@ -1,13 +1,14 @@
 ---
 aula: A2
 bloco: Fundamentos
-status: pendente
+status: completa
 tags: [aula, fundamentos]
 ---
 
 # Aula 02 — Escalando o Modelo
 
-**Status: ⬜ pendente** (0/3) · slug `aula-02`
+**Status: ✅ COMPLETA** (3/3) · slug `aula-02`
+Componentes: `GrauPolinomio`, `NormalizacaoZigzag`, `HistogramasNormalizacao`.
 
 ## Objetivo
 

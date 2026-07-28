@@ -5,8 +5,8 @@ sessão deve olhar._
 
 ## Resumo
 
-- **Aula 1: COMPLETA** — 4 visualizações funcionando.
-- **Aulas 2–13:** aparecem no arco da home como "em breve"; ainda sem página `.mdx`.
+- **Aulas 1, 2 e 3: COMPLETAS** — 10 visualizações funcionando.
+- **Aulas 4–13:** aparecem no arco da home como "em breve"; ainda sem página `.mdx`.
 - **Infra pronta:** Astro + MDX + KaTeX + Plotly, **layout estilo documentação**
   (barra lateral com índice + logos InsperAI), home rica com cards. Ver [[Sistema de Design]].
 - **Deploy:** **no ar na Vercel** (push na `main` = deploy automático).
@@ -16,8 +16,8 @@ sessão deve olhar._
 | # | Nota | Página | Visualizações |
 |---|------|--------|---------------|
 | A1 | [[Aula 01]] | ✅ pronta | 4/4 ✅ |
-| A2 | [[Aula 02]] | ⬜ | 0/3 |
-| A3 | [[Aula 03]] | ⬜ | 0/3 |
+| A2 | [[Aula 02]] | ✅ pronta | 3/3 ✅ |
+| A3 | [[Aula 03]] | ✅ pronta | 3/3 ✅ |
 | A4 | [[Aula 04]] | ⬜ | 0/2 |
 | A5 | [[Aula 05]] | ⬜ | 0/3 |
 | A6 | [[Aula 06]] | ⬜ | 0/2 |
@@ -29,7 +29,7 @@ sessão deve olhar._
 | A12 | [[Aula 12]] | ⬜ | em aberto |
 | A13 | [[Aula 13]] | ⬜ | 0/2 |
 
-Total no arco: **1 de 30** visualizações prontas.
+Total no arco: **10 de 30** visualizações prontas.
 
 ## Aula 1 — visualizações prontas
 
@@ -40,9 +40,8 @@ Total no arco: **1 de 30** visualizações prontas.
 
 ## Próximos passos (candidatos)
 
-- **Conectar o Vercel** e ver de pé (ver [[Deploy]]).
-- Começar **[[Aula 02]]** e **[[Aula 03]]** (páginas + visualizações).
-- Alex sinalizou que vai **querer mudar mais coisa** na Aula 1 depois.
+- **Aulas 4–7** (Redes Neurais) ou **9–10** (CNNs) — próximas na prioridade.
+- Alex pode querer ajustar detalhes das aulas já prontas.
 
 ## Prioridade das visualizações (do prompt original)
 

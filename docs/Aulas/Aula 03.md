@@ -1,13 +1,14 @@
 ---
 aula: A3
 bloco: Fundamentos
-status: pendente
+status: completa
 tags: [aula, fundamentos]
 ---
 
 # Aula 03 — Classificação
 
-**Status: ⬜ pendente** (0/3) · slug `aula-03`
+**Status: ✅ COMPLETA** (3/3) · slug `aula-03`
+Componentes: `RetaVsSigmoid`, `FronteiraDecisao`, `MatrizConfusao`.
 
 ## Objetivo
 
