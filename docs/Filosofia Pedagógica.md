@@ -17,14 +17,20 @@ Funciona porque **você mexe numa coisa e vê a consequência imediatamente**, e
 porque a consequência **é** a lição. Toda visualização aqui tem que passar nesse
 teste. As regras concretas disso estão em [[Princípios das Visualizações]].
 
-## A camada de texto (mudança de rumo consciente)
+## A camada de texto (mudança de rumo, duas vezes)
 
 O `roteiro.md` original dizia: *"não escreva explicação longa dentro da página —
-quem explica é o professor"*. Na evolução para o site fluido, o Alex decidiu
-adicionar uma **camada leve de narrativa**: texto curto (1–2 frases por ideia)
-costurando as visualizações, para quem revisita sozinho em casa não ficar
-perdido. O texto é a muleta do estudo em casa; **a viz carrega o peso do
-ensino**. Ver [[Log de Decisões]].
+quem explica é o professor"*. Isso foi revisto **duas vezes**:
+
+1. Primeiro, o Alex pediu uma camada leve de narrativa (texto curto costurando as
+   visualizações), para quem revisita sozinho.
+2. Depois, ao ler o resultado, achou pouco intuitivo e fixou o padrão atual: **o
+   site tem que se explicar sozinho.** Escreva imaginando alguém lendo **sem
+   professor e sem nenhum outro apoio** — explique cada conceito do zero, com
+   intuição e o "porquê", definindo os termos.
+
+O texto **explica**; a viz dá a intuição e deixa mexer. Um não substitui o outro.
+Ver [[Log de Decisões]].
 
 ## Regras de ouro
 

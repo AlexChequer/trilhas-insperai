@@ -10,54 +10,83 @@ import GrauPolinomio from "../../components/viz/GrauPolinomio.astro";
 import NormalizacaoZigzag from "../../components/viz/NormalizacaoZigzag.astro";
 import HistogramasNormalizacao from "../../components/viz/HistogramasNormalizacao.astro";
 
-Na Aula 1 tudo tinha uma variável só. No mundo real, ninguém prevê preço só com metragem — entram quartos, idade, bairro.
+Na Aula 1, o modelo tinha uma variável só: previsão a partir da metragem. É ótimo para aprender, mas ninguém prevê preço de imóvel só com metragem — entram quartos, idade, bairro, andar. Esta aula tem um tema único: **o vetor de entrada pode ter o que você quiser dentro**. E, surpreendentemente, quase nada do algoritmo muda para acomodar isso.
 
 ## Mais de uma feature
 
-O modelo vira $w_1 x_1 + w_2 x_2 + \dots + b$. Escrever assim não escala, então empacota tudo em vetores:
+Cada informação de entrada é uma **feature**. Com várias delas, o modelo vira uma soma:
+
+$$
+\text{previsão} = w_1 x_1 + w_2 x_2 + \dots + w_n x_n + b
+$$
+
+Cada feature $x_i$ ganha o seu próprio peso $w_i$, que diz o quanto ela influencia a previsão. Escrever tudo por extenso não escala — imagine com 200 features. Então empacota-se as features num **vetor** $\mathbf{x}$ e os pesos num vetor $\mathbf{w}$, e a soma inteira vira um **produto escalar**:
 
 $$
 \text{previsão} = \mathbf{w} \cdot \mathbf{x} + b
 $$
 
-É a **mesma** regressão da Aula 1 — um produto escalar —, só que agora $\mathbf{x}$ é um vetor de features. Guarde essa notação: **sem ela, a Aula 5 vira um muro.**
+Repare que é a **mesma** regressão da Aula 1 — a mesma reta, a mesma ideia de ajustar pesos para minimizar o custo, o mesmo gradient descent. A única diferença é que $\mathbf{x}$ agora é um vetor em vez de um número. Guarde essa notação vetorial com carinho: **sem ela, a Aula 5 (redes neurais) vira um muro**, porque uma rede nada mais é do que muitos desses produtos escalares empilhados.
+
+## Feature engineering: escolher o que entra
+
+Se o vetor pode ter o que você quiser, a pergunta passa a ser: o que colocar nele? Isso se chama **feature engineering**, e é onde mora boa parte do julgamento de um projeto de ML.
+
+- Uma boa feature **carrega informação** sobre o que você quer prever. Metragem ajuda a prever preço; a cor da porta, não.
+- Às vezes a **combinação** de features é melhor que as partes: área é comprimento vezes largura, e a área explica preço melhor do que os dois lados soltos.
+- Às vezes **transformar** uma feature ajuda: o log da renda costuma funcionar melhor que a renda crua, porque comprime a cauda dos muito ricos.
+- E cuidado: uma feature ruim **não é neutra** — ela adiciona ruído e pode atrapalhar o treino.
 
 ## Regressão polinomial
 
-E se a relação não for uma reta? O truque é criar $x^2, x^3, \dots$ como **features novas** e rodar a mesma regressão linear. Você não mudou o algoritmo, mudou a entrada — por isso "linear" é sobre os **parâmetros**, não sobre a curva.
+E se a relação não for uma reta, mas uma curva? Aqui está o truque mais elegante da aula: você **cria features novas** a partir das que tem. Se tem $x$, crie também $x^2$, $x^3$, e por aí vai. Aí é só rodar a **mesma** regressão linear sobre esse conjunto ampliado.
 
-<span class="destaque">Aumente o grau</span> abaixo e veja a curva entortar para acompanhar os pontos.
+O resultado é uma curva, mas — e essa é a sacada que faz a ficha cair — você **não mudou o algoritmo**, só mudou a entrada. Por isso "linear" se refere aos **parâmetros** (os pesos entram de forma linear), não à forma do gráfico. Regressão polinomial é feature engineering, não um método novo.
+
+Mas há um perigo. <span class="destaque">Aumente o grau do polinômio</span> abaixo e observe: com grau baixo, a curva é simples demais e passa longe dos pontos (isso é **underfitting**). Com grau alto, ela se contorce para tocar cada ponto:
 
 <VizEmbed titulo="arraste o slider de grau, de 1 a 15">
   <GrauPolinomio />
 </VizEmbed>
 
-No **grau 15** a curva passa por todos os pontos e o erro de treino vai a zero — ela decorou o ruído. Guarde essa imagem: ela volta na Aula 7 como **overfitting**.
+No **grau 15**, a curva passa por todos os pontos e o erro de treino vai a zero. Parece perfeito — mas ela decorou o **ruído**, não a tendência. Numa metragem nova, ela chuta qualquer coisa. Guarde essa imagem: é o retrato do **overfitting**, e ela volta com esse nome na Aula 7.
 
 ## A escala atrapalha o treino
 
-Metragem vai de 30 a 500; quartos, de 1 a 5. O gradiente sente essas escalas de formas completamente diferentes: a tigela de custo vira um **vale esticado**, e o gradient descent **ziguezagueia** em vez de descer direto — precisando de muito mais passos.
+Agora um problema traiçoeiro que só aparece com várias features. Metragem vai de 30 a 500; número de quartos, de 1 a 5. São escalas completamente diferentes, e o gradient descent sente isso.
 
-<span class="destaque">Ligue e desligue a normalização</span> e veja o caminho mudar.
+Lembra da tigela de custo da Aula 1? Com features de escalas parecidas, ela é redonda, e a bola rola direto para o fundo. Com escalas muito diferentes, a tigela vira um **vale comprido e estreito** — íngreme numa direção, quase plano na outra. O gradiente aponta forte na direção íngreme e fraco na plana, então a bola **ziguezagueia**: bate de um lado a outro do vale enquanto se arrasta devagar rumo ao fundo. Ela chega, mas leva muito mais passos.
+
+<span class="destaque">Ligue e desligue a normalização</span> e veja o caminho mudar (o painel conta os passos até o fundo):
 
 <VizEmbed titulo="alterne entre com e sem normalização">
   <NormalizacaoZigzag />
 </VizEmbed>
 
+Pior ainda: se você criou $x^3$ na regressão polinomial, a escala daquela feature explodiu, e o problema fica bem mais grave.
+
 ## Pôr tudo na mesma escala
 
-A solução é deixar as features comparáveis: **normalização** (espremer para 0 a 1) ou **padronização** (média 0, desvio 1). Mesmos dados, escalas comparáveis.
+A solução é deixar as features comparáveis, com uma de duas técnicas:
+
+- **Normalização**: espreme cada feature para o intervalo de 0 a 1.
+- **Padronização**: recentra cada feature para ter **média 0 e desvio 1**.
+
+As duas resolvem o vale esticado; a padronização costuma ser a escolha padrão. Veja o efeito: no eixo real, a metragem se espalha e os quartos viram um risquinho perto do zero — incomparáveis. <span class="destaque">Padronize</span> e as duas passam a ocupar a mesma faixa:
 
 <VizEmbed titulo="padronize as duas features">
   <HistogramasNormalizacao />
 </VizEmbed>
 
 <p class="nota">
-  Um detalhe que volta na Aula 7: calcule a escala <strong>só no treino</strong>,
-  nunca no conjunto inteiro — senão o teste vaza para dentro do treino.
+  Um cuidado que volta na Aula 7: calcule a média e o desvio da escala usando
+  <strong>só os dados de treino</strong>, nunca o conjunto inteiro. Se você usa o
+  conjunto todo, informação do teste vaza para dentro do treino, e você passa a se
+  enganar sobre o quão bom o modelo é.
 </p>
 
 <p class="nota">
-  No fim da aula você monta um modelo com várias entradas, cria features novas, e
-  sabe explicar por que a escala atrapalha o treino.
+  No fim da aula você monta um modelo com várias entradas, cria features novas a
+  partir das que tem, e sabe explicar por que a escala das features atrapalha o
+  treino — e como consertar.
 </p>

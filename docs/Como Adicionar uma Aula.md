@@ -34,7 +34,9 @@ Mais texto...
 
 ## Convenções de conteúdo
 
-- **Texto curto**: 1–2 frases por ideia (ver [[Filosofia Pedagógica]]).
+- **Texto que se explica sozinho**: escreva para alguém lendo sem professor —
+  explique do zero, com intuição e o "porquê", definindo os termos (ver
+  [[Filosofia Pedagógica]]). As Aulas 1–3 são a referência de tom/profundidade.
 - Títulos de seção = `##` (viram `.secao-titulo` automaticamente).
 - Destaque de trecho: `<span class="destaque">...</span>`.
 - Fórmulas: inline `$...$`, display `$$...$$` (KaTeX já configurado).

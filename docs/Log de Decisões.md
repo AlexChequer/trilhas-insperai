@@ -62,6 +62,15 @@ Dois bugs consertados junto:
   gira durante a descida; segurar o arraste pausa; soltar continua. (O
   `uirevision` sozinho **não** resolvia — o problema era o restyle, não a câmera.)
 
+## 7. Texto passa a ser autoexplicativo (Aulas 1–3)
+
+Depois de ler as aulas prontas, o Alex achou o texto curto **pouco intuitivo** e
+mudou o rumo: o site tem que se explicar **sozinho**, para alguém lendo sem
+professor e sem outro apoio. Reescrevi a prosa das Aulas 1, 2 e 3 explicando cada
+conceito do zero (com intuição, o "porquê" e os termos definidos), mantendo as
+visualizações nos mesmos pontos. É o novo padrão de tom/profundidade — ver
+[[Filosofia Pedagógica]].
+
 ---
 
 ### Princípios que se mantêm firmes

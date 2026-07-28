@@ -10,45 +10,63 @@ import RetaVsSigmoid from "../../components/viz/RetaVsSigmoid.astro";
 import FronteiraDecisao from "../../components/viz/FronteiraDecisao.astro";
 import MatrizConfusao from "../../components/viz/MatrizConfusao.astro";
 
-Até agora a saída era um número. Agora ela é uma **classe**: spam ou não, fraude ou não. A resposta certa é 0 ou 1.
+Até agora a resposta era um número: um preço, uma nota. Isso é **regressão**. Mas muitos problemas pedem outra coisa: o e-mail é spam ou não? a transação é fraude ou não? o tumor é benigno ou maligno? Aqui a resposta é uma **classe**, não um número — e a maneira de modelar e de medir acerto muda. Isso é **classificação**, o segundo grande tipo de problema supervisionado, e o assunto desta aula. Vamos ficar no caso binário: duas classes, que a gente chama de 0 e 1.
 
-## Por que a reta quebra
+## Por que a regressão linear quebra
 
-Tente prever 0 ou 1 com uma reta e dois problemas aparecem: ela passa de 1 e vai abaixo de 0 — não existe "1,7 de spam" —, e **um único ponto distante gira a reta inteira**, movendo a fronteira e passando a errar pontos óbvios.
+A tentação é reaproveitar a reta da Aula 1: trate a classe como um número (0 ou 1) e faça regressão. Dois problemas aparecem na hora.
 
-<span class="destaque">Arraste o outlier</span> para a direita e compare: a reta desanda, a sigmoid aguenta.
+O primeiro: a reta não tem noção de limite. Ela passa de 1 e vai abaixo de 0, e não existe "1,7 de spam" ou "−0,3 de fraude". A saída precisava ser uma **probabilidade**, entre 0 e 1, e a reta não entrega isso.
+
+O segundo é mais sutil e mais perigoso: um único ponto distante **gira a reta inteira**. Como a regressão tenta minimizar o erro quadrático, um exemplo lá longe puxa a reta com força para reduzir aquele erro — e, no caminho, move a **fronteira** (o ponto onde a decisão vira de 0 para 1) para um lugar que erra exemplos que eram óbvios.
+
+<span class="destaque">Arraste o ponto vermelho</span> para a direita e compare as duas curvas: a reta (azul) desanda e começa a errar; a sigmoid (verde) aguenta firme.
 
 <VizEmbed titulo="arraste o ponto vermelho para longe">
   <RetaVsSigmoid />
 </VizEmbed>
 
-## A sigmoid vira probabilidade
+## A sigmoid e a regressão logística
 
-A **sigmoid** esmaga qualquer número real entre 0 e 1. Você calcula $\mathbf{w} \cdot \mathbf{x} + b$ igual antes e passa pela sigmoid — a saída vira **probabilidade**. Acima de 0,5 é classe 1; e o 0,5 é uma escolha, não uma lei. Isso é a **regressão logística** que, apesar do nome, é classificação.
+A curva verde que aguentou o outlier é uma **sigmoid**. Ela é uma função em formato de "S" que **esmaga qualquer número real para o intervalo entre 0 e 1**: valores muito negativos viram ~0, muito positivos viram ~1, e o zero vira 0,5.
 
-Um detalhe: com a sigmoid, o MSE vira uma superfície cheia de mínimos locais. Por isso o custo aqui é a **cross-entropy**, que pune com força a confiança errada — dizer 0,99 para algo que era 0 custa muito caro.
+O modelo fica assim: você calcula $\mathbf{w} \cdot \mathbf{x} + b$ exatamente como antes e depois **passa o resultado pela sigmoid**. A saída vira uma **probabilidade** — "80% de chance de ser spam". Para decidir a classe, aplica-se um **limiar**: acima de 0,5, classe 1; abaixo, classe 0. E vale gravar: esse 0,5 é uma **escolha**, não uma lei — mais adiante você vai querer mexer nele.
 
-## Fronteira de decisão
+Esse modelo tem um nome que confunde: **regressão logística**. Apesar do "regressão" no nome, ele é um **classificador**. Vale dizer isso em voz alta, porque o nome atrapalha.
 
-Onde o modelo fica em dúvida está a **fronteira**. Em duas features ela é uma reta. Mas e quando um grupo está _dentro_ do outro? Uma reta não separa. O truque é o mesmo da Aula 2: <span class="destaque">ligue features polinomiais</span> ($x_1^2,\ x_2^2,\ x_1 x_2$) e a fronteira vira curva.
+Um detalhe importante sobre o treino: com a sigmoid, usar o MSE cria uma superfície de custo cheia de mínimos locais e com o gradiente quase morto nas pontas — péssimo para o gradient descent. Por isso a função de custo aqui é a **cross-entropy** (entropia cruzada). A intuição dela: ela pune com força a **confiança errada**. Dizer "99% spam" para algo que era legítimo custa muito mais caro do que dizer "60% spam" e errar. Isso empurra o modelo a ser honesto sobre a própria incerteza.
+
+## A fronteira de decisão
+
+O lugar onde o modelo está em dúvida — onde a probabilidade cruza 0,5 — é a **fronteira de decisão**. Com duas features, ela é uma **reta** que divide o plano em duas regiões, uma para cada classe.
+
+Mas e quando os dados não podem ser divididos por uma reta? O caso clássico: uma classe formando uma bolha no centro, e a outra formando um anel em volta. Nenhuma reta separa um grupo que está _dentro_ do outro — a acurácia fica perto de 50%, um chute.
+
+A saída é a mesma da Aula 2: **features polinomiais**. Adicionando $x_1^2,\ x_2^2,\ x_1 x_2$ ao modelo, a fronteira deixa de ser reta e pode virar um **círculo** ou uma elipse — que separa a bolha do anel sem esforço. <span class="destaque">Ligue as features polinomiais</span> e veja a fronteira entortar (o fundo colorido mostra as duas regiões de decisão):
 
 <VizEmbed titulo="ligue as features polinomiais">
   <FronteiraDecisao />
 </VizEmbed>
 
-## A métrica certa
+## A métrica certa para o problema
 
-A armadilha da acurácia: num problema com 1% de fraude, dizer "não é fraude" sempre acerta 99% — e é inútil. Melhor olhar a **matriz de confusão** e os dois números que ela dá: **precision** (dos que chamei de positivo, quantos eram mesmo?) e **recall** (dos positivos reais, quantos eu peguei?).
+Falta medir acerto — e aqui há uma armadilha famosa. O reflexo é usar **acurácia** (fração de acertos). Mas imagine um problema com 1% de fraude: um modelo que diz "não é fraude" para tudo acerta **99%** — e é completamente inútil, porque nunca pega uma fraude. Em dados desbalanceados, acurácia engana.
 
-<span class="destaque">Mexa o limiar</span> e veja os dois andarem em direções opostas.
+O jeito honesto de olhar é a **matriz de confusão**, que separa os acertos e erros em quatro caixas: verdadeiros positivos (peguei um positivo de verdade), falsos positivos (chamei de positivo, mas era negativo), falsos negativos (deixei passar um positivo) e verdadeiros negativos. Dela saem dois números que quase sempre importam mais que a acurácia:
+
+- **Precision**: dos que o modelo chamou de positivo, quantos eram positivos de verdade? (Mede o quanto você pode confiar num alarme.)
+- **Recall**: dos positivos que existiam, quantos o modelo pegou? (Mede o quanto escapa.)
+
+O ponto crucial: os dois **brigam entre si**. Se você abaixa o limiar para pegar mais positivos, o recall sobe, mas entram mais falsos positivos e a precision cai. Se você levanta o limiar para ter certeza, a precision sobe, mas você deixa positivos passarem e o recall cai. <span class="destaque">Arraste o limiar</span> e veja os dois números andarem em direções opostas:
 
 <VizEmbed titulo="arraste o limiar de decisão">
   <MatrizConfusao />
 </VizEmbed>
 
-Diagnóstico de câncer quer **recall** alto (não perder um doente); filtro de spam quer **precision** alta (não jogar e-mail bom no lixo). O **F1** resume os dois — e engana justamente quando você precisa priorizar um.
+Qual priorizar depende do problema. Diagnóstico de câncer quer **recall** alto — deixar um doente passar é grave, um alarme falso é só um exame a mais. Filtro de spam quer **precision** alta — jogar um e-mail importante no lixo é pior do que deixar um spam entrar. Existe ainda o **F1**, que resume precision e recall num número só; ele é útil, mas engana justamente quando você precisa priorizar um dos dois.
 
 <p class="nota">
   No fim da aula você monta um classificador binário, explica por que a função de
-  custo muda, e escolhe a métrica certa para o problema.
+  custo muda em relação à regressão, e — o mais importante na prática — escolhe a
+  métrica certa para o problema em vez de olhar acurácia no automático.
 </p>
