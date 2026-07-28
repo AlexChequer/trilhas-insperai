@@ -1,0 +1,63 @@
+---
+n: "A2"
+titulo: "Escalando o Modelo"
+ordem: 2
+objetivo: "Sair do brinquedo de uma variável e chegar em algo parecido com o mundo real. Um tema só: seu vetor de entrada pode ter o que você quiser dentro."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import GrauPolinomio from "../../components/viz/GrauPolinomio.astro";
+import NormalizacaoZigzag from "../../components/viz/NormalizacaoZigzag.astro";
+import HistogramasNormalizacao from "../../components/viz/HistogramasNormalizacao.astro";
+
+Na Aula 1 tudo tinha uma variável só. No mundo real, ninguém prevê preço só com metragem — entram quartos, idade, bairro.
+
+## Mais de uma feature
+
+O modelo vira $w_1 x_1 + w_2 x_2 + \dots + b$. Escrever assim não escala, então empacota tudo em vetores:
+
+$$
+\text{previsão} = \mathbf{w} \cdot \mathbf{x} + b
+$$
+
+É a **mesma** regressão da Aula 1 — um produto escalar —, só que agora $\mathbf{x}$ é um vetor de features. Guarde essa notação: **sem ela, a Aula 5 vira um muro.**
+
+## Regressão polinomial
+
+E se a relação não for uma reta? O truque é criar $x^2, x^3, \dots$ como **features novas** e rodar a mesma regressão linear. Você não mudou o algoritmo, mudou a entrada — por isso "linear" é sobre os **parâmetros**, não sobre a curva.
+
+<span class="destaque">Aumente o grau</span> abaixo e veja a curva entortar para acompanhar os pontos.
+
+<VizEmbed titulo="arraste o slider de grau, de 1 a 15">
+  <GrauPolinomio />
+</VizEmbed>
+
+No **grau 15** a curva passa por todos os pontos e o erro de treino vai a zero — ela decorou o ruído. Guarde essa imagem: ela volta na Aula 7 como **overfitting**.
+
+## A escala atrapalha o treino
+
+Metragem vai de 30 a 500; quartos, de 1 a 5. O gradiente sente essas escalas de formas completamente diferentes: a tigela de custo vira um **vale esticado**, e o gradient descent **ziguezagueia** em vez de descer direto — precisando de muito mais passos.
+
+<span class="destaque">Ligue e desligue a normalização</span> e veja o caminho mudar.
+
+<VizEmbed titulo="alterne entre com e sem normalização">
+  <NormalizacaoZigzag />
+</VizEmbed>
+
+## Pôr tudo na mesma escala
+
+A solução é deixar as features comparáveis: **normalização** (espremer para 0 a 1) ou **padronização** (média 0, desvio 1). Mesmos dados, escalas comparáveis.
+
+<VizEmbed titulo="padronize as duas features">
+  <HistogramasNormalizacao />
+</VizEmbed>
+
+<p class="nota">
+  Um detalhe que volta na Aula 7: calcule a escala <strong>só no treino</strong>,
+  nunca no conjunto inteiro — senão o teste vaza para dentro do treino.
+</p>
+
+<p class="nota">
+  No fim da aula você monta um modelo com várias entradas, cria features novas, e
+  sabe explicar por que a escala atrapalha o treino.
+</p>

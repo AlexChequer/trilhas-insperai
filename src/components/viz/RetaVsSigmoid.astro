@@ -1,0 +1,227 @@
+---
+// Aula 3 · Prever 0 ou 1 com uma reta vs uma sigmoid, com um outlier arrastável.
+// Arraste o outlier para longe: a reta gira e passa a errar; a sigmoid aguenta.
+---
+
+<div class="viz-corpo" data-viz="retasigmoid">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Acertos da reta</p>
+      <p class="stat-valor" data-acc-reta>—</p>
+      <span class="stat-unidade">nos 6 pontos originais</span>
+    </div>
+    <div class="stat">
+      <p class="stat-rotulo">Acertos da sigmoid</p>
+      <p class="stat-valor" data-acc-sig>—</p>
+    </div>
+
+    <div class="viz-legenda">
+      <span><i style="background: var(--insper-azul)"></i> reta</span>
+      <span><i style="background: var(--verde)"></i> sigmoid</span>
+    </div>
+
+    <p class="stat-caminho" data-nota>Arraste o ponto vermelho para a direita.</p>
+  </aside>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="retasigmoid"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const elReta = raiz.querySelector<HTMLElement>("[data-acc-reta]")!;
+    const elSig = raiz.querySelector<HTMLElement>("[data-acc-sig]")!;
+    const elNota = raiz.querySelector<HTMLElement>("[data-nota]")!;
+
+    const FIXOS: [number, number][] = [
+      [1, 0], [2, 0], [3, 0], [5, 1], [6, 1], [7, 1],
+    ];
+    const OUT_MIN = 8, OUT_MAX = 30;
+    let outlierX = 12;
+    const DOMINIO = { xMin: 0, xMax: 31, yMin: -0.25, yMax: 1.25 };
+    const MARGEM = { topo: 24, dir: 20, base: 50, esq: 46 };
+
+    const COR = {
+      roxo: "#7c3aed", azul: "#2563eb", verde: "#16a34a", coral: "#f4603e",
+      ciano: "#0ea5e9", azulAco: "#294a6b", grade: "#eef2f8", eixo: "#c7d2e0",
+    };
+    let W = 0, H = 0, ultimaLargura = -1, arrastando = false;
+
+    const pontos = (): [number, number][] => [...FIXOS, [outlierX, 1]];
+
+    function linear(pts: [number, number][]) {
+      const n = pts.length;
+      let sx = 0, sy = 0, sxy = 0, sxx = 0;
+      for (const [x, y] of pts) { sx += x; sy += y; sxy += x * y; sxx += x * x; }
+      const a = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+      const b = (sy - a * sx) / n;
+      return { prever: (x: number) => a * x + b, fronteira: (0.5 - b) / a };
+    }
+    function logistica(pts: [number, number][]) {
+      const xs = pts.map((p) => p[0]);
+      const m = xs.reduce((s, x) => s + x, 0) / xs.length;
+      const s = Math.sqrt(xs.reduce((a, x) => a + (x - m) ** 2, 0) / xs.length) || 1;
+      const z = xs.map((x) => (x - m) / s);
+      let w = 0, b = 0;
+      for (let it = 0; it < 500; it++) {
+        let gw = 0, gb = 0;
+        for (let i = 0; i < pts.length; i++) {
+          const p = 1 / (1 + Math.exp(-(w * z[i] + b)));
+          const e = p - pts[i][1];
+          gw += e * z[i]; gb += e;
+        }
+        w -= (0.6 * gw) / pts.length; b -= (0.6 * gb) / pts.length;
+      }
+      return {
+        prever: (x: number) => 1 / (1 + Math.exp(-(w * ((x - m) / s) + b))),
+        fronteira: w !== 0 ? m + s * (-b / w) : NaN,
+      };
+    }
+
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const px = (x: number) => { const p = plot(); return p.x + (x - DOMINIO.xMin) / (DOMINIO.xMax - DOMINIO.xMin) * p.w; };
+    const py = (y: number) => { const p = plot(); return p.y + (1 - (y - DOMINIO.yMin) / (DOMINIO.yMax - DOMINIO.yMin)) * p.h; };
+    const pxInv = (v: number) => { const p = plot(); return DOMINIO.xMin + (v - p.x) / p.w * (DOMINIO.xMax - DOMINIO.xMin); };
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+      const pts = pontos();
+      const lin = linear(pts);
+      const log = logistica(pts);
+
+      // linhas de referência y=0, 0.5, 1
+      ctx.strokeStyle = COR.grade; ctx.lineWidth = 1; ctx.fillStyle = "#8b95a5";
+      ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (const y of [0, 0.5, 1]) {
+        const yy = py(y);
+        ctx.setLineDash(y === 0.5 ? [5, 5] : []);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(y === 0.5 ? "0,5" : String(y), p.x - 8, yy);
+      }
+      ctx.setLineDash([]);
+      // eixos
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("feature x", p.x + p.w / 2, H - 5);
+
+      // recorta a área
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y - 2, p.w, p.h + 4); ctx.clip();
+
+      // reta (regressão linear)
+      ctx.strokeStyle = COR.azul; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(px(DOMINIO.xMin), py(lin.prever(DOMINIO.xMin)));
+      ctx.lineTo(px(DOMINIO.xMax), py(lin.prever(DOMINIO.xMax)));
+      ctx.stroke();
+
+      // sigmoid (regressão logística)
+      ctx.strokeStyle = COR.verde; ctx.lineWidth = 4;
+      ctx.beginPath();
+      const NS = 240;
+      for (let i = 0; i <= NS; i++) {
+        const x = DOMINIO.xMin + (DOMINIO.xMax - DOMINIO.xMin) * (i / NS);
+        const X = px(x), Y = py(log.prever(x));
+        i === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y);
+      }
+      ctx.stroke();
+
+      // fronteiras de decisão (onde cada um cruza 0,5)
+      const fron = (x: number, cor: string) => {
+        if (!isFinite(x) || x < DOMINIO.xMin || x > DOMINIO.xMax) return;
+        ctx.strokeStyle = cor; ctx.lineWidth = 2; ctx.setLineDash([4, 5]); ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.moveTo(px(x), p.y); ctx.lineTo(px(x), p.y + p.h); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+      };
+      fron(lin.fronteira, COR.azul);
+      fron(log.fronteira, COR.verde);
+      ctx.restore();
+
+      // pontos
+      for (const [x, y] of FIXOS) {
+        ctx.beginPath(); ctx.arc(px(x), py(y), 7, 0, Math.PI * 2);
+        ctx.fillStyle = y === 1 ? COR.coral : COR.ciano; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      }
+      // outlier (arrastável)
+      const ox = px(outlierX), oy = py(1);
+      ctx.beginPath(); ctx.arc(ox, oy, arrastando ? 12 : 10, 0, Math.PI * 2);
+      ctx.fillStyle = COR.coral; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+      ctx.strokeStyle = "rgba(244,96,62,0.4)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ox, oy, 16, 0, Math.PI * 2); ctx.stroke();
+
+      // acurácia nos 6 fixos
+      const acc = (prev: (x: number) => number) =>
+        FIXOS.filter(([x, y]) => (prev(x) >= 0.5 ? 1 : 0) === y).length;
+      const aReta = acc(lin.prever), aSig = acc(log.prever);
+      elReta.textContent = aReta + "/6";
+      elSig.textContent = aSig + "/6";
+      elNota.innerHTML = aReta < 6
+        ? "A reta girou para alcançar o outlier e agora <strong>erra</strong> pontos que eram óbvios."
+        : "Arraste o outlier para a direita e veja a reta começar a errar.";
+    }
+
+    // arraste do outlier
+    const posX = (e: PointerEvent) => { const r = canvas.getBoundingClientRect(); return e.clientX - r.left; };
+    canvas.addEventListener("pointerdown", (e) => {
+      const mx = posX(e), r = canvas.getBoundingClientRect();
+      const my = e.clientY - r.top;
+      if (Math.hypot(mx - px(outlierX), my - py(1)) < 24) {
+        arrastando = true; canvas.setPointerCapture(e.pointerId); e.preventDefault(); desenhar();
+      }
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!arrastando) {
+        const mx = posX(e), r = canvas.getBoundingClientRect();
+        canvas.style.cursor = Math.hypot(mx - px(outlierX), (e.clientY - r.top) - py(1)) < 24 ? "ew-resize" : "default";
+        return;
+      }
+      outlierX = Math.min(OUT_MAX, Math.max(OUT_MIN, pxInv(posX(e))));
+      desenhar(); e.preventDefault();
+    });
+    const soltar = () => { arrastando = false; desenhar(); };
+    canvas.addEventListener("pointerup", soltar);
+    canvas.addEventListener("pointercancel", soltar);
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 150, 420), 900)
+        : Math.round(Math.min(Math.max(W * 0.58, 300), 520));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

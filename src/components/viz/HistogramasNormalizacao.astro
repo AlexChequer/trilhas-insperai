@@ -1,0 +1,169 @@
+---
+// Aula 2 · Duas features (metragem e quartos) no mesmo eixo.
+// Antes: escalas incomparáveis. Depois de padronizar: mesma escala.
+---
+
+<div class="viz-corpo" data-viz="histogramas">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Features comparáveis?</p>
+      <p class="stat-valor" data-estado>—</p>
+      <span class="stat-unidade" data-sub>—</span>
+    </div>
+
+    <div class="viz-legenda">
+      <span><i style="background: var(--coral)"></i> metragem (m²)</span>
+      <span><i style="background: var(--ciano)"></i> quartos</span>
+    </div>
+
+    <div class="viz-controles">
+      <button class="btn" type="button" data-toggle>Padronizar</button>
+    </div>
+
+    <p class="stat-caminho" data-nota></p>
+  </aside>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="histogramas"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const elEstado = raiz.querySelector<HTMLElement>("[data-estado]")!;
+    const elSub = raiz.querySelector<HTMLElement>("[data-sub]")!;
+    const elNota = raiz.querySelector<HTMLElement>("[data-nota]")!;
+    const btn = raiz.querySelector<HTMLButtonElement>("[data-toggle]")!;
+
+    // ---------- Gera os dados (determinístico) ----------
+    function rng(seed: number) {
+      return function () {
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    const rand = rng(42);
+    const gauss = () => {
+      let u = 0, v = 0;
+      while (u === 0) u = rand();
+      while (v === 0) v = rand();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+    const metragem: number[] = [], quartos: number[] = [];
+    for (let i = 0; i < 240; i++) {
+      metragem.push(Math.max(35, Math.min(500, 155 + gauss() * 72)));
+      quartos.push(Math.max(1, Math.min(6, Math.round(3 + gauss() * 1.05))));
+    }
+    const media = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
+    const desvio = (a: number[], m: number) => Math.sqrt(media(a.map((x) => (x - m) ** 2)));
+    const mMet = media(metragem), sMet = desvio(metragem, mMet);
+    const mQua = media(quartos), sQua = desvio(quartos, mQua);
+    const padr = (a: number[], m: number, s: number) => a.map((x) => (x - m) / s);
+
+    let padronizado = false;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const MARGEM = { topo: 18, dir: 18, base: 46, esq: 30 };
+    const COR = { coral: "#f4603e", ciano: "#0ea5e9", azulAco: "#294a6b", eixo: "#c7d2e0", grade: "#eef2f8" };
+
+    function histograma(dados: number[], min: number, max: number, nbins: number) {
+      const bins = new Array(nbins).fill(0);
+      for (const x of dados) {
+        let b = Math.floor(((x - min) / (max - min)) * nbins);
+        b = Math.max(0, Math.min(nbins - 1, b));
+        bins[b]++;
+      }
+      const pico = Math.max(...bins, 1);
+      return bins.map((c) => c / pico); // normaliza pela própria altura
+    }
+
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+      const NB = 30;
+      const dom = padronizado ? { min: -3.6, max: 3.6 } : { min: 0, max: 520 };
+      const met = padronizado ? padr(metragem, mMet, sMet) : metragem;
+      const qua = padronizado ? padr(quartos, mQua, sQua) : quartos;
+      const hMet = histograma(met, dom.min, dom.max, NB);
+      const hQua = histograma(qua, dom.min, dom.max, NB);
+
+      const bx = (i: number) => p.x + (i / NB) * p.w;
+      const bw = p.w / NB;
+      const by = (v: number) => p.y + p.h - v * p.h;
+
+      // eixo x + rótulos
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = "#8b95a5"; ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      const ticks = padronizado ? [-3, -2, -1, 0, 1, 2, 3] : [0, 100, 200, 300, 400, 500];
+      for (const t of ticks) {
+        const X = p.x + ((t - dom.min) / (dom.max - dom.min)) * p.w;
+        ctx.fillText(String(t), X, p.y + p.h + 7);
+      }
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+      ctx.textBaseline = "bottom";
+      ctx.fillText(padronizado ? "valor padronizado (média 0, desvio 1)" : "valor da feature", p.x + p.w / 2, H - 4);
+
+      // barras (sobrepostas, com transparência)
+      const barra = (h: number[], cor: string) => {
+        ctx.fillStyle = cor; ctx.globalAlpha = 0.62;
+        for (let i = 0; i < NB; i++) {
+          if (h[i] <= 0) continue;
+          const bh = h[i] * p.h;
+          ctx.fillRect(bx(i) + 1, by(h[i]), bw - 2, bh);
+        }
+        ctx.globalAlpha = 1;
+      };
+      barra(hMet, COR.coral);
+      barra(hQua, COR.ciano);
+
+      elEstado.textContent = padronizado ? "sim" : "não";
+      elSub.textContent = padronizado ? "ambas com média 0 e desvio 1" : "metragem em centenas, quartos em unidades";
+      btn.textContent = padronizado ? "Ver original" : "Padronizar";
+      elNota.innerHTML = padronizado
+        ? "Agora as duas ocupam a mesma faixa — o gradiente as trata igual."
+        : "No eixo real, <strong>quartos</strong> vira um risquinho perto do zero: escalas incomparáveis.";
+    }
+
+    btn.addEventListener("click", () => { padronizado = !padronizado; desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 150, 400), 860)
+        : Math.round(Math.min(Math.max(W * 0.58, 300), 520));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

@@ -1,0 +1,204 @@
+---
+// Aula 2 · Slider de grau do polinômio (1 a 15) sobre dados com ruído.
+// Grau baixo: underfitting. Grau 15: passa por todos os pontos (decorou o ruído).
+---
+
+<div class="viz-corpo" data-viz="polinomio">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Erro de treino (RMSE)</p>
+      <p class="stat-valor" data-erro>—</p>
+      <span class="stat-unidade">quanto a curva erra nos próprios pontos</span>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Grau do polinômio <span class="valor" data-grau-val>1</span></label>
+        <input type="range" data-grau min="1" max="15" step="1" value="1" />
+      </div>
+      <p class="stat-caminho" data-nota></p>
+    </div>
+  </aside>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="polinomio"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const slider = raiz.querySelector<HTMLInputElement>("[data-grau]")!;
+    const elGrauVal = raiz.querySelector<HTMLElement>("[data-grau-val]")!;
+    const elErro = raiz.querySelector<HTMLElement>("[data-erro]")!;
+    const elNota = raiz.querySelector<HTMLElement>("[data-nota]")!;
+
+    // dados com ruído: uma corcova com dispersão (16 pontos)
+    const PONTOS: [number, number][] = [
+      [0, 40], [1, 38], [2, 52], [3, 54], [4, 70], [5, 72], [6, 88], [7, 84],
+      [8, 92], [9, 80], [10, 82], [11, 62], [12, 60], [13, 44], [14, 46], [15, 34],
+    ];
+    const DOMINIO = { xMin: -0.6, xMax: 15.6, yMin: 0, yMax: 105 };
+    const MARGEM = { topo: 22, dir: 22, base: 48, esq: 52 };
+
+    const COR = {
+      roxo: "#7c3aed", azul: "#2563eb", azulAco: "#294a6b",
+      ponto: "#3730a3", grade: "#eef2f8", eixo: "#c7d2e0",
+    };
+    const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    // ---------- Ajuste de mínimos quadrados (x normalizado para [-1,1]) ----------
+    const XS = PONTOS.map((p) => p[0]);
+    const YS = PONTOS.map((p) => p[1]);
+    const XMIN = Math.min(...XS), XMAX = Math.max(...XS);
+    const norm = (x: number) => (2 * (x - XMIN)) / (XMAX - XMIN) - 1;
+
+    function resolver(A: number[][], b: number[]): number[] {
+      const n = b.length;
+      const M = A.map((row, i) => [...row, b[i]]);
+      for (let col = 0; col < n; col++) {
+        let piv = col;
+        for (let r = col + 1; r < n; r++)
+          if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
+        [M[col], M[piv]] = [M[piv], M[col]];
+        const d = M[col][col];
+        if (Math.abs(d) < 1e-12) continue;
+        for (let r = 0; r < n; r++) {
+          if (r === col) continue;
+          const f = M[r][col] / d;
+          for (let k = col; k <= n; k++) M[r][k] -= f * M[col][k];
+        }
+      }
+      return M.map((row, i) => (Math.abs(M[i][i]) < 1e-12 ? 0 : row[n] / M[i][i]));
+    }
+
+    function ajustar_poly(grau: number): number[] {
+      const n = grau + 1;
+      const A = Array.from({ length: n }, () => new Array(n).fill(0));
+      const rhs = new Array(n).fill(0);
+      for (let i = 0; i < XS.length; i++) {
+        const p: number[] = [1];
+        for (let j = 1; j < n; j++) p[j] = p[j - 1] * norm(XS[i]);
+        for (let a = 0; a < n; a++) {
+          rhs[a] += p[a] * YS[i];
+          for (let b = 0; b < n; b++) A[a][b] += p[a] * p[b];
+        }
+      }
+      return resolver(A, rhs);
+    }
+    function avaliar(coef: number[], x: number): number {
+      const nx = norm(x);
+      let y = 0, p = 1;
+      for (let j = 0; j < coef.length; j++) { y += coef[j] * p; p *= nx; }
+      return y;
+    }
+
+    // ---------- Coordenadas ----------
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const px = (x: number) => { const p = plot(); return p.x + (x - DOMINIO.xMin) / (DOMINIO.xMax - DOMINIO.xMin) * p.w; };
+    const py = (y: number) => { const p = plot(); return p.y + (1 - (y - DOMINIO.yMin) / (DOMINIO.yMax - DOMINIO.yMin)) * p.h; };
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+      const grau = parseInt(slider.value);
+      const coef = ajustar_poly(grau);
+
+      // grade + rótulos
+      ctx.lineWidth = 1; ctx.strokeStyle = COR.grade; ctx.fillStyle = "#8b95a5";
+      ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let y = 0; y <= 100; y += 25) {
+        const yy = py(y);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(String(y), p.x - 8, yy);
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let x = 0; x <= 15; x += 3) {
+        ctx.beginPath(); ctx.moveTo(px(x), p.y); ctx.lineTo(px(x), p.y + p.h); ctx.stroke();
+        ctx.fillText(String(x), px(x), p.y + p.h + 7);
+      }
+      // eixos + títulos
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 15px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("x", p.x + p.w / 2, H - 5);
+      ctx.save(); ctx.translate(15, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("y", 0, 0); ctx.restore();
+
+      // curva ajustada (amostra densa, recortada na área)
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+      ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      const g = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+      g.addColorStop(0, COR.roxo); g.addColorStop(1, COR.azul); ctx.strokeStyle = g;
+      ctx.beginPath();
+      const N = 400;
+      for (let i = 0; i <= N; i++) {
+        const x = DOMINIO.xMin + (DOMINIO.xMax - DOMINIO.xMin) * (i / N);
+        const y = avaliar(coef, x);
+        const X = px(x), Y = py(y);
+        if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // pontos
+      for (const [x, y] of PONTOS) {
+        ctx.beginPath(); ctx.arc(px(x), py(y), 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = COR.ponto; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      }
+
+      // erro de treino (RMSE)
+      let soma = 0;
+      for (const [x, y] of PONTOS) { const e = avaliar(coef, x) - y; soma += e * e; }
+      const rmse = Math.sqrt(soma / PONTOS.length);
+      elErro.textContent = nf1.format(rmse);
+      elGrauVal.textContent = String(grau);
+      elNota.textContent =
+        grau === 1 ? "Grau 1 é uma reta — simples demais (underfitting)."
+        : grau >= 13 ? "Grau alto passa por (quase) todos os pontos — decorou o ruído."
+        : "Um bom grau captura a tendência sem decorar o ruído.";
+    }
+
+    slider.addEventListener("input", desenhar);
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 150, 420), 960)
+        : Math.round(Math.min(Math.max(W * 0.6, 300), 540));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

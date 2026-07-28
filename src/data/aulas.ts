@@ -30,12 +30,12 @@ export const BLOCOS: BlocoArco[] = [
       {
         n: "A2", slug: "aula-02", titulo: "Escalando o Modelo",
         desc: "Várias features, regressão polinomial e por que a escala atrapalha o treino.",
-        prontas: 0, total: 3,
+        prontas: 3, total: 3,
       },
       {
         n: "A3", slug: "aula-03", titulo: "Classificação",
         desc: "Prever classe em vez de número: sigmoid, fronteira de decisão e a métrica certa.",
-        prontas: 0, total: 3,
+        prontas: 3, total: 3,
       },
     ],
   },

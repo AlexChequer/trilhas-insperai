@@ -1,0 +1,54 @@
+---
+n: "A3"
+titulo: "Classificação"
+ordem: 3
+objetivo: "O segundo tipo de problema supervisionado — e como se mede acerto quando a saída é uma classe, não um número."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import RetaVsSigmoid from "../../components/viz/RetaVsSigmoid.astro";
+import FronteiraDecisao from "../../components/viz/FronteiraDecisao.astro";
+import MatrizConfusao from "../../components/viz/MatrizConfusao.astro";
+
+Até agora a saída era um número. Agora ela é uma **classe**: spam ou não, fraude ou não. A resposta certa é 0 ou 1.
+
+## Por que a reta quebra
+
+Tente prever 0 ou 1 com uma reta e dois problemas aparecem: ela passa de 1 e vai abaixo de 0 — não existe "1,7 de spam" —, e **um único ponto distante gira a reta inteira**, movendo a fronteira e passando a errar pontos óbvios.
+
+<span class="destaque">Arraste o outlier</span> para a direita e compare: a reta desanda, a sigmoid aguenta.
+
+<VizEmbed titulo="arraste o ponto vermelho para longe">
+  <RetaVsSigmoid />
+</VizEmbed>
+
+## A sigmoid vira probabilidade
+
+A **sigmoid** esmaga qualquer número real entre 0 e 1. Você calcula $\mathbf{w} \cdot \mathbf{x} + b$ igual antes e passa pela sigmoid — a saída vira **probabilidade**. Acima de 0,5 é classe 1; e o 0,5 é uma escolha, não uma lei. Isso é a **regressão logística** que, apesar do nome, é classificação.
+
+Um detalhe: com a sigmoid, o MSE vira uma superfície cheia de mínimos locais. Por isso o custo aqui é a **cross-entropy**, que pune com força a confiança errada — dizer 0,99 para algo que era 0 custa muito caro.
+
+## Fronteira de decisão
+
+Onde o modelo fica em dúvida está a **fronteira**. Em duas features ela é uma reta. Mas e quando um grupo está _dentro_ do outro? Uma reta não separa. O truque é o mesmo da Aula 2: <span class="destaque">ligue features polinomiais</span> ($x_1^2,\ x_2^2,\ x_1 x_2$) e a fronteira vira curva.
+
+<VizEmbed titulo="ligue as features polinomiais">
+  <FronteiraDecisao />
+</VizEmbed>
+
+## A métrica certa
+
+A armadilha da acurácia: num problema com 1% de fraude, dizer "não é fraude" sempre acerta 99% — e é inútil. Melhor olhar a **matriz de confusão** e os dois números que ela dá: **precision** (dos que chamei de positivo, quantos eram mesmo?) e **recall** (dos positivos reais, quantos eu peguei?).
+
+<span class="destaque">Mexa o limiar</span> e veja os dois andarem em direções opostas.
+
+<VizEmbed titulo="arraste o limiar de decisão">
+  <MatrizConfusao />
+</VizEmbed>
+
+Diagnóstico de câncer quer **recall** alto (não perder um doente); filtro de spam quer **precision** alta (não jogar e-mail bom no lixo). O **F1** resume os dois — e engana justamente quando você precisa priorizar um.
+
+<p class="nota">
+  No fim da aula você monta um classificador binário, explica por que a função de
+  custo muda, e escolhe a métrica certa para o problema.
+</p>

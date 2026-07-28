@@ -1,0 +1,187 @@
+---
+// Aula 3 · Matriz de confusão com slider de limiar. Precision e recall se movem
+// em direções opostas conforme o limiar anda.
+---
+
+<div class="viz-corpo" data-viz="matriz">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Limiar de decisão <span class="valor" data-lim-val>0,50</span></label>
+        <input type="range" data-lim min="0.02" max="0.98" step="0.01" value="0.5" />
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="mc-par">
+        <div>
+          <p class="stat-rotulo">Precision</p>
+          <p class="stat-valor" data-prec>—</p>
+          <div class="mc-barra"><i data-prec-bar style="width:0%"></i></div>
+        </div>
+        <div>
+          <p class="stat-rotulo">Recall</p>
+          <p class="stat-valor" data-rec>—</p>
+          <div class="mc-barra"><i data-rec-bar style="width:0%"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="matriz">
+      <div class="mcell tp"><b data-tp>0</b><span>acerto + (TP)</span></div>
+      <div class="mcell fn"><b data-fn>0</b><span>perdeu + (FN)</span></div>
+      <div class="mcell fp"><b data-fp>0</b><span>falso + (FP)</span></div>
+      <div class="mcell tn"><b data-tn>0</b><span>acerto − (TN)</span></div>
+    </div>
+
+    <p class="stat-caminho" data-nota></p>
+  </aside>
+</div>
+
+<style>
+  .mc-par { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .mc-barra { margin-top: 6px; height: 6px; border-radius: 999px; background: var(--borda); overflow: hidden; }
+  .mc-barra > i { display: block; height: 100%; border-radius: 999px; background: var(--insper-gradiente); }
+  .matriz { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mcell { border-radius: 9px; padding: 10px; text-align: center; }
+  .mcell b { display: block; font-family: var(--fonte-dados); font-size: 1.5rem; font-weight: 700; color: var(--insper-azul-aco); }
+  .mcell span { font-size: 0.72rem; color: var(--texto-suave); }
+  .mcell.tp, .mcell.tn { background: rgba(22, 163, 74, 0.13); }
+  .mcell.fp, .mcell.fn { background: rgba(244, 96, 62, 0.15); }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="matriz"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const slider = raiz.querySelector<HTMLInputElement>("[data-lim]")!;
+    const g = (s: string) => raiz.querySelector<HTMLElement>(s)!;
+    const nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+    const nf2 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // exemplos: (rótulo verdadeiro, probabilidade prevista). Determinístico.
+    function rng(seed: number) {
+      return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    }
+    const rand = rng(11);
+    const gauss = () => { let u = 0, v = 0; while (u === 0) u = rand(); while (v === 0) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+    const clamp = (x: number) => Math.max(0.02, Math.min(0.98, x));
+    const EX: { y: number; p: number }[] = [];
+    for (let i = 0; i < 16; i++) EX.push({ y: 1, p: clamp(0.68 + gauss() * 0.17) });
+    for (let i = 0; i < 22; i++) EX.push({ y: 0, p: clamp(0.32 + gauss() * 0.17) });
+
+    let W = 0, H = 0, ultimaLargura = -1;
+    const MARGEM = { topo: 26, dir: 20, base: 40, esq: 20 };
+    const COR = { coral: "#f4603e", ciano: "#0ea5e9", azulAco: "#294a6b", eixo: "#c7d2e0" };
+
+    const plot = () => ({ x: MARGEM.esq, y: MARGEM.topo, w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base });
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      const tau = parseFloat(slider.value);
+      ctx.clearRect(0, 0, W, H);
+      const p = plot();
+      const yPos = p.y + p.h * 0.32;
+      const bx = (prob: number) => p.x + prob * p.w;
+
+      // faixa "previsto positivo" (à direita do limiar)
+      ctx.fillStyle = "rgba(244,96,62,0.07)";
+      ctx.fillRect(bx(tau), p.y, p.x + p.w - bx(tau), p.h);
+
+      // eixo de probabilidade
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+      ctx.fillStyle = "#8b95a5"; ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) ctx.fillText(nf2.format(t), bx(t), p.y + p.h + 7);
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 13px " + fonte();
+      ctx.textBaseline = "bottom"; ctx.fillText("probabilidade prevista", p.x + p.w / 2, H - 4);
+
+      // rótulos das faixas
+      ctx.fillStyle = COR.coral; ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText("reais +", p.x + 2, yPos - 22);
+      ctx.fillStyle = COR.ciano;
+      ctx.fillText("reais −", p.x + 2, p.y + p.h * 0.7 - 22);
+
+      // pontos (jitter determinístico por índice)
+      EX.forEach((e, i) => {
+        const jitter = ((i * 37) % 11 - 5) * 1.6;
+        const yy = (e.y === 1 ? yPos : p.y + p.h * 0.7) + jitter;
+        ctx.beginPath(); ctx.arc(bx(e.p), yy, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = e.y === 1 ? COR.coral : COR.ciano; ctx.fill();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = "#fff"; ctx.stroke();
+      });
+
+      // linha do limiar
+      ctx.strokeStyle = COR.azulAco; ctx.lineWidth = 2.5; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.moveTo(bx(tau), p.y - 6); ctx.lineTo(bx(tau), p.y + p.h); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 12px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("limiar", bx(tau), p.y - 8);
+
+      // contagens
+      let tp = 0, fp = 0, fn = 0, tn = 0;
+      for (const e of EX) {
+        const prev = e.p >= tau ? 1 : 0;
+        if (e.y === 1 && prev === 1) tp++;
+        else if (e.y === 1 && prev === 0) fn++;
+        else if (e.y === 0 && prev === 1) fp++;
+        else tn++;
+      }
+      const precision = tp + fp > 0 ? tp / (tp + fp) : 1;
+      const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+
+      g("[data-lim-val]").textContent = nf2.format(tau);
+      g("[data-tp]").textContent = String(tp);
+      g("[data-fn]").textContent = String(fn);
+      g("[data-fp]").textContent = String(fp);
+      g("[data-tn]").textContent = String(tn);
+      g("[data-prec]").textContent = nf0.format(precision * 100) + "%";
+      g("[data-rec]").textContent = nf0.format(recall * 100) + "%";
+      g("[data-prec-bar]").style.width = precision * 100 + "%";
+      g("[data-rec-bar]").style.width = recall * 100 + "%";
+      g("[data-nota]").innerHTML = tau > 0.62
+        ? "Limiar alto: exige confiança → <strong>precision sobe</strong>, recall cai."
+        : tau < 0.38
+        ? "Limiar baixo: aceita quase tudo → <strong>recall sobe</strong>, precision cai."
+        : "Mexa o limiar: os dois números andam em <strong>direções opostas</strong>.";
+    }
+
+    slider.addEventListener("input", desenhar);
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 150, 380), 720)
+        : Math.round(Math.min(Math.max(W * 0.5, 260), 440));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

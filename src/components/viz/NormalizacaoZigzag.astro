@@ -1,0 +1,165 @@
+---
+// Aula 2 · A mesma tigela de custo com e sem normalização (vista de cima).
+// Sem: vale esticado → o gradient descent ziguezagueia. Com: tigela redonda → desce reto.
+---
+
+<div class="viz-corpo" data-viz="zigzag">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Passos até o fundo</p>
+      <p class="stat-valor" data-passos>—</p>
+      <span class="stat-unidade" data-modo>—</span>
+    </div>
+
+    <div class="viz-controles">
+      <button class="btn" type="button" data-toggle>Ativar normalização</button>
+    </div>
+
+    <p class="stat-caminho" data-nota></p>
+  </aside>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="zigzag"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const elPassos = raiz.querySelector<HTMLElement>("[data-passos]")!;
+    const elModo = raiz.querySelector<HTMLElement>("[data-modo]")!;
+    const elNota = raiz.querySelector<HTMLElement>("[data-nota]")!;
+    const btn = raiz.querySelector<HTMLButtonElement>("[data-toggle]")!;
+
+    // curvatura da tigela: sem normalização é muito mais íngreme em w1 que em w2
+    const SEM = { k1: 24, k2: 1.2 };
+    const COM = { k1: 6, k2: 6 };
+    const LR = 0.075;
+    const INICIO: [number, number] = [0.82, 0.86];
+    const VISTA = 1.06;
+
+    let normalizado = false;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    const COR = {
+      roxo: "#7c3aed", coral: "#f4603e", azulAco: "#294a6b",
+      contorno: "#dfe6f2", eixo: "#eef2f8", min: "#94a3b8",
+    };
+
+    function caminho(cfg: { k1: number; k2: number }) {
+      let u = INICIO[0], v = INICIO[1];
+      const pts: [number, number][] = [[u, v]];
+      let passos = 60;
+      for (let i = 0; i < 60; i++) {
+        u *= 1 - LR * cfg.k1;
+        v *= 1 - LR * cfg.k2;
+        pts.push([u, v]);
+        if (Math.hypot(u, v) < 0.02 && passos === 60) passos = i + 1;
+      }
+      return { pts, passos };
+    }
+
+    const plot = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const MARGEM = { topo: 16, dir: 16, base: 34, esq: 34 };
+    // escala igual nos dois eixos (top-down honesto)
+    function geo() {
+      const p = plot();
+      const s = Math.min(p.w, p.h) / 2 / VISTA;
+      const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+      return { p, s, cx, cy };
+    }
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const cfg = normalizado ? COM : SEM;
+      const { p, s, cx, cy } = geo();
+      const wx = (u: number) => cx + u * s;
+      const wy = (v: number) => cy - v * s;
+
+      // recorta na área do gráfico
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+
+      // contornos de custo (elipses): u-semi-eixo r, v-semi-eixo r*sqrt(k1/k2)
+      ctx.strokeStyle = COR.contorno; ctx.lineWidth = 1.5;
+      const razao = Math.sqrt(cfg.k1 / cfg.k2);
+      for (const r of [0.2, 0.4, 0.6, 0.8, 1.0]) {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, r * s, r * razao * s, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // eixos
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x, cy); ctx.lineTo(p.x + p.w, cy); ctx.moveTo(cx, p.y); ctx.lineTo(cx, p.y + p.h); ctx.stroke();
+      // mínimo
+      ctx.fillStyle = COR.min;
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+
+      // caminho do gradient descent
+      const { pts, passos } = caminho(cfg);
+      const cor = normalizado ? COR.roxo : COR.coral;
+      ctx.strokeStyle = cor; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath();
+      pts.forEach(([u, v], i) => { const X = wx(u), Y = wy(v); i === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y); });
+      ctx.stroke();
+      for (let i = 0; i < pts.length; i += 1) {
+        const [u, v] = pts[i];
+        ctx.beginPath(); ctx.arc(wx(u), wy(v), i === 0 ? 6 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? cor : "#fff"; ctx.fill();
+        ctx.strokeStyle = cor; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      ctx.restore();
+
+      // rótulos dos eixos
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+      ctx.fillText("w₁", p.x + p.w - 4, cy - 4);
+      ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillText("w₂", cx + 5, p.y + 2);
+
+      // painel
+      elPassos.textContent = String(passos);
+      elModo.textContent = normalizado ? "com normalização · descida reta" : "sem normalização · ziguezague";
+      btn.textContent = normalizado ? "Desativar normalização" : "Ativar normalização";
+      elNota.innerHTML = normalizado
+        ? "Features na mesma escala → tigela redonda → o gradiente aponta direto pro fundo."
+        : "Escalas diferentes → vale esticado → o gradiente <strong>ziguezagueia</strong> e demora.";
+    }
+
+    btn.addEventListener("click", () => { normalizado = !normalizado; desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 150, 420), 900)
+        : Math.round(Math.min(Math.max(W * 0.7, 320), 560));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>
