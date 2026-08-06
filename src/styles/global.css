@@ -809,6 +809,87 @@ a.mini-aula:hover {
   color: var(--texto-suave);
 }
 
+/* ---------- Bloco de código (padrão GitHub, com botão de copiar) ----------
+   A estrutura .bloco-codigo > .bloco-codigo-barra + pre é montada em JS no
+   SiteLayout, porque o Markdown não emite isso sozinho. O Shiki escreve o
+   fundo num style inline, daí os !important. */
+
+.leitura .bloco-codigo {
+  margin: clamp(18px, 2.6vw, 26px) 0;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f6f8fa;
+}
+
+.leitura .bloco-codigo-barra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px 7px 16px;
+  background: #fff;
+  border-bottom: 1px solid #d0d7de;
+}
+
+.leitura .bloco-codigo-lang {
+  font-family: var(--fonte-dados);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.leitura .btn-copiar {
+  margin-left: auto;
+  appearance: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  min-height: 32px;
+  border-radius: 7px;
+  border: 1px solid #d0d7de;
+  background: #f6f8fa;
+  color: var(--insper-azul-aco);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.leitura .btn-copiar:hover {
+  background: #eaeef2;
+  border-color: #afb8c1;
+}
+.leitura .btn-copiar:focus-visible {
+  outline: 3px solid var(--insper-azul);
+  outline-offset: 2px;
+}
+.leitura .btn-copiar.copiado {
+  color: #fff;
+  background: var(--verde);
+  border-color: var(--verde);
+}
+
+.leitura .bloco-codigo pre.astro-code {
+  margin: 0;
+  padding: 16px;
+  background: #f6f8fa !important;
+  font-family: var(--fonte-dados);
+  font-size: 0.86rem;
+  line-height: 1.65;
+  overflow-x: auto;
+  tab-size: 4;
+}
+
+/* Código no meio da frase: pílula discreta, para não competir com o <Termo>. */
+.leitura :not(pre) > code {
+  font-family: var(--fonte-dados);
+  font-size: 0.88em;
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  background: rgba(41, 74, 107, 0.07);
+  color: var(--insper-azul-aco);
+}
+
 /* Também disponíveis como classe, para uso manual fora de Markdown */
 .sobrancelha {
   font-family: var(--fonte-dados);

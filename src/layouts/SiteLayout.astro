@@ -81,6 +81,76 @@ const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.dat
   </div>
 
   <script>
+    // Bloco de código no padrão GitHub: o <pre> que o Shiki gera é envolvido
+    // num contêiner com barra (linguagem + botão de copiar). Feito em JS porque
+    // o Markdown do MDX não tem como emitir essa estrutura sozinho.
+    const NOMES: Record<string, string> = {
+      python: "Python",
+      bash: "Terminal",
+      sh: "Terminal",
+      shell: "Terminal",
+      console: "Terminal",
+      powershell: "PowerShell",
+      js: "JavaScript",
+      ts: "TypeScript",
+      json: "JSON",
+      yaml: "YAML",
+      css: "CSS",
+      html: "HTML",
+    };
+
+    document.querySelectorAll<HTMLElement>(".leitura pre.astro-code").forEach((pre) => {
+      const idioma = pre.dataset.language ?? "";
+      const caixa = document.createElement("div");
+      caixa.className = "bloco-codigo";
+
+      const barra = document.createElement("div");
+      barra.className = "bloco-codigo-barra";
+
+      const rotulo = document.createElement("span");
+      rotulo.className = "bloco-codigo-lang";
+      rotulo.textContent = NOMES[idioma] ?? (idioma || "código");
+
+      const botao = document.createElement("button");
+      botao.type = "button";
+      botao.className = "btn-copiar";
+      botao.textContent = "Copiar";
+      botao.setAttribute("aria-label", "Copiar o código");
+
+      let voltar: number | undefined;
+      botao.addEventListener("click", async () => {
+        const texto = pre.querySelector("code")?.innerText ?? "";
+        try {
+          await navigator.clipboard.writeText(texto);
+          botao.textContent = "Copiado!";
+          botao.classList.add("copiado");
+        } catch {
+          // clipboard bloqueado (http, permissão negada): seleciona para o
+          // usuário copiar à mão em vez de fingir que deu certo
+          const alvo = pre.querySelector("code");
+          if (alvo) {
+            const faixa = document.createRange();
+            faixa.selectNodeContents(alvo);
+            const selecao = window.getSelection();
+            selecao?.removeAllRanges();
+            selecao?.addRange(faixa);
+          }
+          botao.textContent = "Selecionado";
+        }
+        window.clearTimeout(voltar);
+        voltar = window.setTimeout(() => {
+          botao.textContent = "Copiar";
+          botao.classList.remove("copiado");
+        }, 1800);
+      });
+
+      barra.append(rotulo, botao);
+      pre.replaceWith(caixa);
+      caixa.append(barra, pre);
+    });
+  </script>
+
+  <script>
     // Drawer no celular.
     const btn = document.querySelector("[data-menu]");
     const sidebar = document.querySelector("[data-sidebar]");

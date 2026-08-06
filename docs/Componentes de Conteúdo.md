@@ -153,6 +153,42 @@ pt-BR e ancoradas nos exemplos daqui (o imóvel, os nossos gráficos).
 Uma boa explicação de alternativa errada diz **onde o raciocínio escorrega**, não
 só "está errado".
 
+## Bloco de código
+
+Bloco de código em Markdown normal (três crases + a linguagem) sai no **padrão
+GitHub**: caixa arredondada com borda, fundo cinza-claro, uma barra em cima com o
+nome da linguagem e um **botão de copiar**.
+
+````mdx
+```python
+precos = np.array([250, 310, 180])
+```
+````
+
+Não há componente a importar — a estrutura é montada em JS no `SiteLayout.astro`,
+que envolve cada `pre.astro-code` da `.leitura` num `.bloco-codigo`. O CSS está em
+`global.css`, junto do resto da leitura.
+
+Três detalhes que já custaram decisão:
+
+- **Tema claro** (`shikiConfig: { theme: "github-light" }` no `astro.config.mjs`).
+  O primeiro tema era escuro e ficava feio no site claro — e fundo escuro some no
+  projetor com a luz da sala acesa, que é a regra 5 de
+  [[Princípios das Visualizações]]. O Shiki escreve o fundo num `style` inline,
+  então o CSS precisa de `!important` para sobrescrever.
+- **O rótulo da barra é traduzido**: `bash`, `sh` e `console` viram **Terminal**,
+  `powershell` vira **PowerShell**. O mapa está no script do `SiteLayout`.
+- **Só pega `pre.astro-code`**, que é a classe que o Shiki carimba. Blocos de
+  código que fazem parte de uma visualização (como o da `Vetorizacao`) usam `pre`
+  sem essa classe, de propósito, e não ganham barra nem botão.
+
+Se a área de transferência estiver bloqueada (fora de HTTPS, ou permissão
+negada), o botão **seleciona** o código em vez de fingir que copiou, e o rótulo
+vira "Selecionado".
+
+Código no meio da frase (uma crase só) vira uma pílula cinza discreta — de
+propósito mais apagada que o `<Termo>`, que é o único elemento clicável da leitura.
+
 ---
 
 ## Armadilha: CSS com escopo do Astro em elemento criado por JS

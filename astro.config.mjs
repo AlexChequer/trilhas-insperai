@@ -13,5 +13,9 @@ export default defineConfig({
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],
+    // Tema claro nos blocos de código: o site inteiro é claro, e fundo escuro
+    // no projetor com a luz da sala acesa some. O contêiner (barra com a
+    // linguagem + botão de copiar) é montado em SiteLayout.astro.
+    shikiConfig: { theme: "github-light" },
   },
 });
