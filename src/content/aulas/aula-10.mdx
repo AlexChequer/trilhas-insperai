@@ -1,0 +1,227 @@
+---
+n: "A10"
+titulo: "CNNs pt. 2"
+ordem: 10
+objetivo: "Montar uma arquitetura completa, entender o que a rede aprende em cada profundidade, e usar modelo pré-treinado no próprio problema."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import ArquiteturaCNN from "../../components/viz/ArquiteturaCNN.astro";
+import TransferLearning from "../../components/viz/TransferLearning.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Na Aula 9 você viu as peças: convolução, stride, padding, pooling. Agora elas viram uma arquitetura de verdade, e aparece a pergunta que interessa na prática — o que essa rede está de fato aprendendo em cada profundidade, e como aproveitar uma que já foi treinada por outra pessoa em milhões de imagens.
+
+## O padrão da arquitetura
+
+Quase toda CNN segue a mesma receita: **conv, pool, conv, pool, … flatten, densa, saída.** Dois movimentos acontecem em paralelo ao longo dessa sequência, e é bom vê-los juntos:
+
+- A **resolução espacial cai**. Cada <Termo id="pooling">pooling</Termo> divide altura e largura por dois: 28×28 vira 14×14, depois 7×7.
+- O **número de filtros cresce**. 16, depois 32, depois 64. As camadas iniciais precisam de poucos detectores, porque há poucos tipos de borda; as profundas precisam de muitos, porque há muitos tipos de objeto.
+
+A troca é essa: perde-se **onde** e ganha-se **o quê**. No começo a rede sabe com precisão de pixel onde está cada bordinha e quase nada sobre o que elas formam; no fim, ela sabe que há um 7 na imagem e não sabe mais exatamente em que pixel.
+
+No fim vem o **flatten**, e a MLP da Aula 5 reaparece: o mapa de features vira um vetor e passa por uma ou duas camadas densas até a saída com softmax. E faz sentido — a parte convolucional extraiu as características, e a parte densa faz a classificação em cima delas.
+
+**Acrescente e tire blocos** e acompanhe a forma do tensor mudando:
+
+<VizEmbed titulo="monte a arquitetura e veja o tensor mudar de forma">
+  <ArquiteturaCNN />
+</VizEmbed>
+
+<Caixa tipo="erro">
+Montar a arquitetura sem calcular tamanho e descobrir o problema na hora do erro de execução. A conta da Aula 9 — $S = \lfloor (N + 2P - K)/E \rfloor + 1$ — não é burocracia: é ela que diz se o seu quarto pooling ainda tem o que reduzir, e qual é o tamanho do vetor que chega no <Termo id="flatten">flatten</Termo>. Faça a conta no papel antes de escrever a rede; leva dois minutos e economiza a tarde.
+</Caixa>
+
+## O que cada profundidade aprende
+
+Esta é a parte bonita, e ela vale ser vista com calma. Quando se olha o que os filtros de uma CNN treinada de fato reconhecem, aparece uma hierarquia notavelmente consistente — em redes diferentes, treinadas em datasets diferentes:
+
+- **Primeira camada**: bordas em várias orientações, manchas de cor, gradientes simples. É quase sempre parecido com os detectores clássicos da Aula 9 — a rede chegou neles sozinha.
+- **Camadas do meio**: cantos, curvas, texturas, padrões repetidos. Combinações das bordas anteriores.
+- **Camadas profundas**: partes de objeto — uma roda, um olho, uma maçaneta — e depois objetos inteiros e categorias.
+
+Ninguém programou essa organização. Ela emerge do treino, e a razão é o <Termo id="campo-receptivo">campo receptivo</Termo>: a primeira camada só enxerga 3×3 pixels, e em 3×3 pixels não existe "rosto" — só existe borda. Conforme o campo receptivo cresce, padrões maiores passam a caber, e a rede constrói cada nível em cima do anterior.
+
+<Caixa tipo="nota" titulo="Vale ver as imagens de verdade">
+Esta seção pede as visualizações reais de filtros e ativações de redes treinadas, e elas são a coisa mais impressionante do semestre — mas elas não estão nesta página: as imagens vêm de redes treinadas em datasets que não cabem aqui. Elas são mostradas em aula, e valem a projeção. Os acervos públicos de referência são o **Feature Visualization** da Distill e o **OpenAI Microscope**.
+</Caixa>
+
+<Pergunta pergunta="Se a hierarquia emerge sozinha, por que ela aparece sempre na mesma ordem — borda, textura, objeto?">
+Porque a ordem não é uma escolha do treino: ela é imposta pela **arquitetura**.
+
+Um neurônio da primeira camada enxerga uma janela de 3×3 pixels e nada além disso. Dentro de 3×3 pixels não existe informação suficiente para representar uma textura, muito menos um objeto — o que cabe ali é, no máximo, uma mudança de intensidade numa direção. Ou seja: uma borda. A primeira camada aprende bordas porque é a única coisa que ela **poderia** aprender.
+
+A segunda camada recebe como entrada os mapas de bordas da primeira, e o campo receptivo dela já cobre uma região maior. Combinar bordas em posições relativas é exatamente o que produz canto, curva e textura. E assim por diante: cada camada só consegue formar padrões do tamanho que o campo receptivo dela alcança, usando como matéria-prima o que a camada anterior extraiu.
+
+A hierarquia é, nesse sentido, a única solução disponível — e é por isso que redes diferentes, treinadas em datasets diferentes, chegam em primeiras camadas tão parecidas. É também a razão pela qual o transfer learning funciona.
+</Pergunta>
+
+## Panorama: quatro arquiteturas e quatro problemas
+
+Não é preciso decorar arquitetura. O que vale entender é **qual problema cada uma resolveu**:
+
+- **LeNet** (1998) — a original, para dígitos. Já tinha o padrão conv–pool–densa que se usa até hoje. Era pequena porque o hardware da época não dava para mais.
+- **AlexNet** (2012) — o marco. Mesma ideia, muito maior, treinada em GPU no ImageNet. Ganhou a competição por uma margem que mudou o campo de rumo. A lição foi menos sobre a arquitetura e mais sobre o que dados e computação em escala fazem.
+- **VGG** (2014) — profundidade com blocos simples e repetidos: só convoluções 3×3 empilhadas. Mostrou que muitos filtros pequenos em sequência valem mais que poucos filtros grandes — e a uniformidade a tornou o padrão de referência.
+- **ResNet** (2015) — atacou um problema novo: redes muito profundas treinavam **pior** que rasas, porque o gradiente se degradava no caminho de volta. A solução é a **skip connection**, um atalho que soma a entrada de um bloco à saída dele. Assim o gradiente tem um caminho curto até as camadas iniciais, e a rede pode ter centenas de camadas.
+
+A <Termo id="skip-connection">skip connection</Termo> é a ideia mais reaproveitada dessa lista: ela aparece em quase toda arquitetura moderna, inclusive nas de linguagem.
+
+## Transfer learning
+
+Aqui está a técnica mais útil da aula na prática. **Ninguém treina uma CNN do zero**, salvo em pesquisa ou quando há dados demais. O que se faz é pegar uma rede já treinada em milhões de imagens, **congelar** as camadas iniciais e treinar só o final com os seus dados.
+
+O motivo de funcionar é o da pergunta acima: borda é borda em qualquer domínio. Os detectores da primeira camada de uma rede treinada em fotos de animais servem igualmente para radiografias, folhas de plantas ou peças de máquina. O que precisa ser aprendido de novo é a parte do fim — a que combina características em **classes**, e as suas classes são outras.
+
+**Arraste até onde congelar** e veja quanto sobra para treinar:
+
+<VizEmbed titulo="congele as camadas iniciais e veja o que sobra">
+  <TransferLearning />
+</VizEmbed>
+
+O <Termo id="fine-tuning">fine-tuning</Termo> é o passo seguinte: depois de treinar a cabeça nova, descongele os últimos blocos e treine tudo junto — com learning rate **bem menor**. É aí que mora a armadilha.
+
+<Caixa tipo="erro">
+Fazer fine-tuning com learning rate alto e destruir o que a rede pré-treinada já sabia. Nas primeiras iterações, o gradiente vindo da sua cabeça recém-inicializada é grande e aleatório; com um passo grande, ele sobrescreve pesos que levaram semanas de GPU e milhões de imagens para se formar. Você paga o preço de treinar do zero e ainda começa de um lugar pior. A regra prática: treine primeiro só a cabeça, e só depois descongele, com o learning rate uma ou duas ordens de grandeza abaixo do normal.
+</Caixa>
+
+<Caixa tipo="erro">
+Achar que precisa de um dataset gigante mesmo usando <Termo id="transfer-learning">transfer learning</Termo>. É o contrário: o ganho principal da técnica é justamente funcionar com **pouco dado**. Algumas centenas de imagens por classe costumam bastar para treinar uma cabeça nova em cima de uma rede pré-treinada — e esse é o cenário da grande maioria dos projetos reais, inclusive os de vocês.
+</Caixa>
+
+<Quiz
+  id="a10-por-que-transfer-funciona"
+  pergunta="Você tem 400 radiografias e quer classificá-las em duas categorias. Por que faz sentido partir de uma rede treinada no ImageNet, que é um dataset de fotos comuns?"
+  alternativas={[
+    {
+      texto: "Porque as camadas iniciais aprenderam borda, cor e textura — coisas que valem em qualquer imagem, inclusive numa radiografia. O que é específico do ImageNet está no fim da rede, e é justamente o que você vai substituir.",
+      certa: true,
+      porque: "Isso. A hierarquia de features é o que torna o transfer learning possível: a parte genérica e a parte específica estão em profundidades diferentes, então dá para manter uma e trocar a outra.",
+    },
+    {
+      texto: "Porque o ImageNet tem imagens médicas suficientes para a rede já conhecer radiografias.",
+      porque: "O ImageNet é de fotos comuns e praticamente não tem imagem médica. O ganho não vem de conhecer o domínio — vem de conhecer o que toda imagem tem em comum nos primeiros níveis.",
+    },
+    {
+      texto: "Porque redes pré-treinadas têm mais parâmetros, e mais parâmetros generalizam melhor.",
+      porque: "Mais parâmetros com 400 exemplos é receita para overfitting, não para generalização. O que ajuda aqui é a maior parte desses parâmetros estar **congelada** — eles não são ajustados aos seus 400 exemplos.",
+    },
+    {
+      texto: "Porque assim não é preciso separar conjunto de validação: a rede já foi validada no ImageNet.",
+      porque: "A validação dela diz respeito às classes do ImageNet, não às suas. Você precisa de validação própria tanto quanto antes — é ela que vai dizer até onde congelar e quando parar.",
+    },
+  ]}
+/>
+
+<p class="nota">
+  Fecha o bloco de visão. Você monta uma CNN calculando as formas antes de rodar,
+  sabe o que esperar de cada profundidade, e — o mais útil para qualquer projeto
+  com imagem — sabe partir de uma rede pré-treinada em vez de começar do zero.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a10-filtros-crescem"
+  pergunta="Por que o número de filtros costuma crescer conforme a rede fica mais profunda, enquanto a resolução espacial diminui?"
+  alternativas={[
+    {
+      texto: "Porque as camadas iniciais precisam de poucos detectores — há poucos tipos de borda — e as profundas precisam de muitos, já que há muitos tipos de objeto. Ao mesmo tempo, o pooling reduz a resolução, o que mantém o custo sob controle.",
+      certa: true,
+      porque: "Isso: perde-se precisão de posição e ganha-se variedade de padrão. A troca é deliberada, e é o que faz a conta de memória fechar.",
+    },
+    {
+      texto: "Porque filtros extras compensam a informação perdida no pooling, restaurando a resolução.",
+      porque: "Nada restaura a resolução perdida — o pooling descarta informação de posição de propósito. Os filtros extras representam **outras** coisas, não as mesmas em mais detalhe.",
+    },
+    {
+      texto: "Porque camadas profundas têm gradiente menor e precisam de mais parâmetros para compensar.",
+      porque: "Gradiente que encolhe com a profundidade é um problema real, mas quem o resolve é a skip connection da ResNet, não a contagem de filtros.",
+    },
+    {
+      texto: "Porque o número de filtros precisa dobrar sempre que a resolução cai pela metade, para o volume de dados ficar constante.",
+      porque: "É uma regra prática comum e uma boa heurística de projeto, mas não é uma exigência — e a explicação está trocada: o motivo é quantos padrões distintos existem em cada nível, não manter um volume constante.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a10-fine-tuning-lr"
+  pergunta="Você congela a rede, treina a cabeça nova e chega a 88%. Decide fazer fine-tuning: descongela tudo e treina com o mesmo learning rate de antes. O resultado despenca para 61%. O que aconteceu?"
+  alternativas={[
+    {
+      texto: "O learning rate alto sobrescreveu os pesos pré-treinados logo nas primeiras iterações. O fine-tuning exige um passo bem menor — o objetivo é ajustar o que a rede sabe, não reescrever.",
+      certa: true,
+      porque: "Isso, e a ordem importa: treinar a cabeça primeiro evita que gradientes de uma camada aleatória se propaguem para trás com força total. Depois disso, descongele com learning rate uma ou duas ordens de grandeza menor.",
+    },
+    {
+      texto: "O modelo sofreu overfitting ao descongelar mais parâmetros.",
+      porque: "Overfitting é um risco real ao descongelar, mas a assinatura dele é outra: treino melhorando e validação piorando aos poucos. Uma queda brusca logo no início aponta para destruição dos pesos, não para memorização.",
+    },
+    {
+      texto: "A rede pré-treinada não servia para esse domínio, e o fine-tuning apenas revelou isso.",
+      porque: "Ela servia — a prova é o 88% obtido com ela congelada. Se o problema fosse o domínio, o resultado com a rede congelada já teria sido ruim.",
+    },
+    {
+      texto: "Faltou aumentar o número de epochs: com mais treino ela voltaria aos 88%.",
+      porque: "Talvez volte, depois de muito treino — mas você terá gasto tempo reconstruindo o que já tinha de graça. O ponto do transfer learning é não pagar esse custo.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a10-onde-esta-a-mlp"
+  pergunta="No fim de uma CNN vêm o flatten e uma ou duas camadas densas. Por que a MLP reaparece justo ali?"
+  alternativas={[
+    {
+      texto: "Porque a parte convolucional extrai características e a parte densa classifica em cima delas. No fim já não interessa **onde** cada padrão estava, só quais estavam presentes — e é exatamente para isso que serve uma camada densa.",
+      certa: true,
+      porque: "Isso, e é a divisão de trabalho da arquitetura inteira: convolução para extrair, denso para decidir. Ela também explica por que só a cabeça é trocada no transfer learning.",
+    },
+    {
+      texto: "Porque convolução não consegue produzir uma saída com softmax.",
+      porque: "Consegue — existem arquiteturas totalmente convolucionais que fazem exatamente isso. A camada densa no fim é uma escolha de projeto conveniente, não uma limitação da convolução.",
+    },
+    {
+      texto: "Porque a camada densa é mais barata que uma convolução e economiza cálculo no fim.",
+      porque: "É o contrário: a camada densa costuma concentrar a maior parte dos parâmetros da rede, como aparece no painel da visualização. Ela está ali pelo papel que cumpre, não por ser barata.",
+    },
+    {
+      texto: "Por compatibilidade histórica com a LeNet, que já fazia assim.",
+      porque: "A LeNet realmente já fazia assim — mas por uma boa razão, não por tradição. A razão é a divisão entre extrair características e decidir a classe.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a10-quantas-imagens"
+  pergunta="Um colega quer classificar 3 tipos de peça numa linha de produção e tem 300 fotos de cada. Ele conclui que não dá, porque redes de visão precisam de milhões de imagens. Onde ele erra?"
+  alternativas={[
+    {
+      texto: "Milhões de imagens são necessárias para treinar do zero. Com transfer learning, 300 por classe é um cenário confortável: congela-se a rede pré-treinada e treina-se só a cabeça, que tem poucos parâmetros.",
+      certa: true,
+      porque: "Isso. O número que assusta se refere a um cenário que praticamente ninguém enfrenta — e o caso dele é justamente o caso típico em que o transfer learning brilha.",
+    },
+    {
+      texto: "Ele erra na conta: 900 imagens no total já são suficientes para treinar uma CNN do zero.",
+      porque: "Não são — uma CNN treinada do zero com 900 imagens vai sofrer overfitting pesado. A alternativa que resolve o problema dele não é treinar do zero com menos, é não treinar do zero.",
+    },
+    {
+      texto: "Ele erra ao usar CNN: com tão poucas imagens o certo seria uma MLP, que tem menos parâmetros.",
+      porque: "A MLP tem **mais** parâmetros na primeira camada, não menos (foi a viz da Aula 9), e ainda perde a estrutura espacial. Trocar a arquitetura na direção errada não resolve escassez de dados.",
+    },
+    {
+      texto: "Ele erra porque poderia gerar imagens sintéticas para chegar aos milhões necessários.",
+      porque: "Aumento de dados ajuda de verdade e vale usar junto. Mas variações da mesma foto não trazem informação nova de verdade — e, com transfer learning, ele nem precisa chegar perto de milhões.",
+    },
+  ]}
+/>
+
+</QuizBloco>

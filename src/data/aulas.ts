@@ -45,22 +45,22 @@ export const BLOCOS: BlocoArco[] = [
       {
         n: "A4", slug: "aula-04", titulo: "Do Neurônio à Rede",
         desc: "O que um neurônio calcula e por que rede sem ativação não serve pra nada.",
-        prontas: 0, total: 2,
+        prontas: 2, total: 2,
       },
       {
         n: "A5", slug: "aula-05", titulo: "MLP + Backprop",
         desc: "Como neurônios viram rede e como o erro volta ajustando os pesos.",
-        prontas: 0, total: 3,
+        prontas: 3, total: 3,
       },
       {
         n: "A6", slug: "aula-06", titulo: "Treinando na Prática",
         desc: "O loop de treino, os otimizadores e o lançamento do MNIST.",
-        prontas: 0, total: 2,
+        prontas: 2, total: 2,
       },
       {
         n: "A7", slug: "aula-07", titulo: "Análise de Modelos",
         desc: "Diagnosticar overfitting e underfitting, e as regularizações que resolvem.",
-        prontas: 0, total: 2,
+        prontas: 2, total: 2,
       },
     ],
   },
@@ -70,7 +70,7 @@ export const BLOCOS: BlocoArco[] = [
       {
         n: "A8", slug: "aula-08", titulo: "Claude Code", pratica: true,
         desc: "Usar a ferramenta e revisar o que ela produz — e saber o que não dá pra delegar.",
-        prontas: 0, total: 0,
+        prontas: 1, total: 1,
       },
     ],
   },
@@ -80,12 +80,12 @@ export const BLOCOS: BlocoArco[] = [
       {
         n: "A9", slug: "aula-09", titulo: "CNNs pt. 1",
         desc: "Por que MLP falha em imagem e o que uma convolução calcula.",
-        prontas: 0, total: 3,
+        prontas: 3, total: 3,
       },
       {
         n: "A10", slug: "aula-10", titulo: "CNNs pt. 2",
         desc: "Montar uma CNN, ler o que ela aprendeu e usar modelo pré-treinado.",
-        prontas: 0, total: 2,
+        prontas: 2, total: 2,
       },
     ],
   },

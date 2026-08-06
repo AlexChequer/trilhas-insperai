@@ -1,0 +1,326 @@
+---
+// Aula 4 · A demonstração central: sem ativação, uma pilha de camadas desaba
+// numa reta só.
+//
+// Versão 2 — a primeira era abstrata demais (o Alex reprovou: "confuso e não
+// intuitivo"). O que mudou: agora existe uma TAREFA visível. Há pontos na tela e
+// a rede tenta passar por eles. Sem ativação ela só consegue traçar uma reta e
+// erra à vista de todos; com ReLU ela acompanha a curva. Saíram a métrica
+// abstrata ("distância até a melhor reta") e as três curvinhas de neurônio que
+// só poluíam.
+//
+// As redes são treinadas de verdade aqui (Adam, 600 epochs). O número que fecha
+// o argumento é o erro do ajuste: com ativação desligada ele dá 0,243 em 1, 2 ou
+// 3 camadas — o mesmo valor, porque o melhor que qualquer uma delas consegue
+// fazer é a mesma reta.
+---
+
+<div class="viz-colapso" data-viz="colapso">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="colapso-abaixo">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">O quanto a rede erra nos pontos</p>
+      <p class="stat-valor" data-erro>—</p>
+      <span class="stat-unidade" data-erro-nota>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="viz-controles" style="margin-top: 0">
+        <button class="btn" type="button" data-toggle>Ligar a ativação (ReLU)</button>
+      </div>
+      <div class="slider-campo" style="margin-top: 16px;">
+        <label>Camadas ocultas <span class="valor" data-camadas-val>—</span></label>
+        <input type="range" data-camadas min="1" max="3" step="1" value="2" />
+      </div>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">O que a rede consegue desenhar</p>
+      <p class="colapso-forma" data-forma>—</p>
+      <p class="stat-caminho" data-params>—</p>
+    </div>
+  </div>
+
+  <p class="stat-caminho colapso-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-colapso {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .colapso-abaixo {
+    display: grid;
+    grid-template-columns: 1.2fr 1.1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .colapso-abaixo .stat-destaque .stat-valor {
+    font-size: clamp(1.9rem, 4.2vw, 2.5rem);
+  }
+  .colapso-forma {
+    margin: 8px 0 0;
+    font-family: var(--fonte-titulo);
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--insper-azul-aco);
+  }
+  .colapso-nota {
+    margin: 0;
+  }
+  @media (max-width: 760px) {
+    .colapso-abaixo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="colapso"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const btn = raiz.querySelector<HTMLButtonElement>("[data-toggle]")!;
+    const sliderCamadas = raiz.querySelector<HTMLInputElement>("[data-camadas]")!;
+
+    const H = 12, EPOCHS = 600, LR = 0.02;
+    const XMIN = -1, XMAX = 1, YMIN = -1.35, YMAX = 1.35;
+    const COR = {
+      ponto: "#294a6b", rede: "#7c3aed", verdade: "rgba(41,74,107,0.28)",
+      erroLinha: "rgba(244,96,62,0.55)",
+      grade: "#eef2f8", eixo: "#c7d2e0", suave: "#8b95a5", azulAco: "#294a6b",
+    };
+
+    function rng(semente: number) {
+      let s = semente;
+      return () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    }
+    function normal(R: () => number) {
+      let u = 0, v = 0;
+      while (u === 0) u = R();
+      while (v === 0) v = R();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    const verdade = (x: number) => Math.sin(x * 2.6) * 0.75 + 0.15 * x;
+    const PONTOS = (() => {
+      const R = rng(3);
+      return Array.from({ length: 22 }, (_, i) => {
+        const x = XMIN + ((XMAX - XMIN) * (i + 0.5)) / 22;
+        return { x, y: verdade(x) + normal(R) * 0.07 };
+      });
+    })();
+
+    function treinar(camadas: number, comAtivacao: boolean) {
+      const S = [1, ...Array(camadas).fill(H), 1];
+      const L = S.length - 1;
+      const R = rng(4);
+      const W = S.slice(0, L).map((_, l) =>
+        Array.from({ length: S[l + 1] }, () => Array.from({ length: S[l] }, () => normal(R) * Math.sqrt(2 / S[l]))),
+      );
+      const b = S.slice(0, L).map((_, l) => new Array(S[l + 1]).fill(0));
+      const mW = W.map((m) => m.map((r) => r.map(() => 0))), vW = W.map((m) => m.map((r) => r.map(() => 0)));
+      const mb = b.map((r) => r.map(() => 0)), vb = b.map((r) => r.map(() => 0));
+      const B1 = 0.9, B2 = 0.999, EPS = 1e-8;
+      let t = 0;
+
+      const g = (v: number) => (comAtivacao ? Math.max(0, v) : v);
+      const dg = (v: number) => (comAtivacao ? (v > 0 ? 1 : 0) : 1);
+
+      const passar = (x: number) => {
+        const a: number[][] = [[x]], z: number[][] = [];
+        for (let l = 0; l < L; l++) {
+          const zl = W[l].map((linha, i) => linha.reduce((s, w, j) => s + w * a[l][j], 0) + b[l][i]);
+          z.push(zl);
+          a.push(l < L - 1 ? zl.map(g) : zl); // a saída é crua: é regressão
+        }
+        return { a, z };
+      };
+
+      for (let ep = 0; ep < EPOCHS; ep++) {
+        const gW = W.map((m) => m.map((r) => r.map(() => 0)));
+        const gb = b.map((r) => r.map(() => 0));
+        for (const d of PONTOS) {
+          const { a, z } = passar(d.x);
+          let delta = [(2 * (a[L][0] - d.y)) / PONTOS.length];
+          for (let l = L - 1; l >= 0; l--) {
+            for (let i = 0; i < S[l + 1]; i++) {
+              gb[l][i] += delta[i];
+              for (let j = 0; j < S[l]; j++) gW[l][i][j] += delta[i] * a[l][j];
+            }
+            if (l > 0) {
+              const proximo = new Array(S[l]).fill(0);
+              for (let j = 0; j < S[l]; j++) {
+                let s = 0;
+                for (let i = 0; i < S[l + 1]; i++) s += W[l][i][j] * delta[i];
+                proximo[j] = s * dg(z[l - 1][j]);
+              }
+              delta = proximo;
+            }
+          }
+        }
+        t++;
+        for (let l = 0; l < L; l++) {
+          for (let i = 0; i < S[l + 1]; i++) {
+            mb[l][i] = B1 * mb[l][i] + (1 - B1) * gb[l][i];
+            vb[l][i] = B2 * vb[l][i] + (1 - B2) * gb[l][i] ** 2;
+            b[l][i] -= (LR * (mb[l][i] / (1 - B1 ** t))) / (Math.sqrt(vb[l][i] / (1 - B2 ** t)) + EPS);
+            for (let j = 0; j < S[l]; j++) {
+              mW[l][i][j] = B1 * mW[l][i][j] + (1 - B1) * gW[l][i][j];
+              vW[l][i][j] = B2 * vW[l][i][j] + (1 - B2) * gW[l][i][j] ** 2;
+              W[l][i][j] -= (LR * (mW[l][i][j] / (1 - B1 ** t))) / (Math.sqrt(vW[l][i][j] / (1 - B2 ** t)) + EPS);
+            }
+          }
+        }
+      }
+
+      const prever = (x: number) => passar(x).a[L][0];
+      const erro = Math.sqrt(PONTOS.reduce((s, d) => s + (prever(d.x) - d.y) ** 2, 0) / PONTOS.length);
+      // quantas dobras a curva tem, no traçado desenhado
+      const amostras = Array.from({ length: 160 }, (_, i) => prever(XMIN + ((XMAX - XMIN) * i) / 159));
+      let dobras = 0, anterior = amostras[1] - amostras[0];
+      for (let i = 2; i < amostras.length; i++) {
+        const atual = amostras[i] - amostras[i - 1];
+        if (Math.abs(atual - anterior) > 0.004) dobras++;
+        anterior = atual;
+      }
+      const params = S.slice(0, -1).reduce((s, n, l) => s + n * S[l + 1] + S[l + 1], 0);
+      return { prever, erro, dobras, params };
+    }
+
+    // 6 treinos (3 profundidades × com e sem ativação), calculados uma vez
+    const MODELOS = [1, 2, 3].map((c) => ({
+      sem: treinar(c, false),
+      com: treinar(c, true),
+    }));
+
+    let comAtivacao = false;
+    let camadas = 2;
+    let W = 0, H2 = 0, ultimaLargura = -1;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const MARGEM = { topo: 16, dir: 16, base: 44, esq: 52 };
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H2);
+      const p = { x: MARGEM.esq, y: MARGEM.topo, w: W - MARGEM.esq - MARGEM.dir, h: H2 - MARGEM.topo - MARGEM.base };
+      const m = MODELOS[camadas - 1][comAtivacao ? "com" : "sem"];
+      const gx = (x: number) => p.x + ((x - XMIN) / (XMAX - XMIN)) * p.w;
+      const gy = (y: number) => p.y + (1 - (y - YMIN) / (YMAX - YMIN)) * p.h;
+
+      ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+      ctx.fillStyle = COR.suave; ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let y = -1; y <= 1.01; y += 0.5) {
+        const yy = gy(y);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(num(y, 1), p.x - 9, yy);
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let x = -1; x <= 1.01; x += 0.5) ctx.fillText(num(x, 1), gx(x), p.y + p.h + 8);
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1.5;
+      ctx.strokeRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("entrada", p.x + p.w / 2, H2 - 6);
+      ctx.save(); ctx.translate(14, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("resposta", 0, 0); ctx.restore();
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+
+      // os traços de erro: de cada ponto até a curva da rede
+      ctx.strokeStyle = COR.erroLinha; ctx.lineWidth = 2;
+      for (const d of PONTOS) {
+        ctx.beginPath();
+        ctx.moveTo(gx(d.x), gy(d.y));
+        ctx.lineTo(gx(d.x), gy(m.prever(d.x)));
+        ctx.stroke();
+      }
+
+      // o que a rede desenhou
+      ctx.strokeStyle = COR.rede; ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.beginPath();
+      for (let i = 0; i <= 300; i++) {
+        const x = XMIN + ((XMAX - XMIN) * i) / 300;
+        const y = gy(m.prever(x));
+        i === 0 ? ctx.moveTo(gx(x), y) : ctx.lineTo(gx(x), y);
+      }
+      ctx.stroke();
+
+      // os pontos que ela deveria acompanhar
+      for (const d of PONTOS) {
+        ctx.beginPath(); ctx.arc(gx(d.x), gy(d.y), 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = COR.ponto; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      }
+      ctx.restore();
+
+      // legenda dentro do gráfico, que é onde ela é lida
+      ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillStyle = COR.ponto;
+      ctx.fillText("● os dados", p.x + 10, p.y + 8);
+      ctx.fillStyle = COR.rede;
+      ctx.fillText("— o que a rede desenhou", p.x + 10, p.y + 24);
+
+      // painel
+      el("erro").textContent = num(m.erro, 3);
+      el("erro-nota").innerHTML = comAtivacao
+        ? "ela consegue acompanhar os pontos"
+        : "por mais camadas que tenha, o erro é <strong>sempre este</strong>";
+      el("camadas-val").textContent = camadas === 1 ? "1 camada" : `${camadas} camadas`;
+      el("forma").textContent = comAtivacao
+        ? `uma curva com ${m.dobras} dobras`
+        : "uma reta — e só";
+      el("params").innerHTML = `${m.params} parâmetros treinados`;
+      btn.textContent = comAtivacao ? "Desligar a ativação" : "Ligar a ativação (ReLU)";
+
+      const semUm = MODELOS[0].sem.erro, semTres = MODELOS[2].sem.erro;
+      el("nota").innerHTML = comAtivacao
+        ? "Com ReLU, cada neurônio contribui uma <strong>dobra</strong> na posição que os pesos dele escolherem. Somando as dobras, a rede acompanha a curva — e o erro despenca. <strong>Desligue a ativação</strong> e compare."
+        : `Sem ativação, o melhor que a rede consegue fazer é <strong>uma reta</strong>, e ela passa longe dos pontos. Agora mexa nas camadas: o erro fica em <strong>${num(semUm, 3)}</strong> com 1 camada e em <strong>${num(semTres, 3)}</strong> com 3 — o mesmo número, porque a reta é a mesma. Profundidade não compra curva nenhuma.`;
+    }
+
+    btn.addEventListener("click", () => { comAtivacao = !comAtivacao; desenhar(); });
+    sliderCamadas.addEventListener("input", () => {
+      camadas = parseInt(sliderCamadas.value, 10);
+      desenhar();
+    });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H2 = cheia
+        ? Math.min(Math.max(window.innerHeight - 240, 300), 700)
+        : Math.round(Math.min(Math.max(W * 0.5, 280), 460));
+      canvas.style.height = H2 + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H2 * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

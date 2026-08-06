@@ -1,0 +1,331 @@
+---
+// Aula 9 · A convolução passo a passo: a janela desliza pela entrada, o feature
+// map se forma ao lado, e o max pooling reduz no fim. Controle principal é o
+// avanço da janela; stride e padding são os dois secundários — e o painel mostra
+// a conta do tamanho de saída se recalculando, que é o erro comum da aula.
+---
+
+<div class="viz-conv" data-viz="conv">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="conv-abaixo">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Tamanho da saída</p>
+      <p class="stat-valor" data-saida>—</p>
+      <span class="stat-unidade" data-conta>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="viz-controles" style="margin-top: 0">
+        <button class="btn" type="button" data-rodar>Rodar</button>
+        <button class="btn btn-secundario" type="button" data-passo>Passo</button>
+        <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+      </div>
+      <div class="conv-opcoes">
+        <label>Stride
+          <select data-stride>
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+          </select>
+        </label>
+        <label>Padding
+          <select data-padding>
+            <option value="0" selected>0</option>
+            <option value="1">1</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Nesta posição</p>
+      <p class="conv-conta" data-multiplicacao>—</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .viz-conv {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .conv-abaixo {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .conv-abaixo .stat-destaque .stat-valor {
+    font-size: clamp(1.6rem, 3.6vw, 2.1rem);
+  }
+  .conv-opcoes {
+    display: flex;
+    gap: 16px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .conv-opcoes label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--insper-azul-aco);
+    font-size: 0.92rem;
+  }
+  .conv-opcoes select {
+    font: inherit;
+    font-family: var(--fonte-dados);
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul-aco);
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .conv-conta {
+    margin: 8px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--texto-suave);
+  }
+  .conv-conta b {
+    color: var(--insper-azul-aco);
+  }
+  @media (max-width: 760px) {
+    .conv-abaixo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="conv"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const selStride = raiz.querySelector<HTMLSelectElement>("[data-stride]")!;
+    const selPadding = raiz.querySelector<HTMLSelectElement>("[data-padding]")!;
+
+    // Um L claro sobre fundo escuro: o detector de borda vertical acende nas
+    // laterais da barra e ignora o miolo.
+    const ENTRADA = [
+      [0, 0, 1, 1, 0, 0, 0, 0],
+      [0, 0, 1, 1, 0, 0, 0, 0],
+      [0, 0, 1, 1, 0, 0, 0, 0],
+      [0, 0, 1, 1, 1, 1, 1, 0],
+      [0, 0, 1, 1, 1, 1, 1, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+    ];
+    const KERNEL = [
+      [-1, 0, 1],
+      [-2, 0, 2],
+      [-1, 0, 1],
+    ];
+    const N = ENTRADA.length, K = 3;
+    const COR = {
+      azulAco: "#294a6b", suave: "#8b95a5", borda: "#c7d2e0",
+      janela: "#7c3aed", positivo: "#2563eb", negativo: "#f4603e", pool: "#16a34a",
+    };
+
+    let stride = 1, padding = 0;
+    let passo = -1; // -1 = ainda não começou
+    let timer: number | null = null;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    const tamSaida = () => Math.floor((N + 2 * padding - K) / stride) + 1;
+    const valorEntrada = (linha: number, coluna: number) => {
+      const i = linha - padding, j = coluna - padding;
+      if (i < 0 || j < 0 || i >= N || j >= N) return 0; // o zero padding
+      return ENTRADA[i][j];
+    };
+
+    function convoluir(saidaLinha: number, saidaColuna: number) {
+      let soma = 0;
+      const parcelas: { v: number; k: number }[] = [];
+      for (let a = 0; a < K; a++) {
+        for (let b = 0; b < K; b++) {
+          const v = valorEntrada(saidaLinha * stride + a, saidaColuna * stride + b);
+          soma += v * KERNEL[a][b];
+          parcelas.push({ v, k: KERNEL[a][b] });
+        }
+      }
+      return { soma, parcelas };
+    }
+
+    function mapa() {
+      const S = tamSaida();
+      return Array.from({ length: S }, (_, i) =>
+        Array.from({ length: S }, (_, j) => convoluir(i, j).soma),
+      );
+    }
+
+    // max pooling 2×2, descartando sobra ímpar
+    function agrupar(m: number[][]) {
+      const S = Math.floor(m.length / 2);
+      return Array.from({ length: S }, (_, i) =>
+        Array.from({ length: S }, (_, j) =>
+          Math.max(m[2 * i][2 * j], m[2 * i][2 * j + 1], m[2 * i + 1][2 * j], m[2 * i + 1][2 * j + 1]),
+        ),
+      );
+    }
+
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenharGrade(
+      x: number, y: number, celula: number, dados: number[][],
+      pinta: (v: number) => string, titulo: string, ate = Infinity,
+    ) {
+      if (!ctx) return;
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 13px " + fonte();
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText(titulo, x, y - 6);
+      for (let i = 0; i < dados.length; i++) {
+        for (let j = 0; j < dados[i].length; j++) {
+          const indice = i * dados[i].length + j;
+          ctx.fillStyle = indice <= ate ? pinta(dados[i][j]) : "#f4f7fb";
+          ctx.fillRect(x + j * celula, y + i * celula, celula, celula);
+          ctx.strokeStyle = "rgba(41,74,107,0.12)"; ctx.lineWidth = 1;
+          ctx.strokeRect(x + j * celula, y + i * celula, celula, celula);
+        }
+      }
+    }
+
+    const cinza = (v: number) => {
+      const c = Math.round(255 - v * 210);
+      return `rgb(${c},${c},${c})`;
+    };
+    const divergente = (v: number) => {
+      const t = Math.min(Math.abs(v) / 4, 1);
+      return v >= 0
+        ? `rgba(37,99,235,${0.12 + 0.75 * t})`
+        : `rgba(244,96,62,${0.12 + 0.75 * t})`;
+    };
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const S = tamSaida();
+      const m = mapa();
+      const p = agrupar(m);
+      const total = S * S;
+
+      const larguraEntrada = N + 2 * padding;
+      const vao = 26;
+      const disponivel = W - vao * 2 - 16;
+      const celula = Math.max(
+        10,
+        Math.min(28, Math.floor(disponivel / (larguraEntrada + S + Math.max(p.length, 1)))),
+      );
+      let x = 8;
+      const y = 34;
+
+      // entrada (com a moldura de padding, se houver)
+      desenharGrade(x, y, celula, Array.from({ length: larguraEntrada }, (_, i) =>
+        Array.from({ length: larguraEntrada }, (_, j) => valorEntrada(i, j)),
+      ), cinza, padding ? `entrada ${N}×${N} + padding` : `entrada ${N}×${N}`);
+      if (padding) {
+        ctx.strokeStyle = "rgba(124,58,237,0.35)"; ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(x + padding * celula, y + padding * celula, N * celula, N * celula);
+        ctx.setLineDash([]);
+      }
+      // a janela na posição atual
+      if (passo >= 0 && passo < total) {
+        const li = Math.floor(passo / S), co = passo % S;
+        ctx.strokeStyle = COR.janela; ctx.lineWidth = 3;
+        ctx.strokeRect(x + co * stride * celula, y + li * stride * celula, K * celula, K * celula);
+      }
+      x += larguraEntrada * celula + vao;
+
+      desenharGrade(x, y, celula, m, divergente, `feature map ${S}×${S}`, passo);
+      if (passo >= 0 && passo < total) {
+        const li = Math.floor(passo / S), co = passo % S;
+        ctx.strokeStyle = COR.janela; ctx.lineWidth = 3;
+        ctx.strokeRect(x + co * celula, y + li * celula, celula, celula);
+      }
+      x += S * celula + vao;
+
+      if (p.length > 0) {
+        desenharGrade(x, y, celula * 2, p, divergente, `max pool ${p.length}×${p.length}`, passo >= total - 1 ? Infinity : -1);
+      }
+
+      // painel
+      el("saida").textContent = `${S} × ${S}`;
+      el("conta").innerHTML = `(${N} + 2·${padding} − ${K}) ÷ ${stride} + 1 = <b>${S}</b>`;
+
+      if (passo < 0) {
+        el("multiplicacao").innerHTML = "Aperte <b>Rodar</b> ou <b>Passo</b> para a janela começar a deslizar.";
+      } else if (passo >= total) {
+        el("multiplicacao").innerHTML = `Terminou. A janela visitou <b>${total}</b> posições e produziu um feature map <b>${S}×${S}</b>. O max pooling 2×2 reduziu para <b>${p.length}×${p.length}</b>.`;
+      } else {
+        const li = Math.floor(passo / S), co = passo % S;
+        const { soma, parcelas } = convoluir(li, co);
+        const naoZero = parcelas.filter((q) => q.k !== 0 && q.v !== 0);
+        const termos = naoZero.length
+          ? naoZero.map((q) => `${num(q.v, 0)}×${q.k}`).join(" + ").replace(/\+ -/g, "− ")
+          : "só zeros";
+        el("multiplicacao").innerHTML =
+          `posição <b>${li + 1},${co + 1}</b><br />${termos}<br />= <b>${num(soma, 0)}</b>`;
+      }
+    }
+
+    function avancar() {
+      const total = tamSaida() ** 2;
+      if (passo >= total) { passo = -1; }
+      passo++;
+      desenhar();
+      return passo < total;
+    }
+    function rodar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; el("rodar").textContent = "Rodar"; return; }
+      el("rodar").textContent = "Pausar";
+      timer = window.setInterval(() => {
+        if (!avancar()) { window.clearInterval(timer!); timer = null; el("rodar").textContent = "Rodar"; }
+      }, 260);
+    }
+    function parar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; el("rodar").textContent = "Rodar"; }
+    }
+    el("rodar").addEventListener("click", rodar);
+    el("passo").addEventListener("click", () => { parar(); avancar(); });
+    el("reiniciar").addEventListener("click", () => { parar(); passo = -1; desenhar(); });
+    selStride.addEventListener("change", () => { parar(); stride = +selStride.value; passo = -1; desenhar(); });
+    selPadding.addEventListener("change", () => { parar(); padding = +selPadding.value; passo = -1; desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 260, 260), 620)
+        : Math.round(Math.min(Math.max(W * 0.42, 230), 380));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

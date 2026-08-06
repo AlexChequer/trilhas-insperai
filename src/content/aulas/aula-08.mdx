@@ -1,0 +1,211 @@
+---
+n: "A8"
+titulo: "Claude Code"
+ordem: 8
+objetivo: "Ganhar a ferramenta e a postura de revisor junto — e saber exatamente quais decisões continuam sendo suas."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import RevisaoCodigo from "../../components/viz/RevisaoCodigo.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Esta aula é prática e tem uma regra que organiza tudo o que vem depois: **você pode delegar a escrita, não pode delegar a decisão.** Arquitetura, <Termo id="hiperparametro">hiperparâmetro</Termo>, escolha de métrica, diagnóstico e o que fazer quando não converge continuam sendo seus. As sete aulas anteriores existem justamente para você conseguir tomar essas decisões — e para conseguir perceber quando o código que veio pronto tomou uma delas por você, errado.
+
+## Prompt: contexto antes de pedido
+
+A maior parte dos prompts ruins tem o mesmo defeito: pedem antes de contar. O modelo não sabe nada que você não colocou na conversa — não sabe o formato dos seus dados, não sabe que a classe é desbalanceada, não sabe que a entrega tem que ser um notebook.
+
+Quatro coisas melhoram quase qualquer prompt:
+
+- **Contexto primeiro.** O que é o projeto, como é o dado, o que já existe.
+- **Específico sobre formato, restrição e critério de sucesso.** "Um notebook que roda do começo ao fim, só com numpy e sklearn, e que imprima a matriz de confusão" é infinitamente melhor que "faça um classificador".
+- **Exemplo vale mais que descrição.** Mostrar uma linha do arquivo ou um trecho do formato que você quer economiza três rodadas de conversa.
+- **Em problema difícil, peça o raciocínio antes da resposta.** "Antes de escrever o código, liste as decisões que você vai tomar e por quê."
+
+O que não funciona: procurar o prompt mágico, pedido vago esperando que ele acerte, e supor que ele lembra do contexto do projeto sem você ter contado.
+
+<Caixa tipo="dica" titulo="A spec antes do prompt">
+Antes de pedir, escreva em português o que você quer, com precisão — o objetivo, as restrições, o critério de pronto. Isso é a **spec**, e ela serve para duas coisas. A primeira é óbvia: vira o prompt. A segunda é o ponto real desta aula: **quem não consegue descrever não consegue revisar.** Se você não sabia dizer o que queria, também não vai saber olhar o resultado e julgar se está certo.
+</Caixa>
+
+## A janela de contexto
+
+O modelo enxerga uma quantidade limitada de texto por vez — a **janela de contexto**. Dentro dela ele considera tudo; fora dela, a informação não existe. Não é que ele esqueça: ela nunca chegou.
+
+Duas consequências práticas. A primeira é que conversa muito longa **degrada**: o começo vai ficando distante, instruções antigas competem com novas, e correções sucessivas se acumulam em camadas contraditórias. A segunda vem da primeira — muitas vezes **recomeçar limpo** rende mais do que insistir na conversa que travou. Abrir do zero, colar só o que importa e refazer o pedido com o que você aprendeu na tentativa anterior costuma resolver em dois minutos o que meia hora de "não, não é isso" não resolveu.
+
+<Caixa tipo="erro">
+Insistir numa conversa gigante em vez de recomeçar. A tentação é entender: você já explicou o contexto, parece desperdício jogar fora. Mas o custo de uma <Termo id="janela-de-contexto">janela de contexto</Termo> entupida de tentativas fracassadas é alto — o modelo passa a responder mais ao histórico do que ao seu pedido. Se três correções seguidas não resolveram, o problema provavelmente é a <Termo id="spec">spec</Termo>, não o modelo.
+</Caixa>
+
+## O código que roda e está errado
+
+Aqui está o coração da aula. Ferramentas de IA erram de um jeito específico e perigoso: elas entregam código que **roda**, produz um número **bonito**, e está errado por dentro. Não há stack trace, não há aviso — só um resultado que parece bom.
+
+Os dois casos abaixo são reais no sentido que importa: são exatamente os erros que aparecem quando você pede um modelo sem especificar o que precisa ser cuidado. E os dois você já sabe pegar, porque são as Aulas 3 e 7. **Clique na linha onde está o problema:**
+
+<VizEmbed titulo="ache o erro antes de aceitar o código">
+  <RevisaoCodigo />
+</VizEmbed>
+
+Repare no que os dois casos têm em comum: nenhum é erro de programação. Um é <Termo id="vazamento-de-dados">vazamento</Termo> e o outro é métrica errada — os dois são erros de **decisão**, sobre como preparar o dado e sobre o que medir. É por isso que a regra da aula é o que é: se você delegasse essas decisões, não teria como pegar nenhum dos dois.
+
+<Caixa tipo="erro">
+Aceitar código que roda sem checar se ele faz o que deveria. "Rodou" e "está certo" são coisas diferentes, e em machine learning a distância entre as duas é maior do que em quase qualquer outra área — porque o resultado é um número plausível, não um comportamento observável. Um bug de vazamento não trava: ele te dá 0,94 de <Termo id="acuracia">acurácia</Termo> e um modelo que fracassa em produção.
+</Caixa>
+
+<Pergunta pergunta="Se eu preciso saber tudo para revisar, qual é o ganho de usar a ferramenta?">
+O ganho é grande, e não está onde parece.
+
+Ela não substitui o entendimento — ela elimina o **trabalho de digitação e de lembrar sintaxe**. Escrever o loop de treino, montar o `train_test_split`, plotar a matriz de confusão, lembrar a ordem dos argumentos: isso é execução, não decisão, e delegar isso libera tempo para a parte que importa.
+
+Há também um ganho menos citado: ela é excelente para **explorar alternativas rápido**. Testar cinco arquiteturas em vinte minutos, em vez de duas em duas horas, muda a qualidade da sua investigação — desde que seja você escolhendo o que testar e lendo os resultados.
+
+O que ela não faz é assumir a responsabilidade. Se o modelo entregar um resultado com vazamento e você apresentar isso, o erro é seu. Foi por isso que o curso te deu sete aulas antes desta.
+</Pergunta>
+
+<Quiz
+  id="a8-decisao-vs-execucao"
+  pergunta="Quais destes você pode delegar sem revisar com cuidado?"
+  alternativas={[
+    {
+      texto: "A digitação do loop de treino e a plotagem dos gráficos — execução. A escolha da métrica, da arquitetura e de como dividir os dados continua sendo decisão sua.",
+      certa: true,
+      porque: "Isso, e é a régua da aula inteira. A pergunta útil é: “se isto estiver errado, o código quebra ou só entrega um número pior?”. O que não quebra é o que exige você.",
+    },
+    {
+      texto: "Tudo, desde que você leia o código no fim e ele esteja legível.",
+      porque: "Ler código legível não revela vazamento nem métrica errada — os dois casos da visualização eram perfeitamente legíveis. O que revela é saber o que deveria estar ali.",
+    },
+    {
+      texto: "Nada: em machine learning é preciso escrever tudo à mão para entender.",
+      porque: "Escrever à mão não é o que produz entendimento — decidir é. Recusar a ferramenta por princípio custa velocidade sem comprar segurança nenhuma.",
+    },
+    {
+      texto: "A escolha de hiperparâmetros, porque o modelo conhece os valores usuais melhor que você.",
+      porque: "Ele de fato sugere valores razoáveis, e usar isso como ponto de partida é ótimo. Mas quem olha a curva de validação e decide o que mudar em seguida é você — é isso que a Aula 7 ensinou a fazer.",
+    },
+  ]}
+/>
+
+## Fluxo agêntico: delegar tarefa, não trecho
+
+Há uma diferença de natureza entre pedir "escreva uma função que normaliza este array" e dizer "leia o projeto, acrescente uma etapa de validação cruzada ao pipeline e rode os testes". O segundo é um **fluxo agêntico**: várias etapas, arquivos sendo lidos e editados, comandos rodando, decisões intermediárias sendo tomadas pelo caminho.
+
+O <Termo id="fluxo-agentico">fluxo agêntico</Termo> é muito mais poderoso, e por isso mesmo exige mais de você. Duas práticas dão conta da maior parte:
+
+- **Peça o plano antes da execução.** Um plano em português é barato de ler e barato de corrigir; trinta arquivos alterados, não.
+- **Trabalhe em passos pequenos e verificáveis.** Uma etapa, uma conferida. Assim, quando algo sai errado, você sabe exatamente onde.
+
+<p class="nota">
+  O que fica desta aula não é uma lista de truques de prompt — é a postura. Você
+  escreve a spec, delega a escrita, revisa como quem procura o erro que não trava
+  o programa, e mantém as decisões com você. As sete aulas anteriores são o que
+  torna essa revisão possível.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a8-codigo-que-roda"
+  pergunta="A ferramenta entrega um notebook que roda sem erro e reporta 0,97 de acurácia num problema que você achava difícil. Qual é a primeira coisa a fazer?"
+  alternativas={[
+    {
+      texto: "Desconfiar e investigar: procurar vazamento na preparação dos dados e conferir se a métrica faz sentido para o problema. Resultado bom demais é sintoma, não conquista.",
+      certa: true,
+      porque: "Isso. Em machine learning, o erro caro é o que não trava — e ele quase sempre se manifesta como um número melhor do que o esperado.",
+    },
+    {
+      texto: "Registrar o resultado e seguir para a próxima etapa: o código roda e a acurácia é alta.",
+      porque: "“Roda” só descarta erro de sintaxe. Os dois casos que você revisou na visualização rodavam perfeitamente e estavam errados — um por vazamento, outro por métrica.",
+    },
+    {
+      texto: "Pedir para a ferramenta revisar o próprio código e apontar problemas.",
+      porque: "Vale pedir, e às vezes ela acha algo. Mas é o mesmo modelo, com o mesmo contexto e os mesmos pontos cegos que produziram o código — não substitui a sua revisão.",
+    },
+    {
+      texto: "Rodar no conjunto de teste para confirmar se o 0,97 se mantém.",
+      porque: "Se houver vazamento na preparação dos dados, ele contaminou o teste também — e o número se confirma, errado. Além disso, usar o teste para conferir hipótese é o erro da Aula 7.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a8-conversa-longa"
+  pergunta="Depois de quarenta mensagens, a ferramenta começa a ignorar instruções que você deu no começo e a reintroduzir bugs já corrigidos. O que fazer?"
+  alternativas={[
+    {
+      texto: "Recomeçar limpo: abrir uma conversa nova com uma spec revisada e só o contexto que importa, aproveitando o que você aprendeu nas tentativas anteriores.",
+      certa: true,
+      porque: "Isso. O histórico entupido passa a competir com o pedido atual. Recomeçar parece desperdício, mas a tentativa anterior te deixou uma spec melhor — e é ela o resultado que interessa.",
+    },
+    {
+      texto: "Repetir a instrução original em letras maiúsculas para dar mais peso a ela.",
+      porque: "Ênfase não desfaz o acúmulo de contexto contraditório — só acrescenta mais uma mensagem à pilha que já está atrapalhando.",
+    },
+    {
+      texto: "Continuar corrigindo: em algum momento ela converge para o que você quer.",
+      porque: "É a aposta que a aula desaconselha. Depois de três correções sem sucesso, o problema costuma ser a spec ou o contexto acumulado, e insistir só piora os dois.",
+    },
+    {
+      texto: "Trocar de ferramenta, já que esta claramente não dá conta da tarefa.",
+      porque: "A degradação por conversa longa não é defeito de uma ferramenta específica — é consequência de como a janela de contexto funciona. A conversa nova resolve; a troca de ferramenta, não necessariamente.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a8-spec-antes"
+  pergunta="Por que escrever a spec em português antes de pedir, se depois vou ter que escrever o prompt de qualquer jeito?"
+  alternativas={[
+    {
+      texto: "Porque escrever a spec é o teste de que você sabe o que quer — e quem não consegue descrever o resultado esperado não tem como julgar se o que voltou está certo.",
+      certa: true,
+      porque: "Isso. A spec vira o prompt, mas o valor principal dela é anterior: ela obriga você a tomar as decisões conscientemente, em vez de deixá-las passar por omissão.",
+    },
+    {
+      texto: "Porque prompts em português funcionam melhor do que em inglês.",
+      porque: "O idioma tem pouco a ver — o ponto é o exercício de precisão que escrever exige, e esse exercício você faz na língua em que pensa.",
+    },
+    {
+      texto: "Porque a spec serve de documentação do projeto depois.",
+      porque: "É um efeito colateral útil, mas secundário. O motivo apresentado na aula é sobre a sua capacidade de revisar, não sobre registro.",
+    },
+    {
+      texto: "Porque assim dá para reaproveitar o mesmo prompt em conversas futuras sem reescrever.",
+      porque: "Reaproveitar ajuda na prática, mas o argumento é fraco: se a spec fosse só um texto a reutilizar, bastaria salvar o prompt depois de pronto. O ganho está em escrevê-la **antes**.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a8-plano-antes"
+  pergunta="Você vai delegar uma tarefa grande: reorganizar o pipeline de dados do projeto em vários arquivos. Qual abordagem reduz mais o risco?"
+  alternativas={[
+    {
+      texto: "Pedir o plano em português primeiro, revisar o plano, e só então autorizar a execução — em passos pequenos, conferindo cada um.",
+      certa: true,
+      porque: "Isso. Corrigir um plano custa um parágrafo; corrigir trinta arquivos já alterados custa a tarde. E os passos pequenos localizam o erro quando ele aparece.",
+    },
+    {
+      texto: "Pedir tudo de uma vez e revisar o diff completo no fim, que é quando dá para ver o resultado de verdade.",
+      porque: "Um diff grande esconde bem: quanto maior, menor a chance de você notar a decisão errada no meio. E, se algo estiver errado, você não sabe em qual etapa começou.",
+    },
+    {
+      texto: "Pedir tudo de uma vez, mas rodar os testes depois — se passarem, está certo.",
+      porque: "Testes passando descartam quebra, não decisão errada. O caso do vazamento passaria em qualquer teste: o código roda, produz números, e a resposta é ótima.",
+    },
+    {
+      texto: "Fazer manualmente: tarefas de várias etapas são o tipo de coisa que não se delega.",
+      porque: "É justamente o tipo em que a ferramenta rende mais. O que a torna segura é o plano revisado antes e a conferência por etapa — não recusar a delegação.",
+    },
+  ]}
+/>
+
+</QuizBloco>

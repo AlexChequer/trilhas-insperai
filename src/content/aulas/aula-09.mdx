@@ -1,0 +1,263 @@
+---
+n: "A9"
+titulo: "CNNs pt. 1"
+ordem: 9
+objetivo: "Por que a MLP não serve para imagem, o que a convolução calcula, e como stride, padding e pooling mudam o tamanho da saída."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import ParametrosMlpCnn from "../../components/viz/ParametrosMlpCnn.astro";
+import ConvolucaoPasso from "../../components/viz/ConvolucaoPasso.astro";
+import FiltrosImagem from "../../components/viz/FiltrosImagem.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Vocês fizeram o MNIST com MLP, e a restrição era intencional. Agora dá para falar dos limites dela com conhecimento de causa: você esticou uma imagem de 28×28 num vetor de 784 números e mandou para uma rede densa. Esta aula é sobre os três problemas que esse gesto cria, e sobre a operação que resolve os três de uma vez.
+
+## Os três problemas da MLP em imagem
+
+**Primeiro: a explosão de parâmetros.** No MNIST ainda passa — 784 entradas, e a primeira camada com 128 neurônios dá 100 mil pesos. Mas uma imagem de verdade, 224×224 colorida, tem mais de 150 mil números de entrada, e essa mesma primeira camada passa de **19 milhões** de pesos. Só a primeira.
+
+**Mexa no tamanho da imagem** e compare as duas contagens:
+
+<VizEmbed titulo="a mesma imagem, duas primeiras camadas">
+  <ParametrosMlpCnn />
+</VizEmbed>
+
+**Segundo: a estrutura espacial vai embora.** Achatar a imagem num vetor joga fora a informação de que dois pixels eram vizinhos. Para a MLP, o pixel 33 e o pixel 34 não têm nenhuma relação especial — são só duas posições do vetor, tão relacionadas quanto o pixel 33 e o pixel 700. Só que numa imagem a vizinhança é **tudo**: uma borda é uma mudança entre pixels que estão colados.
+
+**Terceiro: nenhuma tolerância a deslocamento.** Desenhe o mesmo 7 dois pixels mais à direita e a MLP recebe um vetor completamente diferente — os pesos que aprenderam a reconhecer aquele traço estão ligados às posições antigas. Ela teria que aprender o 7 de novo, para cada posição possível.
+
+<Caixa tipo="nota" titulo="Os três têm a mesma raiz">
+Repare que os três problemas vêm da mesma escolha: **um peso por posição**. Se cada pixel tem seu próprio peso, o número de pesos cresce com a área, a noção de vizinhança não é representada em lugar nenhum, e o que se aprendeu num canto não vale no outro. A convolução ataca exatamente essa escolha.
+</Caixa>
+
+## A convolução
+
+Em vez de um peso por pixel, use uma **janelinha de pesos** que percorre a imagem inteira. Em cada posição, multiplique cada peso pelo pixel embaixo dele, some tudo, e escreva o resultado numa saída. Essa janelinha é o **filtro** (ou kernel), quase sempre 3×3, e o resultado é um **feature map**: um mapa que diz **onde** na imagem aquele padrão apareceu.
+
+**Aperte "rodar"** e acompanhe a janela deslizando:
+
+<VizEmbed titulo="a janela deslizando e o mapa se formando">
+  <ConvolucaoPasso />
+</VizEmbed>
+
+O ponto que resolve os três problemas de uma vez é o **compartilhamento de pesos**: são os **mesmos** nove números aplicados na imagem inteira. Daí sai tudo — a contagem de parâmetros deixa de depender do tamanho da imagem, a vizinhança está embutida na forma da janela, e um padrão aprendido num canto é reconhecido em qualquer outro, porque o mesmo filtro passa por todos os lugares. Isso é <Termo id="invariancia-a-translacao">invariância a translação</Termo>.
+
+Vale ver o que um filtro faz numa imagem de verdade. **Troque o filtro** e compare:
+
+<VizEmbed titulo="escolha o kernel e veja o efeito">
+  <FiltrosImagem />
+</VizEmbed>
+
+<Caixa tipo="erro">
+Numa CNN os <Termo id="filtro">filtros</Termo> **não** são escolhidos à mão. Os detectores de borda que você acabou de ver são clássicos e existem desde antes de redes neurais — eles estão aqui para mostrar o que uma janelinha de nove números consegue fazer. Numa CNN, esses nove números são **pesos como quaisquer outros**: começam aleatórios e o backprop descobre quais valores servem. O que a rede aprende costuma parecer com detectores de borda nas primeiras camadas — mas ela chegou nisso sozinha, e nas camadas seguintes aprende coisas para as quais ninguém teria um nome.
+</Caixa>
+
+<Pergunta pergunta="Se o filtro é só 3×3, como a rede enxerga alguma coisa maior que três pixels?">
+Empilhando camadas — e é aqui que profundidade ganha um sentido concreto.
+
+Um neurônio da primeira camada convolucional enxerga 3×3 pixels da imagem. Um neurônio da segunda camada enxerga 3×3 saídas da primeira — e cada uma delas já resumia 3×3 pixels, então ele enxerga, indiretamente, uma região de 5×5 da imagem original. Na terceira camada essa região vira 7×7, e assim por diante. Esse pedaço da imagem que influencia um neurônio tem nome: **campo receptivo**.
+
+Com pooling no meio, o crescimento acelera bastante: cada pooling 2×2 dobra o alcance de tudo o que vem depois. É por isso que uma CNN com poucas camadas já "vê" a imagem inteira nas camadas finais.
+
+Daí a hierarquia da Aula 10: as primeiras camadas só conseguem ver borda, porque é o que cabe em 3×3. As profundas veem objeto inteiro, porque o campo receptivo delas já cobre boa parte da imagem.
+</Pergunta>
+
+<Quiz
+  id="a9-filtros-aprendidos"
+  pergunta="Um colega vai montar uma CNN e pergunta quais kernels ele deve escolher para detectar os traços dos dígitos. O que responder?"
+  alternativas={[
+    {
+      texto: "Nenhum: os valores dos filtros são parâmetros treináveis, iguais aos pesos de uma MLP. Você escolhe quantos filtros e de que tamanho; o treino descobre os valores.",
+      certa: true,
+      porque: "Isso. O que é decisão de arquitetura é a **quantidade** e o **tamanho** dos filtros; o conteúdo deles é aprendido — inclusive filtros que ninguém saberia projetar à mão.",
+    },
+    {
+      texto: "Sobel para bordas verticais e horizontais, que são os clássicos para traços.",
+      porque: "Esses filtros funcionam e foram usados assim por décadas em visão computacional. A mudança que a CNN trouxe é exatamente parar de escolhê-los: a rede costuma chegar em algo parecido sozinha, e vai além nas camadas seguintes.",
+    },
+    {
+      texto: "Depende do dataset: para dígitos usam-se detectores de traço, para fotos usam-se detectores de textura.",
+      porque: "A intuição de que filtros diferentes servem a dados diferentes está certa — e é justamente por isso que se deixa o treino decidir, em vez de adivinhar de antemão.",
+    },
+    {
+      texto: "Ele deve começar com filtros aleatórios e ir ajustando à mão conforme o resultado.",
+      porque: "Começar aleatório está certo, mas o ajuste não é à mão: é o backprop, calculando o gradiente de cada um dos nove pesos como faz com qualquer outro parâmetro.",
+    },
+  ]}
+/>
+
+## Stride, padding e a conta do tamanho
+
+Duas escolhas mudam como a janela da <Termo id="convolucao">convolução</Termo> percorre a imagem.
+
+**Stride** é de quantos em quantos pixels a janela anda. Com stride 1 ela visita todas as posições; com stride 2 ela pula uma a cada passo, e a saída sai com cerca de metade do tamanho em cada dimensão.
+
+**Padding** é uma moldura de zeros em volta da imagem. Sem ela, a janela não consegue se centrar nos pixels da borda — o pixel do canto participa de uma única posição, enquanto um pixel do meio participa de nove. A borda fica subamostrada e a saída encolhe a cada camada. Com uma moldura de zeros de espessura 1 e kernel 3×3, a saída sai do mesmo tamanho da entrada.
+
+Juntando tudo, o tamanho da saída é:
+
+$$
+S = \left\lfloor \frac{N + 2P - K}{E} \right\rfloor + 1
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$N$", significado: "o tamanho da entrada — 28, no MNIST" },
+    { simbolo: "$K$", significado: "o tamanho do kernel: 3 num filtro 3×3" },
+    { simbolo: "$P$", significado: "o padding: quantas camadas de zero foram acrescentadas de cada lado" },
+    { simbolo: "$E$", significado: "o stride: de quantos em quantos pixels a janela anda" },
+    { simbolo: "$\\lfloor\\ \\rfloor$", significado: "arredondar para baixo — se a janela não cabe inteira no fim, aquela posição simplesmente não acontece" },
+  ]}
+/>
+
+Vale conferir a conta na visualização de cima, trocando <Termo id="stride">stride</Termo> e padding e olhando o número no painel. Essa conta parece burocrática agora e é a coisa que mais trava gente montando arquitetura na Aula 10.
+
+<Caixa tipo="erro">
+Confundir stride com tamanho do kernel. São coisas independentes: o kernel diz **quão grande é a janela**, o stride diz **de quanto em quanto ela pula**, e o <Termo id="padding">padding</Termo> diz **quanto a imagem cresce antes de tudo isso**. Dá para ter um kernel 5×5 com stride 1 (janelas grandes que se sobrepõem bastante) ou um kernel 3×3 com stride 3 (janelas pequenas que não se sobrepõem nada). Trocar os três de lugar na fórmula é o caminho mais rápido para errar a conta de tamanho e descobrir na hora do erro de execução.
+</Caixa>
+
+## Pooling
+
+Falta uma peça, e ela é simples. O **pooling** resume blocos de pixels vizinhos num valor só: no _max pooling_ 2×2, cada bloco de quatro vira o maior dos quatro; no _average pooling_, vira a média. O <Termo id="feature-map">feature map</Termo> sai com metade do tamanho em cada dimensão.
+
+Serve para duas coisas. A primeira é reduzir dimensão — e barato, porque o <Termo id="pooling">pooling</Termo> não tem parâmetro nenhum para aprender. A segunda é mais interessante: ele dá **tolerância a pequenos deslocamentos**. Se o traço que ativou o filtro se mover um pixel para o lado, ele provavelmente continua dentro do mesmo bloco 2×2, e o máximo daquele bloco não muda. O que o pooling guarda é "este padrão apareceu por aqui", não "este padrão apareceu exatamente neste pixel" — e para reconhecer um objeto é justamente isso que interessa.
+
+<Quiz
+  id="a9-conta-tamanho"
+  pergunta="Entrada 32×32, kernel 5×5, stride 1, padding 0. Qual o tamanho da saída?"
+  alternativas={[
+    {
+      texto: "28×28 — pela conta $(32 + 0 - 5)/1 + 1 = 28$.",
+      certa: true,
+      porque: "Isso. Sem padding, cada convolução encolhe o mapa em $K-1$ — aqui, 4 pixels em cada dimensão. É por isso que redes profundas sem padding vão perdendo tamanho camada após camada.",
+    },
+    {
+      texto: "32×32 — a convolução preserva o tamanho da imagem.",
+      porque: "Ela preserva **se** houver padding suficiente. Com $P = 0$ a janela não consegue se centrar nas bordas, e a saída encolhe.",
+    },
+    {
+      texto: "27×27 — são 32 − 5 = 27 posições possíveis.",
+      porque: "Quase: falta o “+1”. Com 32 posições e uma janela de 5, cabem 28 janelas (começando em 1, 2, … 28), não 27. É o erro clássico de contagem de cerca.",
+    },
+    {
+      texto: "16×16 — o kernel 5×5 reduz o mapa pela metade.",
+      porque: "Reduzir pela metade é efeito de stride 2 ou de pooling 2×2, não do tamanho do kernel. Com stride 1 a janela visita quase todas as posições.",
+    },
+  ]}
+/>
+
+<p class="nota">
+  Você já consegue dizer por que a MLP não serve para imagem, explicar o que uma
+  convolução calcula, e prever o tamanho de saída de uma camada antes de rodar.
+  A Aula 10 junta essas peças numa arquitetura completa, mostra o que os filtros
+  de fato aprendem em cada profundidade, e apresenta a técnica que você mais vai
+  usar na prática: aproveitar uma rede que já foi treinada.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a9-por-que-mlp-falha"
+  pergunta="Qual é o problema mais grave de usar uma MLP densa numa imagem de 224×224 colorida?"
+  alternativas={[
+    {
+      texto: "Os três juntos, e todos vêm da mesma raiz: um peso por posição. Isso faz o número de parâmetros crescer com a área, joga fora a vizinhança entre pixels e obriga a rede a reaprender o mesmo padrão em cada posição.",
+      certa: true,
+      porque: "Isso, e a unidade dos três é o que torna a convolução tão eficaz: compartilhar pesos resolve os três de uma vez, e não um de cada vez.",
+    },
+    {
+      texto: "Só a quantidade de parâmetros: com GPU e dados suficientes, uma MLP grande resolveria.",
+      porque: "Mais dados e mais computação ajudam, mas não devolvem a estrutura espacial nem a tolerância a deslocamento — a MLP teria que aprender cada padrão em cada posição, gastando dados de forma absurda.",
+    },
+    {
+      texto: "O tempo de treino, que cresce demais com imagens grandes.",
+      porque: "O tempo é consequência, não a causa. O problema é o que a arquitetura consegue representar e com que eficiência aprende, não quantos segundos leva cada epoch.",
+    },
+    {
+      texto: "A perda de cor: achatar a imagem mistura os três canais.",
+      porque: "Achatar não mistura nada — os valores dos três canais continuam lá, em posições diferentes do vetor. O que se perde é a informação de **adjacência**, não a de cor.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a9-compartilhamento"
+  pergunta="Por que o compartilhamento de pesos é o que mais importa na convolução?"
+  alternativas={[
+    {
+      texto: "Porque usar o mesmo filtro na imagem inteira desliga a contagem de parâmetros do tamanho da imagem e faz um padrão aprendido num canto valer em qualquer outro.",
+      certa: true,
+      porque: "Isso — são os dois ganhos de uma decisão só. Trocar 28×28 por 224×224 não acrescenta um único peso à camada convolucional.",
+    },
+    {
+      texto: "Porque economiza memória durante o treino, deixando os batches maiores.",
+      porque: "Economiza mesmo, e isso é útil. Mas é consequência prática: o ganho conceitual é a rede conseguir representar “este padrão, em qualquer lugar” com um só conjunto de pesos.",
+    },
+    {
+      texto: "Porque garante que a rede aprenda detectores de borda nas primeiras camadas.",
+      porque: "A rede costuma mesmo aprender algo parecido com bordas ali, mas isso é resultado do treino, não garantia do compartilhamento. Filtros compartilhados poderiam aprender qualquer outra coisa.",
+    },
+    {
+      texto: "Porque permite usar kernels maiores sem custo adicional.",
+      porque: "Kernel maior custa mais, sim: um 5×5 tem 25 pesos contra 9 do 3×3. O que não custa mais é aplicar o mesmo kernel numa imagem maior.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a9-stride-vs-kernel"
+  pergunta="Você quer reduzir pela metade o tamanho do mapa saindo de uma camada convolucional. O que muda?"
+  alternativas={[
+    {
+      texto: "Stride 2 — ou um pooling 2×2 depois da convolução. O tamanho do kernel não é o que controla isso.",
+      certa: true,
+      porque: "Isso, e são dois caminhos com uma diferença: o stride 2 pula posições durante a convolução, o pooling calcula tudo e depois resume. O pooling não tem parâmetro; o stride economiza cálculo.",
+    },
+    {
+      texto: "Kernel 2×2, porque o tamanho do kernel define o fator de redução.",
+      porque: "Aqui está a confusão que a aula alerta. Um kernel 2×2 com stride 1 produz uma saída quase do mesmo tamanho da entrada — encolhe só 1 pixel por dimensão.",
+    },
+    {
+      texto: "Padding 2, para compensar a diferença de tamanho.",
+      porque: "Padding faz o contrário: ele **aumenta** a entrada efetiva e, portanto, a saída. Serve para preservar tamanho e cuidar da borda, não para reduzir.",
+    },
+    {
+      texto: "Aumentar o número de filtros para 64, que compacta o mapa.",
+      porque: "O número de filtros muda a **profundidade** da saída (quantos mapas), não a largura e a altura de cada um. É comum aumentar filtros justamente enquanto se reduz a resolução espacial.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a9-pooling-invariancia"
+  pergunta="O dígito aparece um pixel mais à direita do que no treino. Por que uma CNN se incomoda menos com isso do que uma MLP?"
+  alternativas={[
+    {
+      texto: "Porque o mesmo filtro percorre a imagem inteira, então ele encontra o padrão na posição nova sem precisar tê-la visto — e o pooling ainda absorve deslocamentos pequenos, porque o máximo de um bloco 2×2 não muda se o traço se move dentro dele.",
+      certa: true,
+      porque: "Isso: são dois mecanismos somados. O compartilhamento dá o reconhecimento em qualquer posição, o pooling dá a tolerância fina.",
+    },
+    {
+      texto: "Porque a CNN normaliza a posição do objeto antes de processar.",
+      porque: "Não há etapa de centralização numa CNN comum — ela não “procura e alinha” o objeto. A tolerância vem da própria forma da operação, não de um pré-processamento.",
+    },
+    {
+      texto: "Porque a CNN tem muito mais parâmetros e cobre mais casos.",
+      porque: "É o oposto: a camada convolucional tem **menos** parâmetros que a densa equivalente. A robustez vem de reutilizar os mesmos pesos, não de ter mais.",
+    },
+    {
+      texto: "Porque o padding acrescenta zeros nas bordas e compensa o deslocamento.",
+      porque: "O padding cuida da amostragem da borda e do tamanho da saída. Ele não tem relação com reconhecer o mesmo padrão em posições diferentes.",
+    },
+  ]}
+/>
+
+</QuizBloco>

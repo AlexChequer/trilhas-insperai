@@ -1,0 +1,291 @@
+---
+n: "A4"
+titulo: "Do Neurônio à Rede"
+ordem: 4
+objetivo: "A conta que um neurônio faz é a mesma da Aula 1. O que muda tudo é uma função pequena colada no fim dela — e sem essa função, empilhar camadas não serve para nada."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import Ativacoes from "../../components/viz/Ativacoes.astro";
+import CamadasColapsando from "../../components/viz/CamadasColapsando.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+"Rede neural" soa como uma categoria diferente de coisa — algo que começa onde a regressão linear termina. Não é. A unidade básica de uma rede faz exatamente a conta que você já sabe fazer desde a Aula 1. Esta aula acrescenta a essa conta uma única peça nova, a **ativação**, e mostra que sem ela a rede inteira — por mais fundo que você empilhe — desaba numa reta.
+
+## O neurônio é a conta que você já conhece
+
+Um **neurônio** recebe várias entradas, multiplica cada uma por um **peso**, soma tudo e acrescenta um **viés**:
+
+$$
+\begin{aligned}
+z &= w_1x_1 + \cdots + w_nx_n + b \\[2pt]
+  &= \mathbf{w} \cdot \mathbf{x} + b
+\end{aligned}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$x_1 \\dots x_n$", significado: "as entradas do neurônio: as features do exemplo, se ele estiver na primeira camada, ou as saídas dos neurônios anteriores, se estiver no meio da rede" },
+    { simbolo: "$w_1 \\dots w_n$", significado: "os pesos: quanto cada entrada importa para este neurônio. Peso grande e positivo puxa o resultado para cima; negativo, para baixo" },
+    { simbolo: "$b$", significado: "o viés: um valor somado no fim, independente das entradas. Ele regula o quanto é fácil ou difícil ativar este neurônio" },
+    { simbolo: "$z$", significado: "o resultado da soma, antes de qualquer outra coisa acontecer com ele. É o número que vai entrar na ativação" },
+  ]}
+/>
+
+O lado direito é o <Termo id="produto-escalar">produto escalar</Termo> da Aula 2, escrito da forma compacta. Um neurônio isolado com essa conta tem um nome clássico: **perceptron**.
+
+A analogia biológica vale até certo ponto: um neurônio de verdade recebe sinais de vários outros, cada sinapse com uma força diferente, e dispara se a soma passar de um limite. Os pesos fazem o papel da força de cada sinapse e o viés faz o papel do limite. A analogia acaba aí — não force mais do que isso, porque a partir daqui é matemática, não biologia.
+
+<Caixa tipo="erro">
+Não há nada de novo nessa fórmula. A palavra "neurônio" cria a impressão de um objeto exótico, mas $\mathbf{w} \cdot \mathbf{x} + b$ é literalmente a conta da regressão linear da Aula 1, com o produto escalar da Aula 2. Se você já entendeu aquelas, você já entendeu o miolo de uma rede neural. A peça genuinamente nova desta aula é a ativação — e é só ela.
+</Caixa>
+
+E dá para ir além: se você pegar esse $z$ e passar por uma sigmoid, o que sai é a probabilidade de classe da Aula 3. Ou seja, **um neurônio com sigmoid é exatamente a** <Termo id="regressao-logistica">regressão logística</Termo>. Uma rede neural é, literalmente, um monte de regressões logísticas ligadas umas nas outras — dito assim, desmistifica bastante.
+
+## A ativação
+
+A ativação é uma função aplicada ao $z$ antes de o valor seguir adiante:
+
+$$
+a = g(\mathbf{w} \cdot \mathbf{x} + b)
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$g$", significado: "a ativação: a função escolhida para este neurônio — sigmoid, tanh ou ReLU são as três desta aula" },
+    { simbolo: "$a$", significado: "a saída do neurônio, já ativada. É este número que vira entrada dos neurônios da camada seguinte" },
+  ]}
+/>
+
+São três as candidatas que importam agora:
+
+- **Sigmoid** — esmaga qualquer número real entre 0 e 1. Você já a conhece da Aula 3, mas com um papel diferente: lá ela era a **resposta final** do modelo, uma probabilidade; aqui ela está no **meio** da rede, e o que sai dela é matéria-prima para o próximo neurônio.
+- **Tanh** — o mesmo formato de S, só que entre −1 e 1 e centrada no zero. Ser centrada no zero ajuda: a saída média dos neurônios não fica empurrada para um lado só, e a camada seguinte recebe valores mais equilibrados.
+- **ReLU** — $g(z) = \max(0,\ z)$. Zera o que é negativo e deixa o positivo passar intacto. É de longe a mais simples das três, e é a padrão hoje.
+
+Parece estranho que a mais simples tenha ganhado. O motivo é a **saturação**: as pontas da sigmoid e da tanh são quase horizontais. Se $z$ for de 4 para 6, a saída da sigmoid vai de 0,982 para 0,998 — praticamente nada muda. Inclinação quase zero quer dizer derivada quase zero, e derivada quase zero quer dizer <Termo id="gradiente">gradiente</Termo> quase zero. Lembre do que o gradiente faz na Aula 1: ele é a correção que cada parâmetro recebe. Um neurônio saturado recebe correção quase nula — ou seja, **para de aprender**, e ainda atrapalha os que vêm antes dele, porque a correção deles passa por ali. A ReLU não tem esse problema em todo o lado positivo: a inclinação dela é exatamente 1, sempre.
+
+**Arraste o valor de $z$** abaixo e olhe a reta curta desenhada sobre cada ponto — ela mostra a inclinação da curva ali. As faixas sombreadas são as regiões onde essa inclinação é praticamente zero:
+
+<VizEmbed titulo="arraste z e veja a inclinação de cada ativação">
+  <Ativacoes />
+</VizEmbed>
+
+Repare que a ReLU também tem uma região morta: todo o lado negativo, onde ela devolve zero. A diferença é decisiva — a <Termo id="saturacao">saturação</Termo> da sigmoid e da tanh prende o neurônio nas **duas** pontas, enquanto a ReLU tem um lado inteiro vivo, e o viés pode deslocar o neurônio para dentro dele.
+
+<Caixa tipo="erro">
+A ativação **não** é a saída da rede. Ela é aplicada dentro de **cada** neurônio, em **todas** as camadas — uma rede de 4 camadas com 30 neurônios aplica a ativação 30 vezes por passada. O que sai da última camada é a saída da rede; o que sai de um neurônio no meio é só um número que segue viagem para o próximo. Confundir os dois faz a rede parecer ter uma ativação só, quando ela tem uma por neurônio.
+</Caixa>
+
+<Quiz
+  id="a4-sigmoid-saturada"
+  pergunta="Um neurônio no meio da rede usa sigmoid, e durante o treino o $z$ dele chegou a 8. O que isso significa para o aprendizado desse neurônio?"
+  alternativas={[
+    {
+      texto: "A saída satura perto de 1 e a inclinação da sigmoid ali é quase zero — quase nenhuma correção chega aos pesos dele, e ele praticamente para de aprender.",
+      certa: true,
+      porque: "Isso. O problema da saturação não está no valor da saída, e sim na inclinação: sem inclinação não há gradiente, e sem gradiente não há correção.",
+    },
+    {
+      texto: "Nada de especial: 1 é um valor perfeitamente válido para a sigmoid, então o treino segue normalmente.",
+      porque: "O valor é válido mesmo — o raciocínio escorrega ao olhar só a saída. O que trava o treino é a derivada naquele ponto, que é outra coisa e é quase nula ali.",
+    },
+    {
+      texto: "A saída passa de 1, e aí deixa de poder ser lida como probabilidade.",
+      porque: "A sigmoid nunca passa de 1, por construção — é exatamente para isso que ela existe. O 8 é o $z$, que entra; o que sai é 0,9997.",
+    },
+    {
+      texto: "O gradiente fica muito grande e o treino diverge.",
+      porque: "Isso descreve o outro problema, o de passo grande demais da Aula 1. Aqui é o oposto: o gradiente encolhe até quase sumir, e o treino não diverge — ele congela.",
+    },
+  ]}
+/>
+
+## Por que a rede precisa de não-linearidade
+
+Agora o conceito central da aula. Uma **camada** é um grupo de neurônios que recebe as mesmas entradas e calcula em paralelo; a saída de uma camada é a entrada da próxima. Empilhar camadas é o que faz uma rede ser uma rede.
+
+Só que empilhar camadas **sem ativação** não produz nada. Veja o que acontece com duas delas, uma escrita dentro da outra:
+
+$$
+\begin{aligned}
+\mathbf{y} &= W_2(W_1\mathbf{x} + \mathbf{b}_1) + \mathbf{b}_2 \\[4pt]
+           &= \underbrace{(W_2W_1)}_{W}\,\mathbf{x} + \underbrace{(W_2\mathbf{b}_1 + \mathbf{b}_2)}_{\mathbf{b}}
+\end{aligned}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$W_1,\\ W_2$", significado: "as tabelas de pesos de cada camada — uma linha de pesos por neurônio da camada" },
+    { simbolo: "$\\mathbf{b}_1,\\ \\mathbf{b}_2$", significado: "os vieses de cada camada, um por neurônio" },
+    { simbolo: "$W$", significado: "o produto $W_2W_1$: uma única tabela de pesos que faz sozinha o trabalho das duas camadas" },
+    { simbolo: "$\\mathbf{b}$", significado: "o viés equivalente da camada única. Repare que ele também é só um número por saída" },
+  ]}
+/>
+
+O resultado tem a forma $W\mathbf{x} + \mathbf{b}$ — uma camada só. As duas camadas colapsaram numa. E isso não depende de serem duas: três, dez ou cem camadas lineares seguidas continuam colapsando, porque toda composição de transformações lineares é uma transformação linear. Você gastou parâmetros, tempo de treino e memória, e o conjunto de funções que a rede consegue representar continua sendo exatamente o mesmo de uma reta.
+
+Dá para ver isso acontecer numa tarefa concreta. Abaixo há um punhado de pontos formando uma curva, e uma rede tentando passar por eles — os traços vermelhos são o quanto ela erra em cada ponto. **Comece com a ativação desligada** e repare em duas coisas: a rede só consegue desenhar uma **reta**, e mexer no número de camadas **não muda nada** — o erro fica travado no mesmo valor. Depois ligue a ReLU:
+
+<VizEmbed titulo="ligue a ativação — e tente derrubar a reta com mais camadas">
+  <CamadasColapsando />
+</VizEmbed>
+
+<Caixa tipo="erro">
+Profundidade não substitui <Termo id="ativacao">ativação</Termo>. É tentador tratar "a rede não está dando conta" como sempre significando "a rede é pequena demais" — mas falta de não-linearidade e falta de capacidade são doenças diferentes. Sem ativação, a centésima camada é tão inútil quanto a segunda: o remédio não é empilhar, é a função que se coloca entre as camadas.
+</Caixa>
+
+<Pergunta pergunta="A ReLU é reta de um lado e reta do outro. Como uma coisa feita de dois pedaços retos consegue produzir curvas?">
+Porque o que importa não é o formato de **um** neurônio, e sim a soma de **muitos**.
+
+Cada neurônio com ReLU tem uma dobra, e a posição dessa dobra é decidida pelos pesos e pelo viés dele — cada neurônio dobra num lugar diferente. Somando várias dessas dobras, você monta uma função quebrada em muitos pedaços retos, e com pedaços suficientes dá para chegar tão perto quanto quiser de qualquer curva. É a mesma ideia de aproximar um círculo por um polígono de mil lados.
+
+O ponto sutil é que a dobra é justamente o que a soma ponderada **não** consegue fabricar sozinha. Basta uma dobra por neurônio para o colapso deixar de acontecer.
+</Pergunta>
+
+<Quiz
+  id="a4-mais-camadas-nao-resolve"
+  pergunta="Uma rede com 5 camadas e nenhuma ativação não consegue separar dados que exigem uma fronteira curva. Um colega propõe subir para 20 camadas. O que acontece?"
+  alternativas={[
+    {
+      texto: "Continua sendo uma reta. Composição de transformações lineares é linear, com 5 ou com 20 camadas — o que falta é ativação, não profundidade.",
+      certa: true,
+      porque: "Isso. As 20 camadas se reduzem a um único par $W$ e $\\mathbf{b}$, exatamente como as 2 do exemplo. A conta é a mesma, só mais longa.",
+    },
+    {
+      texto: "Com 20 camadas a rede fica flexível o bastante para curvar a fronteira, embora demore mais para treinar.",
+      porque: "É a intuição natural — mais peças, mais poder — e é ela que a álgebra derruba. Não importa quantas camadas: o produto de todas as matrizes ainda é uma matriz só.",
+    },
+    {
+      texto: "Melhora um pouco: cada camada extra acrescenta uma dobra à fronteira.",
+      porque: "A dobra vem da ativação, não da camada. Sem ativação nenhuma camada acrescenta dobra alguma — a fronteira segue reta.",
+    },
+    {
+      texto: "Piora, porque uma rede tão profunda vai decorar o treino e sofrer overfitting.",
+      porque: "Overfitting é um risco real de redes grandes (é o assunto da Aula 7), mas não é o que acontece aqui: um modelo linear com 20 camadas tem o mesmo poder de representação de uma reta, e uma reta não tem como decorar dado nenhum.",
+    },
+  ]}
+/>
+
+## Veja acontecer ao vivo
+
+O [TensorFlow Playground](https://playground.tensorflow.org/#activation=linear&batchSize=10&dataset=spiral&regDataset=reg-plane&learningRate=0.03&regularizationRate=0&noise=0&networkShape=6,6,6&seed=0.1&showTestData=false&discretize=false&percTrainData=50&x=true&y=true&xTimesY=false&xSquared=false&ySquared=false&cosX=false&sinX=false&cosY=false&sinY=false&problem=classification&initZero=false&hideText=false) abre já configurado no que interessa: o dataset da **espiral**, três <Termo id="camada">camadas</Termo> ocultas de seis neurônios, e a ativação em **Linear**.
+
+Aperte o play e espere. A rede tem 100 e poucos parâmetros e não separa a espiral — não porque falte treino, mas porque a única coisa que ela sabe desenhar é uma reta. Acrescente camadas e neurônios à vontade: não muda. Depois troque a ativação para **ReLU**, reinicie e rode de novo. A espiral se resolve em poucos segundos.
+
+É a mesma demonstração que você acabou de ver no gráfico acima, agora num problema de verdade e com a <Termo id="fronteira-decisao">fronteira de decisão</Termo> desenhada ao vivo.
+
+<p class="nota">
+  Fecha assim: um neurônio é a conta da Aula 1 com uma função colada no fim; a
+  ativação é essa função, e é a única fonte de não-linearidade da rede;
+  profundidade sem ativação não vale nada. Na Aula 5 esses neurônios viram uma
+  rede de verdade — com camada de saída escolhida a dedo para o problema — e o
+  erro aprende a voltar por ela.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a4-neuronio-e-conta-conhecida"
+  pergunta="Um colega afirma que um neurônio com sigmoid é um modelo novo, sem relação com o que vocês viram nas três primeiras aulas. Como responder?"
+  alternativas={[
+    {
+      texto: "Ele tem razão: a inspiração biológica torna o neurônio um mecanismo diferente da regressão.",
+      porque: "A inspiração biológica é só uma analogia de origem, não uma mudança de conta. O que o neurônio calcula é $\\mathbf{w} \\cdot \\mathbf{x} + b$ seguido de uma função — nada disso vem da biologia.",
+    },
+    {
+      texto: "Não tem: um neurônio com sigmoid é exatamente a regressão logística da Aula 3 — produto escalar mais viés, passado por uma sigmoid. O que é novo em redes é empilhar muitos deles, não a conta de cada um.",
+      certa: true,
+      porque: "Isso. É por isso que o bloco de redes neurais começa aqui e não do zero: a peça básica já estava pronta desde a Aula 3.",
+    },
+    {
+      texto: "Não tem, porque tanto a regressão logística quanto o neurônio são treinados com gradient descent.",
+      porque: "A conclusão está certa, mas o argumento é fraco: quase todo modelo do curso é treinado com gradient descent, inclusive a regressão linear. A semelhança verdadeira é mais forte que isso — as duas contas são a **mesma**.",
+    },
+    {
+      texto: "Ele tem razão em parte: a conta é parecida, mas o neurônio não tem viés.",
+      porque: "Tem, sim — é o $b$ da fórmula, e é justamente ele que decide o quanto é fácil ativar o neurônio. Uma rede sem viés perde a capacidade de deslocar as dobras para onde os dados pedem.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a4-onde-fica-a-ativacao"
+  pergunta="Numa MLP com três camadas ocultas, alguém diz: “a ativação é a saída da rede”. Onde está o erro?"
+  alternativas={[
+    {
+      texto: "A ativação é aplicada dentro de cada neurônio, em todas as camadas. A saída da rede é apenas o que sai da última — o que sai de um neurônio do meio é um número que segue para a camada seguinte.",
+      certa: true,
+      porque: "Isso. Numa rede com 30 neurônios ocultos, a ativação é aplicada 30 vezes a cada passada. Ela é uma etapa interna, repetida, não um resultado final.",
+    },
+    {
+      texto: "Não há erro: “ativação” é mesmo o nome que se dá ao resultado final de uma rede neural.",
+      porque: "O termo se refere à função aplicada dentro do neurônio (e ao valor que sai dela). O resultado final tem outros nomes — previsão, saída, probabilidade —, dependendo do problema.",
+    },
+    {
+      texto: "O erro é o número de camadas: com três camadas ocultas existem três ativações, uma por camada.",
+      porque: "Chega perto, mas para na conta errada. A ativação é por **neurônio**, não por camada: se cada camada tem 10 neurônios, são 30 aplicações, não 3.",
+    },
+    {
+      texto: "O erro é dizer “MLP”: numa MLP não existe ativação, só somas ponderadas.",
+      porque: "Uma MLP sem ativação seria justamente a rede que colapsa numa reta. A ativação é o que faz dela uma rede útil, então ela é parte da definição, não algo à parte.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a4-por-que-relu-ganhou"
+  pergunta="Por que a ReLU virou a ativação padrão das camadas ocultas, sendo mais simples que a sigmoid?"
+  alternativas={[
+    {
+      texto: "Porque ela não satura no lado positivo: a inclinação dela é 1 por mais alto que o valor fique, então o gradiente atravessa a rede sem encolher. Na sigmoid e na tanh, valores grandes caem na região achatada e a correção quase some.",
+      certa: true,
+      porque: "Isso. O critério de escolha aqui não é a curva ser bonita, é o gradiente sobreviver ao caminho de volta — e a sigmoid estrangula esse caminho toda vez que um neurônio satura.",
+    },
+    {
+      texto: "Porque ela é mais rápida de calcular do que a sigmoid, que precisa de uma exponencial.",
+      porque: "É verdade que ela é mais barata, e isso ajuda — mas é um ganho pequeno perto do outro. Se o custo de cálculo fosse o único critério, a sigmoid continuaria viável.",
+    },
+    {
+      texto: "Porque a saída dela pode passar de 1, o que dá mais liberdade para representar probabilidades altas.",
+      porque: "Probabilidade nunca passa de 1 — e a camada oculta não produz probabilidade nenhuma. Esse é o papel da camada de saída, que é assunto da Aula 5.",
+    },
+    {
+      texto: "Porque ela é a única das três que é não-linear, e é a não-linearidade que a rede precisa.",
+      porque: "As três são não-lineares — sigmoid e tanh inclusive de forma mais suave. Qualquer uma delas resolveria o colapso das camadas; o que separa a ReLU das outras é o comportamento do gradiente.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a4-o-que-a-ativacao-acrescenta"
+  pergunta="Em uma frase: o que a ativação acrescenta que a soma ponderada sozinha não consegue dar?"
+  alternativas={[
+    {
+      texto: "Ela introduz a não-linearidade — a dobra que a soma ponderada não fabrica. Sem ela, qualquer pilha de camadas se reduz a $W\\mathbf{x} + \\mathbf{b}$; com ela, a rede consegue aproximar curvas.",
+      certa: true,
+      porque: "Isso, e é o resumo da aula. Note a direção do argumento: a ativação não deixa a rede maior, deixa a rede capaz de representar uma família de funções que antes estava fora do alcance.",
+    },
+    {
+      texto: "Ela mantém os valores num intervalo controlado, evitando que os números da rede cresçam demais.",
+      porque: "A sigmoid e a tanh de fato limitam a faixa, e isso às vezes ajuda — mas não é o essencial, e a ReLU nem faz isso (ela deixa o positivo crescer sem limite) e ainda assim é a padrão.",
+    },
+    {
+      texto: "Ela acelera o treino, porque reduz o número de parâmetros que precisam ser ajustados.",
+      porque: "A ativação não tem parâmetros e não muda a contagem deles: a rede com e sem ReLU do gráfico tem exatamente os mesmos pesos e vieses. O que muda é o que eles conseguem representar.",
+    },
+    {
+      texto: "Ela transforma a saída em probabilidade, para o resultado poder ser interpretado.",
+      porque: "Isso descreve o papel específico da ativação de **saída** num classificador, que é um caso particular. Nas camadas ocultas não há probabilidade nenhuma — só valores intermediários seguindo adiante.",
+    },
+  ]}
+/>
+
+</QuizBloco>

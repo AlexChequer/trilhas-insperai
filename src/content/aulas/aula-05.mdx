@@ -1,0 +1,313 @@
+---
+n: "A5"
+titulo: "MLP + Backprop"
+ordem: 5
+objetivo: "Como neurônios viram uma rede, como a camada de saída se adapta ao problema, e como o erro volta pela rede repartindo a culpa entre os pesos."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import CamadasDeSaida from "../../components/viz/CamadasDeSaida.astro";
+import SoftmaxInterativo from "../../components/viz/SoftmaxInterativo.astro";
+import RedeBackprop from "../../components/viz/RedeBackprop.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Na Aula 4 você montou um neurônio e descobriu que, sem ativação, empilhá-los não leva a lugar nenhum. Agora eles viram uma rede de verdade. São três perguntas para responder: que formato dar à rede, como fazer a última camada devolver a resposta no formato certo para o problema, e — a mais difícil — como corrigir pesos que estão lá no começo quando o erro só é conhecido no fim.
+
+## A arquitetura
+
+Uma rede é uma sequência de camadas. A **camada de entrada** não calcula nada: ela é só o dado entrando, uma posição por feature. As **camadas ocultas** são as do meio, e recebem esse nome porque o que elas produzem não é nem o dado que entrou nem a resposta que saiu — é um valor intermediário que só a rede usa. A **camada de saída** é a última, e é ela que devolve a resposta.
+
+Essa rede — camadas em sequência, cada neurônio ligado a todos os da camada seguinte — se chama **MLP** (_multilayer perceptron_). É a mais simples que existe, e é a que vocês vão usar no MNIST.
+
+Duas decisões de formato aparecem juntas e é bom não confundi-las:
+
+- **Largura** é quantos neurônios há numa camada. Mais largura dá espaço para guardar mais padrões diferentes **no mesmo nível**.
+- **Profundidade** é quantas camadas há. Mais profundidade permite construir padrões **em cima de outros** — a primeira camada acha traços, a segunda combina traços em formas, a terceira combina formas.
+
+Nenhuma das duas é aprendida: você escolhe as duas antes de treinar, o que faz delas hiperparâmetros, como o learning rate da Aula 1.
+
+Vale medir o tamanho da coisa. Cada conexão entre dois neurônios é um peso, e cada neurônio tem um viés:
+
+$$
+\text{parâmetros} = \sum_{l} \bigl( n_{l-1} \cdot n_l + n_l \bigr)
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$n_l$", significado: "quantos neurônios tem a camada $l$" },
+    { simbolo: "$n_{l-1} \\cdot n_l$", significado: "os pesos: cada neurônio da camada $l$ tem uma conexão com cada neurônio da camada anterior" },
+    { simbolo: "$+\\, n_l$", significado: "os vieses: um por neurônio da camada $l$" },
+  ]}
+/>
+
+Faça a conta para a rede do MNIST — 784 entradas (a imagem de 28×28 esticada), 128 e 64 neurônios ocultos, 10 saídas:
+
+- $784 \times 128 + 128 = 100{.}480$
+- $128 \times 64 + 64 = 8{.}256$
+- $64 \times 10 + 10 = 650$
+
+Total: **109.386** <Termo id="parametro">parâmetros</Termo>. Guarde esse número — quase todo ele está na primeira camada, e é a Aula 9 que vai explicar por que isso é um desperdício em imagem.
+
+## A camada de saída formata a resposta
+
+Aqui está o eixo que organiza esta aula inteira, e vale decorar a frase:
+
+> **A ativação de camada oculta cria não-linearidade. A ativação de saída formata a resposta.**
+
+São dois trabalhos diferentes, feitos pela mesma família de funções, e é daí que vem a confusão de pôr cada uma no lugar errado. A escolha da saída sai direto do tipo de problema:
+
+- **Regressão** — 1 neurônio, **sem** <Termo id="ativacao">ativação</Termo>. A resposta é um número, e você não quer nada esmagando ele.
+- **Classificação binária** — 1 neurônio com **sigmoid**. A resposta é uma probabilidade entre 0 e 1: é exatamente a Aula 3.
+- **Multiclasse** — um neurônio **por classe**, com **softmax** por cima de todos. As saídas viram uma distribuição de probabilidade: cada uma entre 0 e 1, e todas somando 1.
+
+O número cru que sai de um neurônio de saída, antes de virar probabilidade, tem nome: **logit**. É o mesmo $z$ da Aula 4.
+
+**Mexa no $z$** abaixo e veja as três garantias diferentes saindo do mesmíssimo número:
+
+<VizEmbed titulo="o mesmo z, três camadas de saída">
+  <CamadasDeSaida />
+</VizEmbed>
+
+<Caixa tipo="erro">
+ReLU **nunca** vai na camada de saída, e softmax **nunca** vai numa camada oculta. A ReLU zera todo valor negativo — numa saída de regressão isso impede o modelo de prever qualquer número negativo, e numa saída de classificação não produz probabilidade nenhuma. A softmax, por sua vez, faz os neurônios **competirem** entre si (o que sobe num desce no outro): dentro da rede isso não faz sentido, porque neurônios ocultos não são alternativas excludentes — eles detectam coisas diferentes, e nada impede que duas estejam presentes ao mesmo tempo.
+</Caixa>
+
+<Pergunta pergunta="Por que a saída de regressão é o único lugar da rede sem ativação nenhuma? Não é estranho justo o final ficar 'cru'?">
+Faz sentido quando você lembra para que serve cada ativação.
+
+Nas camadas ocultas a ativação existe para **quebrar a linearidade** — sem ela a rede colapsa numa reta, como você viu na Aula 4. Na camada de saída ela existe para **encaixar a resposta num formato**: probabilidade precisa caber entre 0 e 1, e é a sigmoid que garante isso.
+
+Na regressão, o formato exigido é "um número real qualquer" — e é justamente isso que a soma ponderada já entrega. Não há nada a corrigir. Pôr uma ativação ali só tiraria alcance do modelo: com sigmoid ele nunca preveria mais que 1, com ReLU nunca preveria negativo.
+
+Repare também que a rede **não** ficou linear por causa disso: a não-linearidade veio das camadas ocultas, que continuam lá.
+</Pergunta>
+
+<Quiz
+  id="a5-escolher-saida"
+  pergunta="Você vai prever quanto tempo (em minutos) uma entrega vai levar. Qual camada de saída?"
+  alternativas={[
+    {
+      texto: "1 neurônio, sem ativação — a resposta é um número, e qualquer ativação limitaria a faixa que o modelo consegue prever.",
+      certa: true,
+      porque: "Isso. É regressão: o formato pedido é “um número”, que a soma ponderada já produz. As camadas ocultas seguem com ativação; só a saída fica crua.",
+    },
+    {
+      texto: "1 neurônio com sigmoid, para a saída ficar numa faixa controlada e o treino ficar mais estável.",
+      porque: "A sigmoid prende a saída entre 0 e 1 — o modelo nunca conseguiria prever 40 minutos. Estabilidade de treino se resolve normalizando a entrada (Aula 2), não amputando a saída.",
+    },
+    {
+      texto: "1 neurônio com ReLU, já que tempo nunca é negativo e a ReLU garante isso de graça.",
+      porque: "É a alternativa mais tentadora, porque a restrição parece se encaixar. O problema é o gradiente: se o neurônio cair na região negativa, a ReLU devolve 0 e a derivada é 0 também — ele não recebe correção e pode nunca mais sair de lá.",
+    },
+    {
+      texto: "Vários neurônios com softmax, um para cada faixa de tempo (0–10 min, 10–20 min, e assim por diante).",
+      porque: "Isso resolve outro problema: transforma uma regressão em classificação, jogando fora a ordem entre as faixas — para o softmax, errar 10–20 por 20–30 é tão ruim quanto errar por 60–70. Às vezes se faz isso de propósito, mas não é a resposta padrão.",
+    },
+  ]}
+/>
+
+## Softmax não é dividir pela soma
+
+A softmax merece um parágrafo só dela, porque quase todo mundo a descreve errado na primeira vez. A fórmula é:
+
+$$
+p_i = \frac{e^{z_i}}{\sum_{j} e^{z_j}}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$z_i$", significado: "o logit da classe $i$ — o número cru que o neurônio dela calculou" },
+    { simbolo: "$e^{z_i}$", significado: "o exponencial dele. É sempre positivo, mesmo quando $z_i$ é negativo — e é isso que salva a conta" },
+    { simbolo: "$\\sum_j e^{z_j}$", significado: "a soma dos exponenciais de todas as classes. Dividir por ela é o que faz o total dar 1" },
+    { simbolo: "$p_i$", significado: "a probabilidade estimada da classe $i$ — “79% de chance de ser gato”" },
+  ]}
+/>
+
+A descrição errada é "softmax normaliza os números para somarem 1". Dividir cada $z_i$ pela soma dos $z$ também faz somarem 1, e não é a mesma coisa — nem de longe. O exponencial faz duas coisas que a divisão crua não faz: ele é **sempre positivo** (então um <Termo id="logit">logit</Termo> negativo não vira probabilidade negativa) e ele **amplifica diferenças** (uma pequena vantagem no logit vira uma vantagem grande na probabilidade).
+
+**Arraste um dos logits para abaixo de zero** e compare as duas colunas:
+
+<VizEmbed titulo="softmax contra 'dividir pela soma'">
+  <SoftmaxInterativo />
+</VizEmbed>
+
+<Caixa tipo="erro">
+<Termo id="softmax">Softmax</Termo> não é normalização simples. Se fosse, um logit negativo produziria probabilidade negativa, e um conjunto de logits somando zero faria a conta explodir — os dois casos estão ali no gráfico. Além disso, a softmax só depende das **diferenças** entre os logits: somar 10 a todos eles não muda nada no resultado, o que a divisão crua não respeita.
+</Caixa>
+
+<Pergunta pergunta="E se eu usar 10 sigmoids independentes em vez de uma softmax de 10 saídas? As duas dão números entre 0 e 1.">
+Dão — mas respondem a perguntas diferentes, e a escolha depende do problema.
+
+A **softmax** assume que as classes são **excludentes**: é um dígito de 0 a 9, e é exatamente um deles. Por isso as probabilidades somam 1 e as classes competem: se a confiança no 7 sobe, a de todas as outras desce junto. É o caso do MNIST.
+
+**Sigmoids independentes** assumem que as classes **não** se excluem: uma foto pode ter gato *e* cachorro *e* sofá ao mesmo tempo. Cada saída responde "isto está presente?" sozinha, sem olhar as outras, e a soma pode dar 2,4 sem nenhum problema. Isso se chama classificação multi-rótulo.
+
+Usar sigmoids independentes num problema excludente joga fora informação de graça: você sabia que só uma pode estar certa, e não contou isso ao modelo.
+</Pergunta>
+
+## Backprop: o erro voltando
+
+Falta a peça que faz tudo isso treinar. O problema é concreto: você mede o erro **no fim** da rede, mas precisa corrigir pesos que estão a três camadas de distância dali. Qual foi a culpa de um peso lá no começo por um erro que apareceu lá no fim?
+
+A ideia central do **backprop** (retropropagação) cabe numa frase: **cada peso recebe uma parcela da culpa proporcional ao quanto ele contribuiu para o erro.** Um peso que empurrou forte na direção errada recebe uma correção grande; um peso que quase não influenciou aquela saída recebe quase nada.
+
+O mecanismo é o seguinte. Você conhece o erro na saída. Com ele, dá para calcular quanto cada neurônio da última <Termo id="camada-oculta">camada oculta</Termo> contribuiu — e, uma vez sabendo disso, o mesmo raciocínio se aplica à camada anterior, e à anterior. O erro **caminha de trás para frente**, camada por camada, e ao chegar em cada peso já traz consigo o número que diz o quanto aquele peso precisa mudar. Formalmente isso é a **regra da cadeia** da derivada, multiplicando as taxas de variação de cada etapa do caminho — mas a intuição da culpa repartida resolve melhor aqui do que a conta.
+
+O ciclo completo, então, tem duas metades: o **forward pass** produz a previsão, o **backward pass** produz a correção, e o par se repete milhares de vezes.
+
+A rede abaixo é real: 2 entradas, duas camadas ocultas, 1 saída, treinando no XOR. **Aperte "etapa a etapa"** e siga as 8 etapas de uma iteração — a espessura de cada conexão acesa é a magnitude do que está passando por ela:
+
+<VizEmbed titulo="siga as 8 etapas de uma iteração">
+  <RedeBackprop />
+</VizEmbed>
+
+<Caixa tipo="erro">
+Backprop **não** é gradient descent. Repare na separação entre as etapas 7 e 8 da visualização: nas etapas 5 a 7 o backprop percorre a rede e **calcula** o <Termo id="gradiente">gradiente</Termo> de cada peso — quanto o erro muda se aquele peso mudar. Nenhum peso se moveu ainda. Só na etapa 8 o gradient descent pega esses números e dá o passo, $w \leftarrow w - \alpha \cdot \text{grad}$, com o learning rate da Aula 1. Um calcula a direção, o outro anda. Dá para trocar o segundo por Adam (Aula 6) e manter o primeiro exatamente igual — o que é a prova de que são coisas separadas.
+</Caixa>
+
+<Quiz
+  id="a5-backprop-vs-gd"
+  pergunta="Alguém diz: “troquei o gradient descent por Adam, então agora a rede não usa mais backprop”. O que está errado?"
+  alternativas={[
+    {
+      texto: "Backprop e gradient descent são etapas diferentes do mesmo ciclo: o backprop calcula os gradientes, o otimizador (SGD, Adam, o que for) decide o passo a partir deles. Trocar o otimizador não elimina o backprop — ele continua sendo quem produz os números que o Adam consome.",
+      certa: true,
+      porque: "Isso. A separação fica clara na visualização: as etapas 5–7 calculam, a etapa 8 anda. O Adam substitui só a etapa 8.",
+    },
+    {
+      texto: "Nada está errado: Adam é um método completo, que calcula os próprios gradientes de um jeito diferente.",
+      porque: "O Adam não calcula gradiente nenhum — ele recebe os gradientes prontos e decide o tamanho e a direção do passo para cada parâmetro. Sem backprop antes, ele não teria com o que trabalhar.",
+    },
+    {
+      texto: "Está errado porque Adam só funciona em redes convolucionais, não em MLPs.",
+      porque: "O Adam funciona em qualquer modelo treinado por gradiente, MLP inclusive. A confusão da frase é outra: ela troca uma etapa por outra que não é do mesmo tipo.",
+    },
+    {
+      texto: "Está errado porque o Adam é mais lento, então na prática o backprop continua sendo preferido.",
+      porque: "A frase compara os dois como se fossem alternativas concorrentes, e é aí que ela escorrega. Eles não competem: rodam em sequência, um depois do outro, em toda iteração.",
+    },
+  ]}
+/>
+
+## Largura e profundidade no Playground
+
+O [TensorFlow Playground](https://playground.tensorflow.org/#activation=relu&batchSize=10&dataset=circle&regDataset=reg-plane&learningRate=0.03&regularizationRate=0&noise=15&networkShape=2&seed=0.1&showTestData=false&discretize=false&percTrainData=50&x=true&y=true&xTimesY=false&xSquared=false&ySquared=false&cosX=false&sinX=false&cosY=false&sinY=false&problem=classification&initZero=false&hideText=false) abre com uma rede mínima — uma camada oculta de 2 neurônios, ReLU, num dataset com ruído. Rode e veja onde ela empaca.
+
+Agora acrescente neurônios na camada, e depois acrescente camadas. A fronteira vai ficando mais elaborada a cada peça. Continue: ponha 4 camadas de 8 neurônios e deixe rodar bastante. Em algum momento a fronteira começa a fazer curvas esquisitas para abraçar pontos isolados — ela parou de descrever o padrão e passou a decorar o ruído do conjunto de treino.
+
+Guarde essa imagem. É <Termo id="overfitting">overfitting</Termo>, o mesmo fenômeno do polinômio de grau 15 da Aula 2, e é o assunto inteiro da Aula 7. Por ora, o recado prático é que rede maior não é rede melhor — a partir de certo ponto, é rede pior.
+
+<p class="nota">
+  Você já consegue montar uma rede de ponta a ponta: escolher largura e
+  profundidade, escolher a camada de saída a partir do tipo de problema, e
+  explicar em palavras como a correção chega até os pesos do começo. Na Aula 6
+  isso vira código rodando, com o loop de treino, os otimizadores — e o MNIST
+  sendo lançado.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a5-softmax-nao-e-normalizacao"
+  pergunta="Um colega implementa a saída multiclasse dividindo cada logit pela soma dos logits, “porque assim eles somam 1, que é o que a softmax faz”. Qual é o problema mais grave?"
+  alternativas={[
+    {
+      texto: "Logit negativo vira “probabilidade” negativa, o que não é probabilidade nenhuma. O exponencial da softmax existe justamente para tornar tudo positivo antes da divisão — e, de quebra, para amplificar a diferença entre as classes.",
+      certa: true,
+      porque: "Isso. Somar 1 é condição necessária, não suficiente: os valores também precisam estar entre 0 e 1, e a divisão crua não garante isso.",
+    },
+    {
+      texto: "Nenhum problema grave: o resultado soma 1 e ordena as classes na mesma ordem, então serve.",
+      porque: "A ordem até costuma se manter enquanto todos os logits são positivos. Basta um ficar negativo para a ordem e os valores desandarem — e logits negativos são o caso comum, não a exceção.",
+    },
+    {
+      texto: "O problema é o custo: dividir pela soma é mais lento do que calcular exponenciais.",
+      porque: "É o contrário — a divisão crua é mais barata. O motivo de usar softmax nunca foi velocidade, e sim que a conta produza uma probabilidade de verdade.",
+    },
+    {
+      texto: "O problema é que a divisão crua só funciona com duas classes, e não generaliza para dez.",
+      porque: "Ela “funciona” com qualquer número de classes, no sentido de produzir números que somam 1 — e falha do mesmo jeito com 2 ou com 10. A quantidade de classes não é o que está em jogo.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a5-relu-na-saida"
+  pergunta="Numa rede de classificação binária, alguém põe ReLU na camada de saída em vez de sigmoid. O que acontece?"
+  alternativas={[
+    {
+      texto: "A saída deixa de ser probabilidade: valores negativos viram 0 e os positivos crescem sem limite, então não há como ler o resultado como “chance de ser da classe 1”.",
+      certa: true,
+      porque: "Isso. A ativação de saída existe para encaixar a resposta no formato do problema, e a ReLU produz o formato errado: metade dos valores colados em 0 e a outra metade ilimitada.",
+    },
+    {
+      texto: "Funciona igual, desde que se use um limiar diferente de 0,5 na hora de decidir a classe.",
+      porque: "Um limiar até separa as duas classes de algum jeito. Mas você perde a probabilidade calibrada — e perde também o casamento com a cross-entropy, que espera receber um número entre 0 e 1.",
+    },
+    {
+      texto: "A rede fica linear, porque a ReLU não introduz não-linearidade suficiente na saída.",
+      porque: "A não-linearidade da rede vem das camadas ocultas, que continuam intactas. O problema aqui não é o poder de representação, é o formato da resposta.",
+    },
+    {
+      texto: "Melhora o treino, porque a ReLU não satura e o gradiente flui melhor até a saída.",
+      porque: "A ReLU realmente não satura do lado positivo — mas ela satura por completo do lado negativo, e ali a derivada é zero. Um exemplo classificado errado nesse lado não geraria correção nenhuma.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a5-culpa-repartida"
+  pergunta="Em uma frase, o que o backprop calcula para cada peso da rede?"
+  alternativas={[
+    {
+      texto: "Quanto o erro final mudaria se aquele peso mudasse um pouquinho — ou seja, a parcela de responsabilidade dele pelo erro, obtida propagando a culpa da saída para trás.",
+      certa: true,
+      porque: "Isso, e repare que é exatamente a definição de gradiente da Aula 1, agora calculada para pesos que estão longe da saída. A novidade do backprop é o caminho de volta, não o conceito.",
+    },
+    {
+      texto: "O valor novo que aquele peso deve assumir na próxima iteração.",
+      porque: "Esse valor depende também do learning rate, e quem o aplica é o gradient descent na etapa seguinte. O backprop entrega a inclinação, não o destino.",
+    },
+    {
+      texto: "O quanto aquele peso está distante do valor ótimo.",
+      porque: "Ninguém conhece o valor ótimo durante o treino — se conhecesse, não haveria treino. O gradiente informa direção e intensidade local, não distância até o alvo.",
+    },
+    {
+      texto: "A ativação daquele neurônio para o exemplo atual.",
+      porque: "A ativação é produzida no forward pass e é um dos ingredientes do cálculo do gradiente, mas não é o resultado dele. São duas grandezas diferentes, uma de ida e outra de volta.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a5-largura-profundidade"
+  pergunta="Uma rede com uma camada oculta de 64 neurônios não está dando conta. Um colega sugere trocar por duas camadas de 32 — “mantém os neurônios e ganha profundidade”. O que esperar?"
+  alternativas={[
+    {
+      texto: "São coisas diferentes, e não dá para prever pela contagem de neurônios: duas camadas de 32 podem combinar padrões em dois níveis, o que uma camada só não faz — mas também têm menos capacidade por nível e treinam de forma diferente. É uma escolha a testar, não a deduzir.",
+      certa: true,
+      porque: "Isso. Largura e profundidade não são intercambiáveis: “64 neurônios” não é uma quantidade de poder que se possa redistribuir à vontade. Por isso arquitetura se decide experimentando na validação — assunto da Aula 7.",
+    },
+    {
+      texto: "Fica equivalente: o que importa é o total de neurônios, e 32 + 32 = 64.",
+      porque: "O total de neurônios nem sequer é o total de parâmetros — reorganizar as camadas muda a contagem de pesos. E, mais importante, muda o que a rede consegue representar: profundidade cria hierarquia, largura não.",
+    },
+    {
+      texto: "Fica sempre melhor: profundidade é estritamente mais poderosa que largura.",
+      porque: "Profundidade costuma render mais por parâmetro em muitos problemas, mas “sempre” é forte demais — redes muito fundas e estreitas ficam mais difíceis de treinar, e num problema simples a camada única pode bastar.",
+    },
+    {
+      texto: "Fica sempre pior, porque redes mais profundas sofrem mais com overfitting.",
+      porque: "Overfitting depende de capacidade total e de quantidade de dados, não de profundidade por si só — e aqui a versão profunda tem até menos parâmetros. O risco existe, mas não é uma consequência automática.",
+    },
+  ]}
+/>
+
+</QuizBloco>

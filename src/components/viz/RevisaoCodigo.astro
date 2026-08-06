@@ -1,0 +1,310 @@
+---
+// Aula 8 · O momento central da aula: código gerado por IA que roda, entrega um
+// número lindo, e está errado. Aqui o exercício é o do revisor — clicar na linha
+// onde está o problema. Os dois casos são erros que o modelo comete com
+// confiança total, e os dois já foram estudados: vazamento (A7) e métrica errada
+// em dado desbalanceado (A3).
+---
+
+<div class="viz-revisao" data-viz="revisao">
+  <div class="stat revisao-cabecalho">
+    <p class="stat-rotulo" data-caso-num>—</p>
+    <p class="revisao-pedido" data-pedido>—</p>
+    <p class="revisao-resultado" data-resultado>—</p>
+  </div>
+
+  <div class="revisao-corpo">
+    <div class="stat revisao-codigo">
+      <p class="revisao-instrucao">Clique na linha onde está o problema.</p>
+      <ol class="revisao-linhas" data-linhas></ol>
+    </div>
+
+    <aside class="revisao-painel">
+      <div class="stat" data-veredito-caixa>
+        <p class="stat-rotulo">Revisão</p>
+        <p class="revisao-veredito" data-veredito>Ainda não escolheu.</p>
+      </div>
+      <div class="revisao-acoes">
+        <div class="viz-controles" style="margin-top: 0">
+          <button class="btn" type="button" data-proximo>Próximo caso</button>
+          <button class="btn btn-secundario" type="button" data-limpar>Tentar de novo</button>
+        </div>
+        <p class="stat-caminho" data-placar>—</p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<style>
+  .viz-revisao {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .revisao-pedido {
+    margin: 6px 0 0;
+    font-size: 1rem;
+    color: var(--texto);
+  }
+  .revisao-pedido b {
+    color: var(--insper-azul-aco);
+  }
+  .revisao-resultado {
+    margin: 8px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.92rem;
+    color: var(--verde);
+    font-weight: 700;
+  }
+  /* O código precisa da largura inteira: numa coluna estreita as linhas ficam
+     cortadas e o exercício deixa de funcionar. Painel embaixo. */
+  .revisao-corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .revisao-painel {
+    display: grid;
+    grid-template-columns: 1fr minmax(200px, 240px);
+    gap: 12px;
+    align-items: start;
+  }
+  .revisao-acoes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  /* sem isto a coluna 1fr cresce até caber a linha mais longa e empurra o painel */
+  .revisao-codigo {
+    min-width: 0;
+  }
+  .revisao-instrucao {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--texto-suave);
+  }
+  .revisao-linhas {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: linha;
+    font-family: var(--fonte-dados);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
+  /* As linhas de código e o texto do veredito são criados em JS, então não
+     recebem o atributo de escopo do Astro. Daí o :global() — o escopo fica no
+     ancestral, que é do template, e as regras alcançam os filhos dinâmicos. */
+  .revisao-linhas :global(li) {
+    counter-increment: linha;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .revisao-linhas :global(li::before) {
+    content: counter(linha);
+    flex: none;
+    width: 1.8em;
+    text-align: right;
+    color: #b6c2d4;
+    user-select: none;
+  }
+  .revisao-linhas :global(button) {
+    flex: 1;
+    appearance: none;
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 4px 8px;
+    margin: 1px 0;
+    font: inherit;
+    text-align: left;
+    white-space: pre;
+    color: var(--texto);
+    cursor: pointer;
+    min-height: 30px;
+  }
+  .revisao-linhas :global(button:hover:not(:disabled)) {
+    background: rgba(124, 58, 237, 0.07);
+    border-color: rgba(124, 58, 237, 0.3);
+  }
+  .revisao-linhas :global(button:focus-visible) {
+    outline: 3px solid var(--insper-azul);
+    outline-offset: 1px;
+  }
+  .revisao-linhas :global(button:disabled) {
+    cursor: default;
+  }
+  .revisao-linhas :global(li.certa button) {
+    background: rgba(22, 163, 74, 0.12);
+    border-color: var(--verde);
+  }
+  .revisao-linhas :global(li.errada button) {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: var(--vermelho);
+  }
+  .revisao-veredito {
+    margin: 8px 0 0;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--texto-suave);
+  }
+  .revisao-veredito :global(b) {
+    color: var(--insper-azul-aco);
+  }
+  .revisao-veredito :global(code) {
+    font-family: var(--fonte-dados);
+    font-size: 0.92em;
+    background: rgba(41, 74, 107, 0.07);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  .revisao-veredito :global(.acertou) {
+    color: var(--verde);
+  }
+  .revisao-veredito :global(.errou) {
+    color: var(--vermelho);
+  }
+  @media (max-width: 620px) {
+    .revisao-painel {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="revisao"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const lista = el("linhas") as HTMLOListElement;
+
+    interface Caso {
+      pedido: string;
+      resultado: string;
+      linhas: string[];
+      culpada: number;      // índice 0-based da linha com o problema
+      explicacao: string;   // por que ela está errada
+      quaseLa: Record<number, string>; // linhas que parecem suspeitas e não são
+    }
+
+    const CASOS: Caso[] = [
+      {
+        pedido: "“Treine um classificador para prever <b>churn</b> de clientes e me diga a acurácia.”",
+        resultado: "✓ o código roda · acurácia: 0,94",
+        linhas: [
+          "df = pd.read_csv('clientes.csv')",
+          "X = df.drop(columns=['churn'])",
+          "y = df['churn']",
+          "",
+          "scaler = StandardScaler()",
+          "X = scaler.fit_transform(X)",
+          "",
+          "X_tr, X_te, y_tr, y_te = train_test_split(",
+          "    X, y, test_size=0.2, random_state=42)",
+          "",
+          "modelo = MLPClassifier(hidden_layer_sizes=(64, 32))",
+          "modelo.fit(X_tr, y_tr)",
+          "print(accuracy_score(y_te, modelo.predict(X_te)))",
+        ],
+        culpada: 5,
+        explicacao:
+          "<b class='acertou'>É esta.</b> O <code>fit_transform</code> roda no dataset <b>inteiro</b>, antes da divisão — então a média e o desvio usados para escalar já viram os dados de teste. É <b>vazamento</b>: o resultado sai melhor do que será na vida real. O certo é dividir primeiro, dar <code>fit</code> só no treino e <code>transform</code> nos dois.",
+        quaseLa: {
+          8: "O <code>random_state=42</code> chama atenção, mas ele só fixa o sorteio para o resultado ser reproduzível — isso é boa prática, não erro.",
+          10: "A arquitetura é uma escolha discutível, não um erro: (64, 32) é um chute razoável. Repare que a linha do problema está <b>antes</b> de qualquer coisa relacionada ao modelo.",
+          12: "Medir acurácia no teste é o que se pede. O problema não está em como se mede — está em algo que aconteceu bem antes, com os dados.",
+        },
+      },
+      {
+        pedido: "“Detecte <b>transações fraudulentas</b> (0,7% do dataset) e me mostre que o modelo está bom.”",
+        resultado: "✓ o código roda · acurácia: 0,993",
+        linhas: [
+          "X_tr, X_te, y_tr, y_te = train_test_split(",
+          "    X, y, test_size=0.2, stratify=y, random_state=0)",
+          "",
+          "scaler = StandardScaler().fit(X_tr)",
+          "X_tr, X_te = scaler.transform(X_tr), scaler.transform(X_te)",
+          "",
+          "modelo = MLPClassifier(hidden_layer_sizes=(64,))",
+          "modelo.fit(X_tr, y_tr)",
+          "",
+          "pred = modelo.predict(X_te)",
+          "print('acurácia:', accuracy_score(y_te, pred))",
+        ],
+        culpada: 10,
+        explicacao:
+          "<b class='acertou'>É esta.</b> Com 0,7% de fraude, responder “não é fraude” para tudo já dá 99,3% de acurácia — que é exatamente o número impresso. A <b>métrica está errada para o problema</b>: aqui é preciso matriz de confusão, precision e recall sobre a classe rara. Repare que o resto do código está correto, o que é justamente o que torna esse erro difícil de pegar.",
+        quaseLa: {
+          3: "Esta linha está <b>certa</b>, e é a correção do caso anterior: o <code>fit</code> do scaler acontece só no treino. Bom sinal de que você está prestando atenção no lugar certo.",
+          1: "O <code>stratify=y</code> está certo e é importante aqui: sem ele, uma classe com 0,7% pode quase sumir de um dos lados da divisão.",
+          6: "Uma camada de 64 é pequena, mas não é o erro. Nenhuma arquitetura conserta uma métrica que não mede o que interessa.",
+        },
+      },
+    ];
+
+    let caso = 0;
+    let respondido = false;
+    let acertos = 0, tentativas = 0;
+
+    function montar() {
+      const c = CASOS[caso];
+      el("caso-num").textContent = `Caso ${caso + 1} de ${CASOS.length}`;
+      el("pedido").innerHTML = `O que foi pedido: ${c.pedido}`;
+      el("resultado").textContent = c.resultado;
+      el("veredito").innerHTML = "Ainda não escolheu.";
+      respondido = false;
+      lista.innerHTML = "";
+
+      c.linhas.forEach((texto, i) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = texto || " ";
+        if (texto === "") {
+          btn.disabled = true;
+          btn.style.minHeight = "10px";
+          btn.style.cursor = "default";
+        } else {
+          btn.addEventListener("click", () => escolher(i, li));
+        }
+        li.appendChild(btn);
+        lista.appendChild(li);
+      });
+      atualizarPlacar();
+    }
+
+    function escolher(i: number, li: HTMLElement) {
+      if (respondido) return;
+      respondido = true;
+      tentativas++;
+      const c = CASOS[caso];
+      const acertou = i === c.culpada;
+      if (acertou) acertos++;
+
+      lista.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      li.classList.add(acertou ? "certa" : "errada");
+      if (!acertou) {
+        (lista.children[c.culpada] as HTMLElement).classList.add("certa");
+      }
+
+      el("veredito").innerHTML = acertou
+        ? c.explicacao
+        : `<b class='errou'>Não é essa.</b> ${c.quaseLa[i] ?? "Essa linha faz o que deveria — o problema está em outro lugar."}<br /><br />${c.explicacao}`;
+      atualizarPlacar();
+    }
+
+    function atualizarPlacar() {
+      el("placar").textContent =
+        tentativas === 0 ? "" : `${acertos} de ${tentativas} ${tentativas === 1 ? "revisão certa" : "revisões certas"}.`;
+    }
+
+    el("proximo").addEventListener("click", () => {
+      caso = (caso + 1) % CASOS.length;
+      montar();
+    });
+    el("limpar").addEventListener("click", montar);
+
+    montar();
+  });
+</script>

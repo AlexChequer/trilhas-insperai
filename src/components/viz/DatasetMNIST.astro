@@ -1,0 +1,457 @@
+---
+// Aula 6 · O que a rede vai receber no desafio: uma imagem 28×28 em tons de
+// cinza, ou seja, 784 números entre 0 e 1. O controle principal é o slider de
+// ambiguidade, que mistura o dígito escolhido com o dígito que mais se confunde
+// com ele — o 4 que vira 9. No meio do caminho nem uma pessoa decide, e é isso
+// que explica por que ninguém acerta 100% no MNIST.
+//
+// Os dígitos são DESENHADOS aqui (traços em 28×28), não são amostras do MNIST
+// de verdade — a página diz isso. O que importa pedagogicamente é o formato e a
+// ambiguidade, e os dois são fiéis.
+---
+
+<div class="viz-mnist" data-viz="mnist">
+  <div class="mnist-topo">
+    <div class="viz-grafico-caixa mnist-palco">
+      <canvas class="viz-canvas mnist-grande"></canvas>
+    </div>
+
+    <aside class="viz-painel">
+      <div class="stat stat-destaque">
+        <p class="stat-rotulo">O que a rede recebe</p>
+        <p class="stat-valor">784</p>
+        <span class="stat-unidade">números entre 0 e 1 — a imagem 28×28 inteira</span>
+      </div>
+
+      <div class="stat">
+        <p class="stat-rotulo">Modo</p>
+        <div class="mnist-modos">
+          <button class="mnist-modo" type="button" data-modo="exemplos" aria-pressed="true">Exemplos</button>
+          <button class="mnist-modo" type="button" data-modo="desenho" aria-pressed="false">Desenhe você</button>
+        </div>
+      </div>
+
+      <div class="stat" data-bloco-amb>
+        <div class="slider-campo">
+          <label>Ambiguidade <span class="valor" data-amb-val>—</span></label>
+          <input type="range" data-amb min="0" max="100" step="1" value="0" />
+        </div>
+        <p class="stat-caminho" data-mistura>—</p>
+      </div>
+
+      <div class="stat" data-bloco-desenho hidden>
+        <p class="stat-rotulo">Seu traço</p>
+        <p class="stat-caminho" data-pintados>—</p>
+        <div class="viz-controles">
+          <button class="btn btn-secundario" type="button" data-limpar>Limpar</button>
+        </div>
+      </div>
+
+      <div class="stat">
+        <p class="stat-rotulo">Leitura</p>
+        <p class="stat-valor" data-leitura>—</p>
+        <span class="stat-unidade" data-leitura-nota>—</span>
+      </div>
+    </aside>
+  </div>
+
+  <div class="mnist-tiras" data-bloco-galeria>
+    <p class="mnist-legenda">Escolha um dígito:</p>
+    <div class="mnist-galeria" data-galeria></div>
+  </div>
+
+  <p class="stat-caminho" data-nota></p>
+</div>
+
+<style>
+  .viz-mnist {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .mnist-topo {
+    display: grid;
+    grid-template-columns: 1fr minmax(240px, 320px);
+    gap: clamp(16px, 2.4vw, 28px);
+    align-items: start;
+  }
+  .mnist-palco {
+    display: flex;
+    justify-content: center;
+  }
+  .mnist-legenda {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--texto-suave);
+  }
+  .mnist-galeria {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  /* Os botões da galeria nascem em JS e não recebem o atributo de escopo do
+     Astro; o :global() sob .mnist-galeria (que é do template) alcança eles. */
+  .mnist-galeria :global(.mnist-btn) {
+    appearance: none;
+    padding: 3px;
+    border-radius: 10px;
+    border: 2px solid var(--borda);
+    background: #0b1220;
+    cursor: pointer;
+    line-height: 0;
+    min-width: 48px;
+    min-height: 48px;
+  }
+  .mnist-galeria :global(.mnist-btn canvas) {
+    width: 40px;
+    height: 40px;
+    image-rendering: pixelated;
+    border-radius: 6px;
+  }
+  .mnist-galeria :global(.mnist-btn[aria-pressed="true"]) {
+    border-color: var(--insper-roxo);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+  }
+  .mnist-galeria :global(.mnist-btn:focus-visible) {
+    outline: 3px solid var(--insper-azul);
+    outline-offset: 2px;
+  }
+  .mnist-grande {
+    image-rendering: pixelated;
+    background: #0b1220;
+  }
+  .mnist-grande.desenhavel {
+    cursor: crosshair;
+    touch-action: none; /* o traço não pode rolar a página */
+  }
+  .mnist-modos {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .mnist-modo {
+    appearance: none;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul-aco);
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .mnist-modo:hover {
+    border-color: var(--insper-azul);
+  }
+  .mnist-modo[aria-pressed="true"] {
+    background: var(--insper-gradiente);
+    border-color: transparent;
+    color: #fff;
+  }
+  .mnist-modo:focus-visible {
+    outline: 3px solid var(--insper-azul);
+    outline-offset: 2px;
+  }
+  @media (max-width: 760px) {
+    .mnist-topo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="mnist"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".mnist-grande");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-amb]")!;
+    const galeria = el("galeria");
+
+    const LADO = 28, SUPER = 4; // desenha em 112×112 e reduz: dá o cinza das bordas
+    // com quem cada dígito mais se confunde à mão
+    const PAR: Record<number, number> = { 0: 6, 1: 7, 2: 7, 3: 8, 4: 9, 5: 6, 6: 8, 7: 1, 8: 3, 9: 4 };
+
+    // Traços de cada dígito em coordenadas 0..1 (y para baixo).
+    // "l" = linha até, "q" = curva quadrática (controle + destino), "e" = elipse.
+    type Traco = (string | number)[][];
+    const FORMAS: Record<number, Traco[]> = {
+      0: [[["e", 0.5, 0.5, 0.185, 0.335]]],
+      1: [[["m", 0.34, 0.3], ["l", 0.5, 0.14], ["l", 0.5, 0.86]]],
+      2: [[["m", 0.3, 0.3], ["q", 0.34, 0.13, 0.53, 0.14], ["q", 0.73, 0.16, 0.7, 0.36], ["q", 0.66, 0.55, 0.3, 0.86], ["l", 0.73, 0.86]]],
+      3: [[["m", 0.31, 0.2], ["q", 0.5, 0.08, 0.66, 0.22], ["q", 0.74, 0.36, 0.48, 0.48], ["q", 0.78, 0.52, 0.72, 0.7], ["q", 0.62, 0.9, 0.3, 0.8]]],
+      4: [[["m", 0.63, 0.14], ["l", 0.63, 0.86]], [["m", 0.63, 0.14], ["l", 0.28, 0.62], ["l", 0.76, 0.62]]],
+      5: [[["m", 0.68, 0.16], ["l", 0.36, 0.16], ["l", 0.34, 0.44], ["q", 0.6, 0.36, 0.7, 0.54], ["q", 0.76, 0.76, 0.52, 0.85], ["q", 0.36, 0.88, 0.28, 0.78]]],
+      6: [[["m", 0.66, 0.16], ["q", 0.36, 0.22, 0.32, 0.52], ["q", 0.29, 0.84, 0.52, 0.86], ["q", 0.72, 0.86, 0.71, 0.66], ["q", 0.69, 0.48, 0.48, 0.5], ["q", 0.36, 0.51, 0.32, 0.62]]],
+      7: [[["m", 0.29, 0.17], ["l", 0.72, 0.17], ["l", 0.44, 0.86]]],
+      8: [[["e", 0.5, 0.31, 0.165, 0.17]], [["e", 0.5, 0.66, 0.2, 0.2]]],
+      9: [[["e", 0.52, 0.33, 0.185, 0.19]], [["m", 0.705, 0.33], ["q", 0.71, 0.7, 0.44, 0.86]]],
+    };
+
+    // Renderiza um dígito e devolve os 784 valores de 0 a 1.
+    function pixels(d: number): Float32Array {
+      const S = LADO * SUPER;
+      const off = document.createElement("canvas");
+      off.width = S; off.height = S;
+      const c = off.getContext("2d");
+      const saida = new Float32Array(LADO * LADO);
+      if (!c) return saida;
+
+      c.fillStyle = "#000"; c.fillRect(0, 0, S, S);
+      c.strokeStyle = "#fff";
+      c.lineWidth = 0.085 * S;
+      c.lineCap = "round"; c.lineJoin = "round";
+      for (const traco of FORMAS[d]) {
+        c.beginPath();
+        for (const passo of traco) {
+          const [tipo, ...v] = passo as [string, ...number[]];
+          if (tipo === "m") c.moveTo(v[0] * S, v[1] * S);
+          else if (tipo === "l") c.lineTo(v[0] * S, v[1] * S);
+          else if (tipo === "q") c.quadraticCurveTo(v[0] * S, v[1] * S, v[2] * S, v[3] * S);
+          else if (tipo === "e") c.ellipse(v[0] * S, v[1] * S, v[2] * S, v[3] * S, 0, 0, Math.PI * 2);
+        }
+        c.stroke();
+      }
+
+      // média de cada bloco SUPER×SUPER → o tom de cinza daquele pixel
+      const dados = c.getImageData(0, 0, S, S).data;
+      for (let y = 0; y < LADO; y++) {
+        for (let x = 0; x < LADO; x++) {
+          let soma = 0;
+          for (let dy = 0; dy < SUPER; dy++) {
+            for (let dx = 0; dx < SUPER; dx++) {
+              soma += dados[((y * SUPER + dy) * S + (x * SUPER + dx)) * 4];
+            }
+          }
+          saida[y * LADO + x] = soma / (SUPER * SUPER) / 255;
+        }
+      }
+      return saida;
+    }
+
+    const MAPAS: Float32Array[] = Array.from({ length: 10 }, (_, d) => pixels(d));
+
+    function misturar(a: number, b: number, t: number) {
+      const saida = new Float32Array(LADO * LADO);
+      for (let i = 0; i < saida.length; i++) saida[i] = MAPAS[a][i] * (1 - t) + MAPAS[b][i] * t;
+      return saida;
+    }
+
+    let escolhido = 4;
+    let t = 0;
+    let lado = 0, ultimaLargura = -1;
+    let modo: "exemplos" | "desenho" = "exemplos";
+
+    // --- superfície de desenho ---
+    // O traço é feito num buffer grande e depois reduzido para 28×28 pela média
+    // de cada bloco: é assim que uma imagem de verdade vira a entrada da rede,
+    // e o cinza das bordas aparece sozinho.
+    const SUPER_DESENHO = 10;
+    const LADO_BUFFER = LADO * SUPER_DESENHO;
+    const bufferDesenho = document.createElement("canvas");
+    bufferDesenho.width = LADO_BUFFER;
+    bufferDesenho.height = LADO_BUFFER;
+    const bd = bufferDesenho.getContext("2d", { willReadFrequently: true });
+    let mapaDesenho = new Float32Array(LADO * LADO);
+
+    function limparDesenho() {
+      if (!bd) return;
+      bd.fillStyle = "#000";
+      bd.fillRect(0, 0, LADO_BUFFER, LADO_BUFFER);
+      mapaDesenho = new Float32Array(LADO * LADO);
+    }
+    limparDesenho();
+
+    function reduzirDesenho() {
+      if (!bd) return;
+      const dados = bd.getImageData(0, 0, LADO_BUFFER, LADO_BUFFER).data;
+      for (let y = 0; y < LADO; y++) {
+        for (let x = 0; x < LADO; x++) {
+          let soma = 0;
+          for (let dy = 0; dy < SUPER_DESENHO; dy++) {
+            for (let dx = 0; dx < SUPER_DESENHO; dx++) {
+              soma += dados[((y * SUPER_DESENHO + dy) * LADO_BUFFER + (x * SUPER_DESENHO + dx)) * 4];
+            }
+          }
+          mapaDesenho[y * LADO + x] = soma / (SUPER_DESENHO * SUPER_DESENHO) / 255;
+        }
+      }
+    }
+
+    // galeria de miniaturas
+    for (let d = 0; d < 10; d++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mnist-btn";
+      btn.setAttribute("aria-label", `dígito ${d}`);
+      btn.setAttribute("aria-pressed", String(d === escolhido));
+      const mini = document.createElement("canvas");
+      mini.width = LADO; mini.height = LADO;
+      const mc = mini.getContext("2d");
+      if (mc) {
+        const img = mc.createImageData(LADO, LADO);
+        for (let i = 0; i < LADO * LADO; i++) {
+          const v = Math.round(MAPAS[d][i] * 255);
+          img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+        }
+        mc.putImageData(img, 0, 0);
+      }
+      btn.appendChild(mini);
+      btn.addEventListener("click", () => {
+        escolhido = d;
+        galeria.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === d)));
+        desenhar();
+      });
+      galeria.appendChild(btn);
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      const par = PAR[escolhido];
+      const mapa = modo === "desenho" ? mapaDesenho : misturar(escolhido, par, t);
+      const passo = lado / LADO;
+
+      ctx.fillStyle = "#0b1220";
+      ctx.fillRect(0, 0, lado, lado);
+      for (let y = 0; y < LADO; y++) {
+        for (let x = 0; x < LADO; x++) {
+          const v = Math.round(mapa[y * LADO + x] * 255);
+          if (v > 2) {
+            ctx.fillStyle = `rgb(${v},${v},${v})`;
+            ctx.fillRect(x * passo, y * passo, passo + 0.5, passo + 0.5);
+          }
+        }
+      }
+      // a grade de pixels só aparece quando cada célula é grande o bastante
+      if (passo >= 9) {
+        ctx.strokeStyle = "rgba(255,255,255,0.07)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= LADO; i++) {
+          ctx.beginPath(); ctx.moveTo(i * passo, 0); ctx.lineTo(i * passo, lado); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0, i * passo); ctx.lineTo(lado, i * passo); ctx.stroke();
+        }
+      }
+
+      if (modo === "desenho") {
+        const acesos = mapa.reduce((s, v) => s + (v > 0.05 ? 1 : 0), 0);
+        const meioTom = mapa.reduce((s, v) => s + (v > 0.05 && v < 0.95 ? 1 : 0), 0);
+        el("pintados").innerHTML = acesos === 0
+          ? "desenhe um dígito com o mouse ou o dedo, na área escura."
+          : `<strong>${acesos}</strong> dos 784 pixels acesos, sendo <strong>${meioTom}</strong> em tom intermediário — o cinza das bordas do seu traço.`;
+        el("leitura").textContent = acesos === 0 ? "—" : "seu traço";
+        el("leitura-nota").textContent = acesos === 0
+          ? "a área está em branco"
+          : "vire números e nada mais";
+        el("nota").innerHTML = acesos === 0
+          ? "Desenhe na área escura e veja o seu traço virar quadradinhos. Um detalhe importante: você desenha uma linha contínua, e o que chega na rede são <strong>784 números soltos</strong> — ela não sabe que dois pixels vizinhos eram vizinhos. Guarde essa observação: é o assunto da Aula 9."
+          : "É exatamente isto que a rede recebe do seu desenho: <strong>784 números entre 0 e 1</strong>, numa fila. Repare que ela não vê o traço, não vê a curva, não vê que você levantou a caneta — vê a fila. <strong>No MNIST de verdade</strong> os dígitos ainda são centralizados e redimensionados antes de entrar; aqui não fizemos isso, então desenhar bem no meio ajuda.";
+        return;
+      }
+
+      el("amb-val").textContent = t === 0 ? "nenhuma" : Math.round(t * 100) + "%";
+      el("mistura").innerHTML = t === 0
+        ? `um <strong>${escolhido}</strong> limpo`
+        : `<strong>${Math.round((1 - t) * 100)}%</strong> de ${escolhido} · <strong>${Math.round(t * 100)}%</strong> de ${par}`;
+
+      const duvida = t > 0.34 && t < 0.66;
+      el("leitura").textContent = duvida ? `${escolhido} ou ${par}?` : String(t < 0.5 ? escolhido : par);
+      el("leitura-nota").textContent = duvida
+        ? "nem uma pessoa decide com segurança"
+        : "ainda dá para ler sem esforço";
+      el("nota").innerHTML = duvida
+        ? `Este é o caso que interessa. Se <strong>você</strong> não consegue decidir entre ${escolhido} e ${par}, nenhum modelo vai decidir com certeza — e o rótulo que veio no dataset é o palpite de uma pessoa. É por isso que ninguém acerta 100% no MNIST: parte do erro está no dado, não no modelo.`
+        : `Cada quadradinho é <strong>um número</strong>: 0 é fundo, 1 é traço cheio, e o cinza no meio é a borda. A rede não vê o desenho — ela vê 784 desses números. <strong>Arraste a ambiguidade</strong> e veja o ${escolhido} virar ${par}.`;
+    }
+
+    // --- troca de modo ---
+    function aplicarModo(novo: "exemplos" | "desenho") {
+      modo = novo;
+      raiz.querySelectorAll<HTMLElement>("[data-modo]").forEach((b) =>
+        b.setAttribute("aria-pressed", String(b.dataset.modo === novo)),
+      );
+      el("bloco-amb").hidden = novo === "desenho";
+      el("bloco-galeria").hidden = novo === "desenho";
+      el("bloco-desenho").hidden = novo === "exemplos";
+      canvas!.classList.toggle("desenhavel", novo === "desenho");
+      desenhar();
+    }
+    raiz.querySelectorAll<HTMLElement>("[data-modo]").forEach((b) =>
+      b.addEventListener("click", () => aplicarModo(b.dataset.modo as "exemplos" | "desenho")),
+    );
+    el("limpar").addEventListener("click", () => { limparDesenho(); desenhar(); });
+
+    // --- o traço ---
+    let desenhando = false;
+    let ultimo: { x: number; y: number } | null = null;
+    const paraBuffer = (evento: PointerEvent) => {
+      const r = canvas!.getBoundingClientRect();
+      return {
+        x: ((evento.clientX - r.left) / r.width) * LADO_BUFFER,
+        y: ((evento.clientY - r.top) / r.height) * LADO_BUFFER,
+      };
+    };
+    function traçar(de: { x: number; y: number }, ate: { x: number; y: number }) {
+      if (!bd) return;
+      bd.strokeStyle = "#fff";
+      bd.lineWidth = LADO_BUFFER * 0.085; // ≈ 2,4 pixels na imagem 28×28
+      bd.lineCap = "round";
+      bd.lineJoin = "round";
+      bd.beginPath();
+      bd.moveTo(de.x, de.y);
+      bd.lineTo(ate.x, ate.y);
+      bd.stroke();
+      reduzirDesenho();
+      desenhar();
+    }
+    canvas.addEventListener("pointerdown", (e) => {
+      if (modo !== "desenho") return;
+      desenhando = true;
+      canvas!.setPointerCapture(e.pointerId);
+      ultimo = paraBuffer(e);
+      traçar(ultimo, ultimo); // um clique só já deixa um ponto
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!desenhando || modo !== "desenho" || !ultimo) return;
+      const agora = paraBuffer(e);
+      traçar(ultimo, agora);
+      ultimo = agora;
+    });
+    const soltar = () => { desenhando = false; ultimo = null; };
+    canvas.addEventListener("pointerup", soltar);
+    canvas.addEventListener("pointercancel", soltar);
+    canvas.addEventListener("pointerleave", soltar);
+
+    slider.addEventListener("input", () => { t = parseInt(slider.value, 10) / 100; desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      const disponivel = caixa!.clientWidth - 20;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      lado = Math.round(Math.min(disponivel, cheia ? Math.min(window.innerHeight - 240, 620) : 420));
+      lado = Math.max(lado, 168);
+      canvas.style.width = lado + "px";
+      canvas.style.height = lado + "px";
+      canvas.width = Math.round(lado * dpr);
+      canvas.height = Math.round(lado * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

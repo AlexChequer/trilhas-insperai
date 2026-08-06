@@ -1,0 +1,306 @@
+---
+n: "A7"
+titulo: "Análise de Modelos"
+ordem: 7
+objetivo: "A aula de diagnóstico: como saber se o modelo está bom, o que está errado quando não está, e o que fazer a respeito."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import ComplexidadeErro from "../../components/viz/ComplexidadeErro.astro";
+import Dropout from "../../components/viz/Dropout.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Na Aula 2 apareceu um polinômio de grau 15 que passava exatamente por todos os pontos — e a gente disse que aquela imagem voltaria com nome. É esta aula. Aqui você aprende a olhar para um treino que rodou até o fim e dizer o que aconteceu: se o modelo é simples demais, se decorou, ou se está bom. É a aula mais útil do bloco para o MNIST, porque ela é sobre o que fazer **depois** de o código funcionar.
+
+## Simples demais, ou decorou
+
+Existem dois jeitos de um modelo ir mal, e eles são opostos.
+
+**Underfitting** é o modelo simples demais para o padrão que existe nos dados. Uma reta tentando descrever uma curva: ela erra no treino e erra igual em qualquer dado novo. O sintoma é os dois erros serem **altos e parecidos**.
+
+**Overfitting** é o modelo decorar o conjunto de treino — inclusive o ruído dele. O polinômio de grau 15 passa por cima de cada ponto e acerta tudo no treino; num ponto novo, ele erra feio, porque o que ele memorizou foram os acidentes daquela amostra, não a relação. O sintoma é o erro de treino **baixo** e o de validação **alto**.
+
+Os dois têm nomes que aparecem muito: **bias** é o erro de ser simples demais, **variance** é o de ser sensível demais ao conjunto em que treinou. E há uma tensão real entre eles — reduzir um costuma aumentar o outro, e o trabalho é achar o meio.
+
+Antes de arrastar, vale saber exatamente o que os dois gráficos abaixo mostram, porque é neles que a aula inteira se apoia.
+
+À esquerda está o **ajuste**: 13 pontos e a curva que o modelo traçou tentando passar por eles. À direita está o **erro em função da complexidade**, com duas curvas que medem coisas diferentes:
+
+- A **azul** é o erro nos 13 pontos **que o modelo usou para se ajustar**. Ela só desce: quanto mais flexível o modelo, mais perto ele consegue chegar de pontos que ele já viu. No limite, ele passa exatamente por todos e o erro vai a zero — sem que isso signifique nada.
+- A **vermelha** é o erro em 60 pontos **que ele nunca viu**, sorteados da mesma relação. Essa é a única que estima o que vai acontecer na vida real, e ela tem formato de **U**: desce enquanto o modelo ganha forma útil, e volta a subir quando ele começa a se ajustar ao ruído específico dos 13.
+
+O fundo desse U é o melhor modelo disponível — e repare no detalhe que decide tudo: **a curva azul não tem fundo nenhum.** Se você escolher olhando o treino, vai escolher sempre o grau mais alto. É por isso que existe um conjunto de validação, e é por isso que ele é o juiz.
+
+**Arraste o grau do polinômio** de 0 a 12 e acompanhe as três faixas coloridas do gráfico da direita:
+
+<VizEmbed titulo="arraste a complexidade e veja as duas curvas se separarem">
+  <ComplexidadeErro />
+</VizEmbed>
+
+O que você acabou de percorrer tem nome nas três faixas:
+
+- **Underfitting** (grau 0 a 2): as duas curvas altas e **juntas**. O modelo erra no que viu e erra igual no que não viu — falta capacidade, e mais dados não resolveriam.
+- **O ponto certo** (grau 3 a 5): as duas baixas e próximas. A validação está no fundo do U.
+- **Overfitting** (grau 7 em diante): a azul continua descendo, a vermelha sobe, e a distância entre elas cresce. No grau 12 o modelo passa por praticamente todos os 13 pontos e o erro em dado novo é **quarenta vezes maior** que o de treino.
+
+A assimetria entre os dois problemas vale ser notada: underfitting é fácil de perceber (o resultado é ruim em tudo) e overfitting é traiçoeiro, porque olhando só o treino ele parece o melhor modelo que você já fez.
+
+<Caixa tipo="erro">
+Nem todo gap entre treino e validação é <Termo id="overfitting">overfitting</Termo>. Um gap **pequeno** é normal e esperado: o modelo viu os dados de treino e não viu os de validação, então vai naturalmente um pouco melhor nos primeiros. O que caracteriza overfitting é o gap **crescer** enquanto o erro de validação **para de cair ou sobe**. Se as duas curvas estão baixas e a distância entre elas é pequena e estável, está tudo certo — perseguir gap zero costuma levar a um modelo pior.
+</Caixa>
+
+## Treino, validação e teste
+
+Para diagnosticar qualquer coisa você precisa de um erro medido em dado que o modelo **não** viu. Medir no treino não serve: um modelo que decorou tem erro de treino ótimo, e é justamente o pior caso.
+
+O reflexo é separar em dois conjuntos, treino e teste. Só que dois não bastam, e a razão é sutil. Você vai treinar dezenas de modelos — graus diferentes, arquiteturas diferentes, learning rates diferentes — e escolher um olhando o resultado. Se esse resultado vem do teste, você acabou de **usar o teste para decidir**: a escolha foi ajustada àquele conjunto específico, e o número que ele te dá deixou de ser uma estimativa honesta. Você não treinou no teste, mas contaminou ele mesmo assim.
+
+Daí a divisão em três:
+
+- **Treino** — onde o modelo ajusta os pesos.
+- **Validação** — onde **você** toma decisões: comparar modelos, escolher hiperparâmetro, decidir quando parar.
+- **Teste** — onde se mede **uma vez**, no fim, para saber o que esperar na vida real.
+
+<Caixa tipo="erro">
+Usar o conjunto de <Termo id="teste">teste</Termo> para escolher hiperparâmetro é o erro mais silencioso da lista, porque nada quebra e o número até melhora. É a mesma família do erro da Aula 2 — calcular a média e o desvio da normalização usando o dataset inteiro em vez de só o treino. Nos dois casos, informação que deveria estar fora vazou para dentro, e o resultado fica bom demais para ser verdade.
+</Caixa>
+
+Esse é o **vazamento de dados**, e ele acontece de formas bem menos óbvias que essa. Alguns exemplos concretos: normalizar antes de dividir os conjuntos; ter o mesmo paciente em treino e em teste com exames diferentes; usar, para prever se um cliente vai cancelar, uma coluna que só é preenchida depois de o cliente cancelar. Sempre que um resultado vier surpreendentemente bom, <Termo id="vazamento-de-dados">vazamento</Termo> é a primeira hipótese a investigar — antes de comemorar.
+
+<Pergunta pergunta="Se eu nunca posso olhar o teste, como sei que ele não está simplesmente com dados mais difíceis que os da validação?">
+Você não sabe com certeza — e é por isso que a forma de dividir importa tanto quanto a existência da divisão.
+
+A garantia vem de como os três conjuntos são construídos: eles precisam ser amostras da **mesma** distribuição, sorteadas ao acaso. Dividir 60/20/20 aleatoriamente costuma bastar. Onde isso falha é quando a divisão é feita por algum critério escondido — separar por data e o comportamento mudar no meio do caminho, ou separar por região e as regiões serem diferentes entre si.
+
+E há um segundo detalhe: quanto menor o conjunto, mais o resultado dele varia por sorte. Uma validação de 50 exemplos dá um número instável, que muda bastante se você sortear de novo. Quando o dado é pouco, a saída é **validação cruzada**: dividir o treino em k partes, treinar k vezes deixando uma de fora por vez, e tirar a média. Custa k vezes mais treino e devolve um número em que dá para confiar.
+
+Olhar o teste uma única vez, no fim, é o que preserva o valor dele. Se o resultado vier muito abaixo da validação, isso já é informação — em geral significa que você escolheu demais em cima da validação.
+</Pergunta>
+
+<Quiz
+  id="a7-teste-contaminado"
+  pergunta="Você treina 30 modelos, mede todos no conjunto de teste, escolhe o de melhor resultado e reporta esse número como a acurácia esperada. Qual é o problema?"
+  alternativas={[
+    {
+      texto: "Ao escolher olhando o teste, você ajustou uma decisão àquele conjunto específico — o número reportado ficou otimista e não representa mais dado novo. Essa escolha era trabalho da validação.",
+      certa: true,
+      porque: "Isso. Com 30 tentativas, o melhor resultado no teste é em parte mérito e em parte sorte — e a sorte não se repete em produção. O teste só continua sendo teste enquanto não influencia nenhuma decisão.",
+    },
+    {
+      texto: "Nenhum: o modelo não treinou no teste, então a medida continua válida.",
+      porque: "Não treinar é necessário, mas não é suficiente. A contaminação aqui não veio dos pesos, veio da **escolha**: você usou o teste 30 vezes para decidir, e o resultado carrega essas 30 espiadas.",
+    },
+    {
+      texto: "O problema é o número de modelos: com 30 tentativas, o treino demora demais.",
+      porque: "Treinar muitos candidatos é normal e desejável. O que estraga não é a quantidade, é o conjunto em que a comparação foi feita.",
+    },
+    {
+      texto: "O problema é não ter usado validação cruzada, que é obrigatória sempre que há mais de um modelo candidato.",
+      porque: "A validação cruzada ajuda quando o dado é pouco, mas não é a questão central. Mesmo com uma validação simples e bem separada o procedimento estaria correto — bastaria escolher nela e medir no teste uma vez só.",
+    },
+  ]}
+/>
+
+## Ler uma learning curve
+
+Na prática o diagnóstico é quase sempre visual: você põe o erro de treino e o de validação no mesmo gráfico ao longo do treino e olha o desenho. Três formatos cobrem quase tudo:
+
+- **As duas altas e juntas** → _underfitting_. O modelo não tem forma suficiente. Aumente a capacidade (mais camadas, mais neurônios, mais features), treine mais tempo, ou reduza a regularização.
+- **Treino baixa, validação alta, e o gap crescendo** → _overfitting_. Regularize, consiga mais dados, ou diminua o modelo.
+- **As duas baixas e juntas** → está bom. Se ainda não for suficiente para o seu objetivo, o caminho é outro: mais dados ou features melhores, não mais capacidade.
+
+Uma leitura extra, que economiza tempo: se o erro de <Termo id="validacao">validação</Termo> parou de cair há muitas epochs e o de treino continua descendo, você já passou do ponto — o melhor modelo ficou para trás. Isso tem remédio, e é o mais barato de todos, logo abaixo.
+
+## Penalizar peso grande: L1 e L2
+
+A primeira família de <Termo id="regularizacao">regularizações</Termo> ataca o problema na raiz: um modelo que decora costuma fazer isso com pesos **grandes**, que produzem as curvas violentas necessárias para passar por cada ponto. Então proíba pesos grandes — não com uma regra, mas com um custo:
+
+$$
+J_{\text{reg}} = J + \lambda \sum_j w_j^2 \quad (\text{L2}) \qquad\qquad J_{\text{reg}} = J + \lambda \sum_j |w_j| \quad (\text{L1})
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$J$", significado: "a função de custo de sempre — o erro nas previsões, e nada mais" },
+    { simbolo: "$\\sum_j w_j^2$", significado: "a soma dos pesos ao quadrado. Peso grande contribui muito; peso perto de zero quase não conta" },
+    { simbolo: "$\\sum_j |w_j|$", significado: "a soma dos módulos. Aqui todo peso contribui na mesma proporção, por menor que seja" },
+    { simbolo: "$\\lambda$", significado: "o quanto essa penalidade pesa em relação ao erro. É você quem escolhe: em 0 não há regularização nenhuma" },
+  ]}
+/>
+
+Agora o treino tem dois objetivos concorrentes: errar pouco **e** manter os pesos pequenos. O gradient descent negocia entre os dois, e quem decide o câmbio é o $\lambda$.
+
+A diferença entre as duas é o que cada penalidade faz com um peso já pequeno. A **L2** encolhe todo mundo suavemente e proporcionalmente — quanto menor o peso, menor o empurrão, então nada chega exatamente a zero. A **L1** empurra com força constante, independente do tamanho, então pesos pouco úteis são zerados de vez. Isso é seleção de feature de graça: os pesos que sobraram diferentes de zero são as features que o modelo julgou valer a pena.
+
+Nos extremos, o $\lambda$ se comporta como o grau do polinômio, ao contrário: **$\lambda = 0$** é o modelo sem freio, livre para decorar; **$\lambda$ enorme** esmaga todos os pesos para perto de zero e o modelo vira quase uma constante — <Termo id="underfitting">underfitting</Termo> puro. O bom valor fica no meio, e você acha ele olhando a validação.
+
+## Dropout e early stopping
+
+As outras duas regularizações não mexem na função de custo, e são as que mais rendem no MNIST pelo esforço que dão.
+
+**Dropout**: a cada passagem do treino, desligue neurônios ao acaso. Parece sabotagem, e funciona por uma razão específica: se qualquer neurônio pode sumir a qualquer momento, a rede não consegue depender de um caminho único — ela é forçada a espalhar o que aprendeu por várias rotas redundantes. É como uma equipe em que qualquer pessoa pode faltar sem aviso: ninguém pode ser o único a saber alguma coisa. Na hora de prever, a rede volta inteira.
+
+**Arraste a taxa** abaixo. Em zero você vê a rede decorando; suba um pouco e a faixa entre as curvas fecha; suba demais e a rede para de aprender:
+
+<VizEmbed titulo="arraste a taxa de dropout e veja a faixa fechar">
+  <Dropout />
+</VizEmbed>
+
+Repare no que aconteceu com a taxa boa: o erro de **treino piorou** e o de validação melhorou. Esse é o negócio que toda regularização propõe, e vale internalizar — você abre mão de desempenho no treino, de propósito, para ganhar em dado novo. Quem só olha o erro de treino conclui que a regularização estragou o modelo.
+
+### Early stopping
+
+A regularização mais barata que existe, e a mais fácil de esquecer. A ideia: **overfitting também acontece por tempo de treino.** Nos primeiros epochs a rede aprende o padrão geral, e os dois erros caem juntos. Passado certo ponto, o padrão já foi extraído e o que sobra para aprender são as particularidades daqueles exemplos — o erro de treino continua caindo e o de validação começa a subir. O melhor modelo ficou para trás, e treinar mais só o afasta.
+
+O procedimento é literalmente isto:
+
+1. Meça o erro de **validação** ao fim de cada epoch.
+2. Sempre que ele bater um novo mínimo, **guarde uma cópia dos pesos** daquele momento.
+3. Se ele passar N epochs sem melhorar (esse N se chama _paciência_, e 5 a 20 são valores comuns), pare.
+4. Entregue os pesos guardados no passo 2, **não** os do fim do treino.
+
+O passo 4 é o que as pessoas erram: elas param o treino no momento certo e mesmo assim entregam os últimos pesos, que já são piores. Parar cedo e salvar o melhor são duas coisas.
+
+Volte ao gráfico acima e olhe a **linha verde**: ela marca o epoch em que a validação chegou ao menor valor, e tudo à direita dela é treino que só piorou o modelo. Repare que a linha **se move** quando você mexe na taxa de dropout — com regularização mais forte, o momento de parar chega mais tarde, porque a rede demora mais para começar a decorar. O painel diz, em número, quanto você ganharia entregando os pesos daquele epoch em vez dos últimos.
+
+<Caixa tipo="erro">
+Ligar <Termo id="dropout">dropout</Termo>, L2, early stopping e aumento de dados tudo de uma vez, ver melhorar e não saber o que ajudou. Isso não é só desleixo metodológico: você fica sem saber em que direção continuar, e provavelmente está pagando o custo de três regularizações para colher o benefício de uma. Mude **uma coisa por vez**, anote o erro de validação de cada tentativa, e mantenha só o que rendeu.
+</Caixa>
+
+<Quiz
+  id="a7-regularizacao-piora-treino"
+  pergunta="Você liga dropout e o erro de treino sobe de 0,08 para 0,20. O erro de validação cai de 0,27 para 0,24. Manter ou desligar?"
+  alternativas={[
+    {
+      texto: "Manter: quem decide é a validação, e ela melhorou. O erro de treino subir é o preço esperado — é exatamente assim que a regularização funciona.",
+      certa: true,
+      porque: "Isso. Regularização troca desempenho no treino por generalização de propósito. Se o erro de treino não tivesse subido nada, o dropout provavelmente nem estaria fazendo efeito.",
+    },
+    {
+      texto: "Desligar: o erro de treino mais que dobrou, então o modelo claramente piorou.",
+      porque: "O erro de treino não mede qualidade de modelo — ele mede o quanto o modelo se ajustou aos dados que já viu. Um modelo que decora tem erro de treino ótimo e é o pior de todos em dado novo.",
+    },
+    {
+      texto: "Desligar, porque a melhora na validação (0,03) é pequena demais para justificar a piora no treino (0,12).",
+      porque: "Os dois números não são comparáveis: eles respondem a perguntas diferentes. Não existe uma taxa de câmbio entre erro de treino e erro de validação — só a validação estima o que acontece em dado novo.",
+    },
+    {
+      texto: "Manter, mas só se o erro de teste também melhorar.",
+      porque: "Conferir no teste antes de decidir é justamente o que contamina o teste. A decisão se toma na validação; o teste é olhado uma vez, no fim, para reportar — não para escolher.",
+    },
+  ]}
+/>
+
+<p class="nota">
+  Fecha o Bloco 2. Você monta a rede (A4 e A5), faz ela treinar (A6) e agora
+  sabe olhar o resultado e dizer o que fazer em seguida — que é a diferença entre
+  mexer em hiperparâmetro no escuro e ter um método. Leve isto para o MNIST: uma
+  mudança por vez, decisão na validação, teste só no fim.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a7-diagnostico-curvas"
+  pergunta="Depois de 50 epochs, o erro de treino está em 0,42 e o de validação em 0,45, e os dois pararam de cair. O que fazer?"
+  alternativas={[
+    {
+      texto: "Aumentar a capacidade do modelo: os dois erros estão altos e juntos, que é o desenho de underfitting. Mais camadas, mais neurônios, mais features — ou menos regularização.",
+      certa: true,
+      porque: "Isso. Gap quase zero descarta overfitting. Quando o modelo vai igualmente mal nos dois conjuntos, o que falta é forma para representar o padrão, não disciplina.",
+    },
+    {
+      texto: "Aplicar dropout e L2: um erro de validação de 0,45 é alto, e regularizar é o que reduz erro de validação.",
+      porque: "Regularização combate overfitting, e aqui não há overfitting nenhum — as curvas estão coladas. Regularizar um modelo que já está simples demais só piora os dois erros.",
+    },
+    {
+      texto: "Conseguir mais dados de treino: é sempre o caminho quando o erro está alto.",
+      porque: "Mais dados ajudam contra overfitting, em que o modelo decorou uma amostra pequena. Num modelo que não dá conta nem do que já tem, dados adicionais serão igualmente mal aproveitados.",
+    },
+    {
+      texto: "Parar o treino aqui, porque as duas curvas pararam de cair e continuar é desperdício.",
+      porque: "Parar está correto como economia de tempo, mas não responde à pergunta — o modelo continua ruim. Early stopping resolve treinar demais, e o problema aqui é o oposto: capacidade de menos.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a7-l1-vs-l2"
+  pergunta="Você tem 300 features e desconfia que a maioria é inútil. Quer descobrir quais importam. Entre L1 e L2, qual escolher e por quê?"
+  alternativas={[
+    {
+      texto: "L1: como a penalidade dela empurra com força constante independente do tamanho do peso, os pesos inúteis vão a exatamente zero — e as features que sobram com peso diferente de zero são a seleção que você queria.",
+      certa: true,
+      porque: "Isso. Zerar de vez é a característica que distingue a L1, e é o que transforma regularização em seleção de feature.",
+    },
+    {
+      texto: "L2: ela encolhe mais agressivamente os pesos grandes, então as features inúteis ficam com peso zero.",
+      porque: "A L2 realmente encolhe mais quem é grande — mas por isso mesmo ela quase não mexe em quem já é pequeno, e nada chega a zero exato. Você fica com 300 pesos minúsculos e nenhuma resposta clara sobre quais descartar.",
+    },
+    {
+      texto: "Tanto faz: as duas zeram pesos, e a diferença é só a velocidade com que fazem isso.",
+      porque: "A diferença não é velocidade, é o destino. A L2 tende a zero sem chegar; a L1 chega. É por isso que só uma das duas serve para selecionar feature.",
+    },
+    {
+      texto: "Nenhuma das duas: seleção de feature exige treinar um modelo por subconjunto de features.",
+      porque: "Isso funciona e é o método exaustivo, mas com 300 features é inviável. A vantagem da L1 é justamente entregar uma seleção como subproduto de um treino só.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a7-uma-mudanca-por-vez"
+  pergunta="Seu modelo está com overfitting. Você liga dropout, L2 e early stopping de uma vez, e a validação melhora bastante. Qual é o problema?"
+  alternativas={[
+    {
+      texto: "Você não sabe qual das três ajudou — nem se alguma delas atrapalhou e foi compensada pelas outras. Sem isso, você não tem em que direção continuar ajustando.",
+      certa: true,
+      porque: "Isso. O objetivo de um experimento não é só melhorar o número, é aprender algo que oriente a próxima tentativa. Três mudanças simultâneas produzem um resultado e nenhuma informação.",
+    },
+    {
+      texto: "Nenhum: o que importa é o erro de validação, e ele melhorou.",
+      porque: "Melhorou desta vez. Mas você vai precisar ajustar a taxa de dropout, o lambda e a paciência do early stopping — e sem saber o efeito de cada um, esse ajuste vira tentativa e erro cego.",
+    },
+    {
+      texto: "O problema é que as três regularizações se cancelam matematicamente e o efeito líquido é zero.",
+      porque: "Elas não se cancelam — combinar regularizações é comum e costuma funcionar. A objeção é metodológica, sobre o que você consegue aprender do experimento, não sobre o resultado ser inválido.",
+    },
+    {
+      texto: "O problema é usar early stopping junto com dropout, porque as duas atuam sobre o tempo de treino.",
+      porque: "Elas atuam de formas diferentes e combinam bem: o dropout muda o que a rede aprende, o early stopping decide quando parar. Não há incompatibilidade entre as duas.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a7-gap-pequeno"
+  pergunta="Erro de treino 0,11 e erro de validação 0,13, os dois estáveis. Um colega diz que há overfitting porque o treino está melhor que a validação. Ele tem razão?"
+  alternativas={[
+    {
+      texto: "Não. Um gap pequeno é normal — o modelo viu o treino e não viu a validação. O que caracteriza overfitting é o gap crescer enquanto a validação para de melhorar, e não é o caso aqui.",
+      certa: true,
+      porque: "Isso. Gap zero seria até suspeito. O que se acompanha é a **tendência** das duas curvas, não a existência de uma diferença entre elas.",
+    },
+    {
+      texto: "Tem: qualquer diferença entre treino e validação é, por definição, overfitting.",
+      porque: "Por essa definição todo modelo do mundo estaria com overfitting o tempo todo, e o termo não distinguiria nada. Overfitting é o modelo ter aprendido particularidades do treino que não valem fora dele — e um gap de 0,02 estável não é evidência disso.",
+    },
+    {
+      texto: "Tem, e a correção é aumentar a regularização até o gap fechar.",
+      porque: "Perseguir gap zero com regularização costuma piorar os dois erros: você freia um modelo que estava bem ajustado. Se a validação já está no melhor valor que você conseguiu, mexer nisso é regredir.",
+    },
+    {
+      texto: "Não dá para dizer sem olhar o conjunto de teste.",
+      porque: "O teste não responde a essa pergunta — e olhá-lo agora, para decidir, é justamente o que o contamina. Overfitting se diagnostica comparando treino e validação ao longo do treino.",
+    },
+  ]}
+/>
+
+</QuizBloco>

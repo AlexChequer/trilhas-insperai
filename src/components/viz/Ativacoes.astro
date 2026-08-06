@@ -1,0 +1,298 @@
+---
+// Aula 4 · As três ativações lado a lado (sigmoid, tanh, ReLU).
+// Um controle só: o valor de entrada z. O que se vê: a saída de cada função e,
+// principalmente, a INCLINAÇÃO ali (a reta curta sobre o ponto). Nas faixas
+// sombreadas a inclinação é quase zero — é a saturação, onde o gradiente morre.
+---
+
+<div class="viz-ativ" data-viz="ativacoes">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="stat ativ-controle">
+    <div class="slider-campo">
+      <label>Entrada do neurônio (z) <span class="valor" data-z-val>—</span></label>
+      <input type="range" data-z min="-6" max="6" step="0.1" value="2.2" />
+    </div>
+    <p class="stat-caminho">z é o resultado de <strong>w·x + b</strong>, antes da ativação.</p>
+  </div>
+
+  <div class="ativ-cards">
+    <div class="ativ-card stat" style="border-left: 5px solid #7c3aed">
+      <p class="stat-rotulo">Sigmoid</p>
+      <p class="stat-valor" data-val="sig">—</p>
+      <span class="stat-unidade">inclinação <b data-der="sig">—</b><br /><span data-est="sig">—</span></span>
+    </div>
+
+    <div class="ativ-card stat" style="border-left: 5px solid #0ea5e9">
+      <p class="stat-rotulo">Tanh</p>
+      <p class="stat-valor" data-val="tanh">—</p>
+      <span class="stat-unidade">inclinação <b data-der="tanh">—</b><br /><span data-est="tanh">—</span></span>
+    </div>
+
+    <div class="ativ-card stat" style="border-left: 5px solid #16a34a">
+      <p class="stat-rotulo">ReLU</p>
+      <p class="stat-valor" data-val="relu">—</p>
+      <span class="stat-unidade">inclinação <b data-der="relu">—</b><br /><span data-est="relu">—</span></span>
+    </div>
+  </div>
+
+  <p class="stat-caminho ativ-nota" data-nota></p>
+</div>
+
+<style>
+  /* Esta viz não usa o painel lateral: as três ativações precisam da largura
+     inteira para ficarem lado a lado, e cada card fica embaixo do seu gráfico. */
+  .viz-ativ {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .ativ-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .ativ-card .stat-valor {
+    font-size: clamp(1.5rem, 3.4vw, 1.9rem);
+  }
+  .ativ-card .stat-unidade b {
+    font-family: var(--fonte-dados);
+  }
+  .ativ-card .morto {
+    color: var(--vermelho);
+    font-weight: 700;
+  }
+  .ativ-card .vivo {
+    color: var(--verde);
+    font-weight: 700;
+  }
+  .ativ-nota {
+    margin: 0;
+  }
+  @media (max-width: 620px) {
+    .ativ-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="ativacoes"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const slider = raiz.querySelector<HTMLInputElement>("[data-z]")!;
+    const elZ = raiz.querySelector<HTMLElement>("[data-z-val]")!;
+    const elNota = raiz.querySelector<HTMLElement>("[data-nota]")!;
+
+    const ZMIN = -6, ZMAX = 6;
+    const MORTO = 0.1; // abaixo disso a inclinação é praticamente nula
+    const COR = {
+      grade: "#eef2f8", eixo: "#c7d2e0", suave: "#8b95a5",
+      azulAco: "#294a6b", vermelho: "#dc2626", verde: "#16a34a",
+    };
+
+    const sig = (z: number) => 1 / (1 + Math.exp(-z));
+    // onde a derivada cruza o limite: sigmoid resolve s(1−s)=MORTO, tanh resolve 1−t²=MORTO
+    const sAlvo = (1 + Math.sqrt(1 - 4 * MORTO)) / 2;
+    const Z_SIG = Math.log(sAlvo / (1 - sAlvo));
+    const Z_TANH = Math.atanh(Math.sqrt(1 - MORTO));
+
+    interface Ativacao {
+      chave: string; nome: string; cor: string;
+      ymin: number; ymax: number; marcas: number[];
+      f: (z: number) => number; df: (z: number) => number;
+      bandas: [number, number][]; rotuloBanda: string;
+    }
+
+    const ATIVACOES: Ativacao[] = [
+      {
+        chave: "sig", nome: "Sigmoid", cor: "#7c3aed",
+        ymin: -0.2, ymax: 1.2, marcas: [0, 0.5, 1],
+        f: sig, df: (z) => sig(z) * (1 - sig(z)),
+        bandas: [[ZMIN, -Z_SIG], [Z_SIG, ZMAX]], rotuloBanda: "satura",
+      },
+      {
+        chave: "tanh", nome: "Tanh", cor: "#0ea5e9",
+        ymin: -1.4, ymax: 1.4, marcas: [-1, 0, 1],
+        f: Math.tanh, df: (z) => 1 - Math.tanh(z) ** 2,
+        bandas: [[ZMIN, -Z_TANH], [Z_TANH, ZMAX]], rotuloBanda: "satura",
+      },
+      {
+        chave: "relu", nome: "ReLU", cor: "#16a34a",
+        ymin: -1, ymax: 6.6, marcas: [0, 2, 4, 6],
+        f: (z) => Math.max(0, z), df: (z) => (z > 0 ? 1 : 0),
+        bandas: [[ZMIN, 0]], rotuloBanda: "zona morta",
+      },
+    ];
+
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    let z = 2.2;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    function areas() {
+      const colunas = W >= 560;
+      const PAD = 6, VAO = 14;
+      const M = { topo: 26, dir: 10, base: 40, esq: 38 };
+      return ATIVACOES.map((_, i) => {
+        const r = colunas
+          ? { x: PAD + i * ((W - PAD * 2 - VAO * 2) / 3 + VAO), y: PAD, w: (W - PAD * 2 - VAO * 2) / 3, h: H - PAD * 2 }
+          : { x: PAD, y: PAD + i * ((H - PAD * 2 - VAO * 2) / 3 + VAO), w: W - PAD * 2, h: (H - PAD * 2 - VAO * 2) / 3 };
+        return {
+          r,
+          p: { x: r.x + M.esq, y: r.y + M.topo, w: r.w - M.esq - M.dir, h: r.h - M.topo - M.base },
+        };
+      });
+    }
+
+    function desenharUm(a: Ativacao, r: { x: number; y: number; w: number; h: number }, p: { x: number; y: number; w: number; h: number }) {
+      if (!ctx) return;
+      const zx = (v: number) => p.x + ((v - ZMIN) / (ZMAX - ZMIN)) * p.w;
+      const fy = (v: number) => p.y + (1 - (v - a.ymin) / (a.ymax - a.ymin)) * p.h;
+
+      // faixas onde a inclinação é quase zero (rotula só a última, para não repetir)
+      a.bandas.forEach(([de, ate], i) => {
+        const x0 = zx(de), x1 = zx(ate);
+        ctx.fillStyle = "rgba(220,38,38,0.07)";
+        ctx.fillRect(x0, p.y, x1 - x0, p.h);
+        if (i === a.bandas.length - 1 && x1 - x0 > 40) {
+          // no meio da faixa: em cima ou embaixo a curva passa por ali
+          ctx.fillStyle = "rgba(185,28,28,0.75)";
+          ctx.font = "600 11px " + fonte();
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(a.rotuloBanda, (x0 + x1) / 2, p.y + p.h / 2);
+        }
+      });
+
+      // grade horizontal + rótulos do eixo y
+      ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+      ctx.fillStyle = COR.suave; ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (const m of a.marcas) {
+        const yy = fy(m);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(num(m, m % 1 === 0 ? 0 : 1), p.x - 7, yy);
+      }
+
+      // rótulos do eixo z
+      const marcasZ = p.w < 170 ? [-6, 0, 6] : [-6, -3, 0, 3, 6];
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (const m of marcasZ) ctx.fillText(String(m), zx(m), p.y + p.h + 6);
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 13px " + fonte();
+      ctx.fillText("z", p.x + p.w / 2, p.y + p.h + 23);
+
+      // moldura e eixo zero
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1.5;
+      ctx.strokeRect(p.x, p.y, p.w, p.h);
+      ctx.strokeStyle = "rgba(41,74,107,0.22)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(zx(0), p.y); ctx.lineTo(zx(0), p.y + p.h); ctx.stroke();
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+
+      // a curva
+      ctx.strokeStyle = a.cor; ctx.lineWidth = 3; ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (let i = 0; i <= 240; i++) {
+        const v = ZMIN + (i / 240) * (ZMAX - ZMIN);
+        const X = zx(v), Y = fy(a.f(v));
+        if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+      }
+      ctx.stroke();
+
+      // onde estamos: linha vertical, tangente e ponto
+      const der = a.df(z);
+      const vivo = Math.abs(der) >= MORTO;
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = "rgba(41,74,107,0.4)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(zx(z), p.y); ctx.lineTo(zx(z), p.y + p.h); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const escalaX = p.w / (ZMAX - ZMIN);
+      const escalaY = p.h / (a.ymax - a.ymin);
+      const dx = 1, dy = -der * (escalaY / escalaX);
+      const norma = Math.hypot(dx, dy);
+      const meio = Math.min(46, p.w * 0.28);
+      const cx = zx(z), cy = fy(a.f(z));
+      ctx.strokeStyle = vivo ? COR.verde : COR.vermelho;
+      ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cx - (dx / norma) * meio, cy - (dy / norma) * meio);
+      ctx.lineTo(cx + (dx / norma) * meio, cy + (dy / norma) * meio);
+      ctx.stroke();
+
+      ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = a.cor; ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff"; ctx.stroke();
+      ctx.restore();
+
+      // título do painelzinho
+      ctx.fillStyle = a.cor; ctx.font = "700 15px " + fonte();
+      ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillText(a.nome, r.x + 4, r.y + 4);
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const caixas = areas();
+      ATIVACOES.forEach((a, i) => desenharUm(a, caixas[i].r, caixas[i].p));
+
+      elZ.textContent = num(z, 1);
+      let mortas = 0;
+      for (const a of ATIVACOES) {
+        const der = a.df(z);
+        const vivo = Math.abs(der) >= MORTO;
+        if (!vivo) mortas++;
+        raiz.querySelector<HTMLElement>(`[data-val="${a.chave}"]`)!.textContent = num(a.f(z), 2);
+        raiz.querySelector<HTMLElement>(`[data-der="${a.chave}"]`)!.textContent = num(der, 3);
+        const est = raiz.querySelector<HTMLElement>(`[data-est="${a.chave}"]`)!;
+        est.textContent = vivo ? "o gradiente passa" : "gradiente quase morto";
+        est.className = vivo ? "vivo" : "morto";
+      }
+
+      const relumorta = z <= 0;
+      elNota.innerHTML =
+        mortas === 0
+          ? "Zona viva: as três curvas estão inclinadas, então a correção chega inteira nas três. É aqui que o aprendizado acontece."
+          : relumorta
+            ? "No lado negativo as três estão paradas — mas repare na diferença: a ReLU tem <strong>um lado inteiro vivo</strong>, e o viés pode empurrar o neurônio para lá. Sigmoid e tanh estão presas nas duas pontas."
+            : "Sigmoid e tanh <strong>deitaram</strong>: a inclinação delas é quase zero, então quase nada de correção volta para os pesos. A ReLU segue com inclinação 1, por maior que z fique.";
+    }
+
+    slider.addEventListener("input", () => { z = parseFloat(slider.value); desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const colunas = W >= 560;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 200, 340), 760)
+        : colunas
+          ? Math.round(Math.min(Math.max(W * 0.5, 280), 430))
+          : Math.round(Math.min(Math.max(W * 1.7, 500), 800));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

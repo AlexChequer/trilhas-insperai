@@ -1,0 +1,241 @@
+---
+// Aula 5 · Softmax interativo, lado a lado com a "normalização simples" que
+// muita gente acha que ela é. Mexendo nos três logits fica visível que dividir
+// pela soma crua produz valor negativo (não é probabilidade) e que a softmax
+// AMPLIFICA diferença — uma vantagem pequena no logit vira vantagem grande na
+// probabilidade. Estado inicial já entra com um logit negativo, que é onde a
+// normalização simples quebra.
+---
+
+<div class="viz-softmax" data-viz="softmax">
+  <div class="stat sm-controles">
+    <div class="slider-campo">
+      <label>Logit do <b>gato</b> (z₁) <span class="valor" data-z0-val>—</span></label>
+      <input type="range" data-z="0" min="-4" max="6" step="0.1" value="2" />
+    </div>
+    <div class="slider-campo">
+      <label>Logit do <b>cachorro</b> (z₂) <span class="valor" data-z1-val>—</span></label>
+      <input type="range" data-z="1" min="-4" max="6" step="0.1" value="1" />
+    </div>
+    <div class="slider-campo">
+      <label>Logit do <b>pássaro</b> (z₃) <span class="valor" data-z2-val>—</span></label>
+      <input type="range" data-z="2" min="-4" max="6" step="0.1" value="-0.5" />
+    </div>
+  </div>
+
+  <div class="sm-grade">
+    <article class="stat sm-painel">
+      <p class="stat-rotulo">Softmax</p>
+      <p class="sm-formula">e<sup>zᵢ</sup> ÷ soma dos e<sup>z</sup></p>
+      <ul class="sm-lista">
+        <li><span class="sm-nome">gato</span><span class="sm-barra"><span class="sm-fill" data-sm0-fill></span></span><span class="sm-val" data-sm0>—</span></li>
+        <li><span class="sm-nome">cachorro</span><span class="sm-barra"><span class="sm-fill" data-sm1-fill></span></span><span class="sm-val" data-sm1>—</span></li>
+        <li><span class="sm-nome">pássaro</span><span class="sm-barra"><span class="sm-fill" data-sm2-fill></span></span><span class="sm-val" data-sm2>—</span></li>
+      </ul>
+      <p class="sm-veredito sm-ok" data-sm-veredito>—</p>
+    </article>
+
+    <article class="stat sm-painel">
+      <p class="stat-rotulo">Normalização simples</p>
+      <p class="sm-formula">z<sub>i</sub> ÷ soma dos z</p>
+      <ul class="sm-lista">
+        <li><span class="sm-nome">gato</span><span class="sm-barra"><span class="sm-fill" data-na0-fill></span></span><span class="sm-val" data-na0>—</span></li>
+        <li><span class="sm-nome">cachorro</span><span class="sm-barra"><span class="sm-fill" data-na1-fill></span></span><span class="sm-val" data-na1>—</span></li>
+        <li><span class="sm-nome">pássaro</span><span class="sm-barra"><span class="sm-fill" data-na2-fill></span></span><span class="sm-val" data-na2>—</span></li>
+      </ul>
+      <p class="sm-veredito" data-na-veredito>—</p>
+    </article>
+  </div>
+
+  <p class="stat-caminho sm-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-softmax {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  /* Os três sliders ficam empilhados: lado a lado, o rótulo de cada um quebra
+     em duas linhas e a última coluna estoura a caixa. */
+  .sm-controles {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .sm-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .sm-painel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sm-formula {
+    margin: 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.9rem;
+    color: var(--insper-azul-aco);
+  }
+  .sm-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sm-lista li {
+    display: grid;
+    grid-template-columns: 4.6em 1fr 4em;
+    align-items: center;
+    gap: 8px;
+  }
+  .sm-nome {
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+  }
+  .sm-barra {
+    display: block;
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+  .sm-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    border-radius: 999px;
+    background: var(--insper-gradiente);
+  }
+  .sm-fill.invalido {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--vermelho) 0 6px,
+      #f8b4b4 6px 12px
+    );
+  }
+  .sm-val {
+    font-family: var(--fonte-dados);
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-align: right;
+    color: var(--insper-azul-aco);
+  }
+  .sm-val.invalido {
+    color: var(--vermelho);
+  }
+  .sm-lista li.vencedora .sm-nome,
+  .sm-lista li.vencedora .sm-val {
+    color: var(--insper-roxo);
+    font-weight: 700;
+  }
+  .sm-veredito {
+    margin: 2px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--borda);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: var(--texto-suave);
+  }
+  .sm-veredito.sm-ok b {
+    color: var(--verde);
+  }
+  .sm-veredito.sm-ruim b {
+    color: var(--vermelho);
+  }
+  .sm-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 760px) {
+    .sm-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="softmax"]').forEach((raiz) => {
+    const sliders = [0, 1, 2].map((i) => raiz.querySelector<HTMLInputElement>(`[data-z="${i}"]`)!);
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const pct = (v: number) => num(v * 100, 0) + "%";
+
+    function pinta(prefixo: string, valores: number[], vencedora: number) {
+      valores.forEach((v, i) => {
+        const alvo = el(`${prefixo}${i}`);
+        const fill = el(`${prefixo}${i}-fill`);
+        const foraDaFaixa = v < 0 || v > 1;
+        alvo.textContent = pct(v);
+        alvo.classList.toggle("invalido", foraDaFaixa);
+        // valor negativo não tem barra para desenhar: mostra a faixa listrada cheia
+        fill.style.width = (v < 0 ? 100 : Math.min(v, 1) * 100) + "%";
+        fill.classList.toggle("invalido", foraDaFaixa);
+        const li = alvo.closest("li");
+        if (li) li.classList.toggle("vencedora", i === vencedora && !foraDaFaixa);
+      });
+    }
+
+    function atualizar() {
+      const z = sliders.map((s) => parseFloat(s.value));
+      z.forEach((v, i) => (el(`z${i}-val`).textContent = num(v, 1)));
+
+      // --- softmax (subtrai o máximo antes do exp: mesma conta, sem estouro) ---
+      const maximo = Math.max(...z);
+      const exps = z.map((v) => Math.exp(v - maximo));
+      const somaExp = exps.reduce((s, v) => s + v, 0);
+      const soft = exps.map((v) => v / somaExp);
+      const vencedoraSoft = soft.indexOf(Math.max(...soft));
+      pinta("sm", soft, vencedoraSoft);
+
+      // --- normalização simples: divide o logit cru pela soma dos logits ---
+      const somaZ = z.reduce((s, v) => s + v, 0);
+      const quaseZero = Math.abs(somaZ) < 0.05;
+      const nai = quaseZero ? [NaN, NaN, NaN] : z.map((v) => v / somaZ);
+      const invalidos = nai.filter((v) => Number.isNaN(v) || v < 0 || v > 1).length;
+
+      if (quaseZero) {
+        [0, 1, 2].forEach((i) => {
+          el(`na${i}`).textContent = "—";
+          el(`na${i}`).classList.add("invalido");
+          el(`na${i}-fill`).style.width = "0";
+          el(`na${i}-fill`).classList.remove("invalido");
+        });
+      } else {
+        pinta("na", nai, nai.indexOf(Math.max(...nai)));
+      }
+
+      // --- os dois vereditos ---
+      const ordenados = [...soft].sort((a, b) => b - a);
+      const zOrdenados = [...z].sort((a, b) => b - a);
+      const vantagemZ = zOrdenados[0] - zOrdenados[1];
+      const vantagemP = ordenados[1] > 0.0001 ? ordenados[0] / ordenados[1] : Infinity;
+      el("sm-veredito").innerHTML =
+        `Sempre <b>entre 0 e 1</b>, sempre somando 1. E repare na amplificação: o líder está ` +
+        `<b>${num(vantagemZ, 1)}</b> acima do segundo no logit, e isso vira <b>${vantagemP > 99 ? "mais de 99" : num(vantagemP, 1)}×</b> mais probabilidade.`;
+
+      const vna = el("na-veredito");
+      vna.className = "sm-veredito " + (invalidos > 0 ? "sm-ruim" : "");
+      vna.innerHTML = quaseZero
+        ? "A soma dos logits deu <b>quase zero</b>: a divisão explode e não sobra resposta nenhuma. A softmax nem percebe esse caso."
+        : invalidos > 0
+          ? `<b>${invalidos === 1 ? "Um valor fora de 0–1" : invalidos + " valores fora de 0–1"}.</b> Um logit negativo vira “probabilidade” negativa — e nenhuma soma consegue consertar isso.`
+          : "Aqui deu certo por sorte: os três logits são positivos. Basta um deles ficar negativo para a conta produzir absurdo.";
+
+      el("nota").innerHTML =
+        invalidos > 0 || quaseZero
+          ? "É por isso que existe o <strong>exponencial</strong>: e<sup>z</sup> é positivo para qualquer z, inclusive negativo. Ele é o que garante que o resultado seja probabilidade — e é também o que faz a softmax separar o líder do resto."
+          : "Arraste um dos logits para <strong>abaixo de zero</strong> e olhe a coluna da direita: é aí que a diferença entre softmax e “dividir pela soma” aparece de vez.";
+    }
+
+    sliders.forEach((s) => s.addEventListener("input", atualizar));
+    atualizar();
+  });
+</script>

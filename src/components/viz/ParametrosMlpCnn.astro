@@ -1,0 +1,162 @@
+---
+// Aula 9 · A explosão de parâmetros. Um controle: o tamanho da imagem. O que se
+// vê: a primeira camada de uma MLP crescendo com a área da imagem, enquanto a
+// primeira camada convolucional fica praticamente parada — porque o filtro é o
+// mesmo para a imagem inteira. É o argumento numérico do compartilhamento de pesos.
+//
+// Barras em escala logarítmica: a diferença chega a cinco ordens de grandeza e
+// não caberia numa escala linear.
+---
+
+<div class="viz-params" data-viz="params">
+  <div class="stat">
+    <div class="slider-campo">
+      <label>Tamanho da imagem <span class="valor" data-tam-val>—</span></label>
+      <input type="range" data-tam min="0" max="3" step="1" value="0" />
+    </div>
+    <p class="stat-caminho" data-entradas>—</p>
+  </div>
+
+  <div class="params-grade">
+    <article class="stat params-card">
+      <p class="stat-rotulo">MLP · 1ª camada densa</p>
+      <p class="params-config">cada pixel ligado a cada um dos 128 neurônios</p>
+      <p class="params-valor" data-mlp>—</p>
+      <div class="params-barra"><span class="params-fill params-fill-mlp" data-mlp-barra></span></div>
+      <p class="params-conta" data-mlp-conta>—</p>
+    </article>
+
+    <article class="stat params-card">
+      <p class="stat-rotulo">CNN · 1ª camada conv</p>
+      <p class="params-config">32 filtros de 3×3, os mesmos para a imagem inteira</p>
+      <p class="params-valor" data-cnn>—</p>
+      <div class="params-barra"><span class="params-fill params-fill-cnn" data-cnn-barra></span></div>
+      <p class="params-conta" data-cnn-conta>—</p>
+    </article>
+  </div>
+
+  <div class="stat stat-destaque">
+    <p class="stat-rotulo">A MLP usa</p>
+    <p class="stat-valor" data-razao>—</p>
+    <span class="stat-unidade" data-razao-nota>—</span>
+  </div>
+
+  <p class="stat-caminho" data-nota></p>
+</div>
+
+<style>
+  .viz-params {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .params-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .params-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .params-config {
+    margin: 0;
+    font-size: 0.86rem;
+    color: var(--texto-suave);
+  }
+  .params-valor {
+    margin: 2px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: clamp(1.5rem, 3.4vw, 2rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--insper-azul-aco);
+    line-height: 1.1;
+  }
+  .params-barra {
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+  .params-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    border-radius: 999px;
+    transition: width 0.12s ease;
+  }
+  .params-fill-mlp {
+    background: linear-gradient(90deg, #f4603e, #dc2626);
+  }
+  .params-fill-cnn {
+    background: linear-gradient(90deg, #16a34a, #0ea5e9);
+  }
+  .params-conta {
+    margin: 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+  }
+  .viz-params .stat-destaque .stat-valor {
+    font-size: clamp(1.9rem, 4.4vw, 2.6rem);
+  }
+  @media (max-width: 620px) {
+    .params-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="params"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-tam]")!;
+
+    const TAMANHOS = [
+      { lado: 28, canais: 1, rotulo: "28×28 cinza", nome: "o MNIST" },
+      { lado: 64, canais: 1, rotulo: "64×64 cinza", nome: "uma miniatura" },
+      { lado: 128, canais: 3, rotulo: "128×128 colorida", nome: "uma foto pequena" },
+      { lado: 224, canais: 3, rotulo: "224×224 colorida", nome: "o tamanho padrão das redes de visão" },
+    ];
+    const NEURONIOS = 128, FILTROS = 32, K = 3;
+    // a maior contagem possível define a escala das barras
+    const TETO = Math.max(...TAMANHOS.map((t) => t.lado * t.lado * t.canais * NEURONIOS + NEURONIOS));
+
+    const milhar = (v: number) => v.toLocaleString("pt-BR");
+
+    function atualizar() {
+      const t = TAMANHOS[parseInt(slider.value, 10)];
+      const entradas = t.lado * t.lado * t.canais;
+      const mlp = entradas * NEURONIOS + NEURONIOS;
+      const cnn = FILTROS * (K * K * t.canais) + FILTROS;
+      const razao = mlp / cnn;
+
+      el("tam-val").textContent = t.rotulo;
+      el("entradas").innerHTML =
+        `${t.lado} × ${t.lado}${t.canais > 1 ? " × 3 canais" : ""} = <strong>${milhar(entradas)}</strong> números de entrada — ${t.nome}.`;
+
+      el("mlp").textContent = milhar(mlp);
+      el("mlp-conta").textContent = `${milhar(entradas)} × ${NEURONIOS} + ${NEURONIOS}`;
+      el("cnn").textContent = milhar(cnn);
+      el("cnn-conta").textContent = `${FILTROS} × (${K}×${K}×${t.canais}) + ${FILTROS}`;
+
+      // escala log: em linear a barra da CNN sumiria
+      const escala = (v: number) => (Math.log10(v) / Math.log10(TETO)) * 100;
+      el("mlp-barra").style.width = escala(mlp) + "%";
+      el("cnn-barra").style.width = escala(cnn) + "%";
+
+      el("razao").textContent = razao >= 1000 ? `${milhar(Math.round(razao))}×` : `${razao.toFixed(0)}×`;
+      el("razao-nota").textContent = "mais parâmetros que a camada convolucional, só na primeira camada";
+
+      el("nota").innerHTML =
+        `E repare no que muda em cada lado: a MLP cresce com a <strong>área</strong> da imagem, porque ela precisa de um peso por pixel por neurônio. A CNN <strong>não cresce</strong> — o filtro de 3×3 é o mesmo em toda a imagem, então trocar 28×28 por 224×224 não acrescenta peso nenhum, só faz o mesmo filtro percorrer mais posições. As barras estão em escala logarítmica.`;
+    }
+
+    slider.addEventListener("input", atualizar);
+    atualizar();
+  });
+</script>

@@ -1,0 +1,299 @@
+---
+// Aula 9 · Aplicador de filtro: escolha o kernel e veja o efeito na imagem na
+// hora. Um controle só (qual filtro), e o resultado aparece ao lado do original
+// com os nove pesos à mostra — para ficar claro que o "detector de borda" é só
+// uma tabelinha de números, e que na CNN esses números são aprendidos.
+//
+// A imagem é desenhada aqui, em tons de cinza: formas com bordas retas e
+// diagonais, um degradê e um pouco de textura, que é o que faz cada filtro
+// mostrar uma coisa diferente.
+---
+
+<div class="viz-filtros" data-viz="filtros">
+  <div class="filtros-topo">
+    <div class="viz-grafico-caixa filtros-palco">
+      <canvas class="viz-canvas"></canvas>
+    </div>
+
+    <div class="filtros-painel">
+      <div class="stat">
+        <p class="stat-rotulo">Filtro</p>
+        <div class="filtros-botoes" data-botoes></div>
+      </div>
+
+      <div class="stat filtros-pesos">
+        <p class="stat-rotulo">Os nove pesos</p>
+        <table class="filtros-kernel" data-kernel></table>
+        <p class="stat-caminho" data-explicacao>—</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="stat-caminho filtros-nota">
+    Estes nove números foram escolhidos à mão, e cada conjunto detecta uma coisa.
+    Numa CNN eles são <strong>aprendidos</strong> — o treino descobre sozinho quais
+    valores servem para o problema, e usa dezenas de filtros em paralelo.
+  </p>
+</div>
+
+<style>
+  .viz-filtros {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  /* As duas imagens lado a lado precisam da largura inteira; painel embaixo. */
+  .filtros-topo {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .filtros-painel {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .filtros-pesos {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 16px;
+    align-items: start;
+  }
+  .filtros-pesos .stat-rotulo {
+    grid-column: 1 / -1;
+  }
+  .filtros-palco {
+    display: flex;
+    justify-content: center;
+  }
+  .filtros-botoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .filtros-botoes :global(button) {
+    appearance: none;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul-aco);
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .filtros-botoes :global(button:hover) {
+    border-color: var(--insper-azul);
+  }
+  .filtros-botoes :global(button[aria-pressed="true"]) {
+    background: var(--insper-gradiente);
+    border-color: transparent;
+    color: #fff;
+  }
+  .filtros-botoes :global(button:focus-visible) {
+    outline: 3px solid var(--insper-azul);
+    outline-offset: 2px;
+  }
+  .filtros-kernel {
+    margin: 10px 0 0;
+    border-collapse: collapse;
+    font-family: var(--fonte-dados);
+    font-size: 0.95rem;
+  }
+  .filtros-kernel :global(td) {
+    border: 1px solid var(--borda);
+    width: 2.6em;
+    height: 2.2em;
+    text-align: center;
+    color: var(--insper-azul-aco);
+    font-weight: 600;
+  }
+  .filtros-nota {
+    margin: 0;
+  }
+  @media (max-width: 700px) {
+    .filtros-painel {
+      grid-template-columns: 1fr;
+    }
+    .filtros-pesos {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="filtros"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const LADO = 96;
+
+    interface Filtro {
+      nome: string;
+      k: number[][];
+      divisor: number;
+      absoluto: boolean; // bordas: o sinal não importa, o que importa é a intensidade
+      explicacao: string;
+    }
+
+    const FILTROS: Filtro[] = [
+      {
+        nome: "original", k: [[0, 0, 0], [0, 1, 0], [0, 0, 0]], divisor: 1, absoluto: false,
+        explicacao: "O filtro identidade: copia o pixel do meio e ignora os vizinhos. Serve de controle.",
+      },
+      {
+        nome: "borda vertical", k: [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], divisor: 1, absoluto: true,
+        explicacao: "Compara o que está à esquerda com o que está à direita. Onde os dois lados são iguais dá zero; onde há uma mudança na horizontal, acende. Por isso ele acha bordas verticais.",
+      },
+      {
+        nome: "borda horizontal", k: [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], divisor: 1, absoluto: true,
+        explicacao: "O mesmo, virado 90°: compara o de cima com o de baixo. É literalmente o filtro anterior transposto.",
+      },
+      {
+        nome: "todas as bordas", k: [[0, -1, 0], [-1, 4, -1], [0, -1, 0]], divisor: 1, absoluto: true,
+        explicacao: "O laplaciano: o pixel do meio contra a média dos quatro vizinhos. Onde a vizinhança é uniforme dá zero, em qualquer direção.",
+      },
+      {
+        nome: "borrar", k: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], divisor: 9, absoluto: false,
+        explicacao: "A média dos nove. Suaviza tudo — e é o oposto de um detector de borda, porque apaga justamente as mudanças bruscas.",
+      },
+      {
+        nome: "realçar", k: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]], divisor: 1, absoluto: false,
+        explicacao: "A imagem original mais o laplaciano: mantém o conteúdo e aumenta o contraste nas transições.",
+      },
+    ];
+
+    // Cena desenhada à mão: retângulo, círculo, diagonal, degradê e listras.
+    const IMAGEM = (() => {
+      const off = document.createElement("canvas");
+      off.width = LADO; off.height = LADO;
+      const c = off.getContext("2d");
+      const saida = new Float32Array(LADO * LADO);
+      if (!c) return saida;
+
+      const degrade = c.createLinearGradient(0, 0, LADO, LADO);
+      degrade.addColorStop(0, "#3a3a3a");
+      degrade.addColorStop(1, "#7a7a7a");
+      c.fillStyle = degrade;
+      c.fillRect(0, 0, LADO, LADO);
+
+      c.fillStyle = "#e8e8e8";
+      c.fillRect(10, 12, 30, 34);            // retângulo claro
+      c.fillStyle = "#151515";
+      c.beginPath(); c.arc(68, 30, 16, 0, Math.PI * 2); c.fill(); // círculo escuro
+
+      c.strokeStyle = "#f2f2f2"; c.lineWidth = 5; c.lineCap = "round";
+      c.beginPath(); c.moveTo(12, 88); c.lineTo(52, 56); c.stroke();  // diagonal
+
+      c.fillStyle = "#cfcfcf";
+      for (let i = 0; i < 5; i++) c.fillRect(58, 56 + i * 8, 30, 4);  // listras horizontais
+
+      const px = c.getImageData(0, 0, LADO, LADO).data;
+      for (let i = 0; i < LADO * LADO; i++) saida[i] = px[i * 4] / 255;
+      return saida;
+    })();
+
+    function aplicar(f: Filtro) {
+      const saida = new Float32Array(LADO * LADO);
+      for (let y = 0; y < LADO; y++) {
+        for (let x = 0; x < LADO; x++) {
+          let soma = 0;
+          for (let a = -1; a <= 1; a++) {
+            for (let b = -1; b <= 1; b++) {
+              const yy = Math.min(Math.max(y + a, 0), LADO - 1); // borda replicada
+              const xx = Math.min(Math.max(x + b, 0), LADO - 1);
+              soma += IMAGEM[yy * LADO + xx] * f.k[a + 1][b + 1];
+            }
+          }
+          soma /= f.divisor;
+          saida[y * LADO + x] = f.absoluto ? Math.min(Math.abs(soma), 1) : Math.min(Math.max(soma, 0), 1);
+        }
+      }
+      return saida;
+    }
+
+    let escolhido = 1;
+    let lado = 0, ultimaLargura = -1;
+
+    FILTROS.forEach((f, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = f.nome;
+      btn.setAttribute("aria-pressed", String(i === escolhido));
+      btn.addEventListener("click", () => {
+        escolhido = i;
+        el("botoes").querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+        desenhar();
+      });
+      el("botoes").appendChild(btn);
+    });
+
+    function pintar(dados: Float32Array, x0: number, y0: number) {
+      if (!ctx) return;
+      const img = ctx.createImageData(LADO, LADO);
+      for (let i = 0; i < LADO * LADO; i++) {
+        const v = Math.round(dados[i] * 255);
+        img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+      }
+      const off = document.createElement("canvas");
+      off.width = LADO; off.height = LADO;
+      off.getContext("2d")?.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, x0, y0, lado, lado);
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      const f = FILTROS[escolhido];
+      const vao = 14;
+      const larguraTotal = lado * 2 + vao;
+      ctx.clearRect(0, 0, canvas!.clientWidth, lado + 26);
+      const x0 = Math.max(0, (canvas!.clientWidth - larguraTotal) / 2);
+
+      const fonte = getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = "#294a6b"; ctx.font = "700 13px " + fonte;
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText("original", x0, 18);
+      ctx.fillText(f.nome === "original" ? "cópia (filtro identidade)" : `filtro: ${f.nome}`, x0 + lado + vao, 18);
+
+      pintar(IMAGEM, x0, 26);
+      pintar(aplicar(f), x0 + lado + vao, 26);
+
+      el("kernel").innerHTML = f.k
+        .map((linha) => `<tr>${linha.map((v) => `<td>${v}</td>`).join("")}</tr>`)
+        .join("");
+      el("explicacao").innerHTML =
+        f.divisor === 1 ? f.explicacao : `${f.explicacao} (a soma é dividida por ${f.divisor}).`;
+    }
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      const largura = canvas.clientWidth;
+      lado = Math.floor(Math.min((largura - 14) / 2, 280));
+      const altura = lado + 32;
+      canvas.style.height = altura + "px";
+      canvas.width = Math.round(largura * dpr);
+      canvas.height = Math.round(altura * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

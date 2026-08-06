@@ -1,0 +1,290 @@
+---
+// Aula 6 · O loop de treino visto de fora. Um controle só: o batch size.
+// O que se vê: (a) a curva de loss fica mais ruidosa com lote pequeno e mais
+// lisa com lote grande, (b) o Adam chega mais fundo que o SGD puro, e (c) o
+// contador de epoch × iteração × batch se recalculando — que é a confusão mais
+// comum do bloco e por isso mora dentro da mesma visualização.
+//
+// O treino é real: regressão logística em 640 exemplos, num vale alongado de
+// propósito (uma feature em escala pequena, outra em escala grande) — que é
+// exatamente o cenário em que um learning rate único para todos os parâmetros
+// sofre e o Adam se destaca.
+---
+
+<div class="viz-treino" data-viz="treino">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="treino-abaixo">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">1 epoch =</p>
+      <p class="stat-valor" data-iter-epoch>—</p>
+      <span class="stat-unidade" data-total-iter>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Batch size <span class="valor" data-lote-val>—</span></label>
+        <input type="range" data-lote min="0" max="3" step="1" value="1" />
+      </div>
+      <p class="stat-caminho">640 exemplos de treino · 20 epochs em todos os casos.</p>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Erro no fim</p>
+      <ul class="treino-placar">
+        <li><i style="background: #8b95a5"></i> SGD puro <b data-fim-sgd>—</b></li>
+        <li><i style="background: #7c3aed"></i> Adam <b data-fim-adam>—</b></li>
+      </ul>
+      <p class="stat-caminho" data-veredito></p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .viz-treino {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .treino-abaixo {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.2fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .treino-abaixo .stat-destaque .stat-valor {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+  }
+  .treino-placar {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.92rem;
+    color: var(--texto-suave);
+  }
+  .treino-placar li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .treino-placar i {
+    width: 20px;
+    height: 4px;
+    border-radius: 999px;
+    flex: none;
+  }
+  .treino-placar b {
+    margin-left: auto;
+    font-family: var(--fonte-dados);
+    font-size: 1.05rem;
+    color: var(--insper-azul-aco);
+  }
+  @media (max-width: 760px) {
+    .treino-abaixo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="treino"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-lote]")!;
+
+    const N = 640, EPOCHS = 20;
+    // Eixo y em escala log — o padrão para curva de loss. Sem ele o erro cai de
+    // 4 para 0,1 no primeiro epoch e todo o resto vira uma linha rente ao chão.
+    const YMIN = 0.02, YMAX = 5;
+    const MARCAS_Y = [0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5];
+    const LOTES = [8, 32, 128, 512];
+    const LR = { sgd: 0.15, adam: 0.12 };
+    const INICIO = [0.5, -1.4, 1.2];
+    const COR = {
+      sgd: "#8b95a5", adam: "#7c3aed",
+      grade: "#eef2f8", eixo: "#c7d2e0", suave: "#8b95a5", azulAco: "#294a6b",
+    };
+
+    function rng(seed: number) {
+      return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    }
+    const sig = (z: number) => 1 / (1 + Math.exp(-z));
+    const bce = (p: number, y: number) => {
+      const q = Math.min(Math.max(p, 1e-9), 1 - 1e-9);
+      return -(y * Math.log(q) + (1 - y) * Math.log(1 - q));
+    };
+
+    // Duas features em escalas MUITO diferentes (0,06 contra 3): o vale de custo
+    // fica alongado, e é aí que um learning rate único para todos os parâmetros
+    // sofre — o passo que serve para uma feature não serve para a outra.
+    const DADOS = (() => {
+      const R = rng(5), saida: { x: [number, number]; y: number }[] = [];
+      for (let i = 0; i < N; i++) {
+        const c = i % 2;
+        saida.push({
+          x: [((R() * 2 - 1) + (c ? 0.9 : -0.9)) * 0.06, ((R() * 2 - 1) + (c ? 0.9 : -0.9)) * 3],
+          y: c,
+        });
+      }
+      return saida;
+    })();
+
+    function treinar(lote: number, otimizador: "sgd" | "adam") {
+      const lr = LR[otimizador];
+      const par = [...INICIO];
+      const m = [0, 0, 0], v = [0, 0, 0];
+      const B1 = 0.9, B2 = 0.999, EPS = 1e-8;
+      let t = 0;
+      const ordem = DADOS.map((_, i) => i);
+      const R = rng(11);
+      const curva: { e: number; l: number }[] = [];
+
+      for (let ep = 0; ep < EPOCHS; ep++) {
+        for (let i = ordem.length - 1; i > 0; i--) {
+          const j = Math.floor(R() * (i + 1));
+          [ordem[i], ordem[j]] = [ordem[j], ordem[i]];
+        }
+        for (let s = 0; s < N; s += lote) {
+          const indices = ordem.slice(s, s + lote);
+          // o que se plota é a perda DO LOTE — é ela que produz o ruído da curva
+          let perda = 0;
+          for (const k of indices) {
+            const d = DADOS[k];
+            perda += bce(sig(par[0] * d.x[0] + par[1] * d.x[1] + par[2]), d.y);
+          }
+          curva.push({ e: ep + s / N, l: perda / indices.length });
+
+          const g = [0, 0, 0];
+          for (const k of indices) {
+            const d = DADOS[k];
+            const erro = sig(par[0] * d.x[0] + par[1] * d.x[1] + par[2]) - d.y;
+            g[0] += erro * d.x[0]; g[1] += erro * d.x[1]; g[2] += erro;
+          }
+          for (let q = 0; q < 3; q++) g[q] /= indices.length;
+
+          t++;
+          for (let q = 0; q < 3; q++) {
+            let passo: number;
+            if (otimizador === "sgd") {
+              passo = lr * g[q];
+            } else {
+              m[q] = B1 * m[q] + (1 - B1) * g[q];
+              v[q] = B2 * v[q] + (1 - B2) * g[q] * g[q];
+              passo = (lr * (m[q] / (1 - Math.pow(B1, t)))) / (Math.sqrt(v[q] / (1 - Math.pow(B2, t))) + EPS);
+            }
+            par[q] -= passo;
+          }
+        }
+      }
+      let fim = 0;
+      for (const d of DADOS) fim += bce(sig(par[0] * d.x[0] + par[1] * d.x[1] + par[2]), d.y);
+      return { curva, fim: fim / N };
+    }
+
+    // 8 treinos no total, calculados uma vez só
+    const CACHE = LOTES.map((lote) => ({
+      lote,
+      sgd: treinar(lote, "sgd"),
+      adam: treinar(lote, "adam"),
+    }));
+
+    let indice = 1;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const MARGEM = { topo: 18, dir: 16, base: 46, esq: 56 };
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = { x: MARGEM.esq, y: MARGEM.topo, w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base };
+      const atual = CACHE[indice];
+      const gx = (e: number) => p.x + (e / EPOCHS) * p.w;
+      const faixaLog = Math.log10(YMAX) - Math.log10(YMIN);
+      const gy = (l: number) => {
+        const v = Math.min(Math.max(l, YMIN), YMAX);
+        return p.y + (1 - (Math.log10(v) - Math.log10(YMIN)) / faixaLog) * p.h;
+      };
+
+      ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+      ctx.fillStyle = COR.suave; ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (const l of MARCAS_Y) {
+        const yy = gy(l);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(num(l, l < 0.1 ? 2 : l < 1 ? 1 : 0), p.x - 9, yy);
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let e = 0; e <= EPOCHS; e += 5) ctx.fillText(String(e), gx(e), p.y + p.h + 8);
+
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1.5;
+      ctx.strokeRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 15px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("epochs", p.x + p.w / 2, H - 6);
+      ctx.save(); ctx.translate(15, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("erro do lote (escala log)", 0, 0); ctx.restore();
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+      for (const [chave, cor, espessura] of [["sgd", COR.sgd, 1.6], ["adam", COR.adam, 1.8]] as const) {
+        const c = (atual as any)[chave].curva as { e: number; l: number }[];
+        ctx.strokeStyle = cor; ctx.lineWidth = espessura; ctx.lineJoin = "round";
+        ctx.beginPath();
+        c.forEach((pt, i) => (i === 0 ? ctx.moveTo(gx(pt.e), gy(pt.l)) : ctx.lineTo(gx(pt.e), gy(pt.l))));
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // painel
+      const porEpoch = N / atual.lote;
+      el("iter-epoch").textContent =
+        `${num(porEpoch, Number.isInteger(porEpoch) ? 0 : 2)} ${porEpoch === 1 ? "iteração" : "iterações"}`;
+      el("total-iter").textContent = `${Math.round(porEpoch * EPOCHS)} atualizações de peso em 20 epochs`;
+      el("lote-val").textContent = `${atual.lote} exemplos`;
+      el("fim-sgd").textContent = num(atual.sgd.fim, 3);
+      el("fim-adam").textContent = num(atual.adam.fim, 3);
+      el("veredito").innerHTML =
+        atual.lote <= 32
+          ? "Lote pequeno: cada passo enxerga poucos exemplos, então a curva <strong>treme</strong> — mas são muitas atualizações e o treino avança longe."
+          : "Lote grande: cada passo enxerga muita gente e a curva fica <strong>lisa</strong> — só que sobram poucas atualizações, e o treino não chega tão fundo.";
+    }
+
+    slider.addEventListener("input", () => { indice = parseInt(slider.value, 10); desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 220, 300), 700)
+        : Math.round(Math.min(Math.max(W * 0.5, 280), 440));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

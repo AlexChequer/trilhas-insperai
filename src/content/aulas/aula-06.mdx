@@ -1,0 +1,289 @@
+---
+n: "A6"
+titulo: "Treinando na Prática"
+ordem: 6
+objetivo: "O loop de treino por dentro — epoch, batch e iteração —, os otimizadores que decidem o passo, e o lançamento do desafio do MNIST."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import TreinoLoteOtimizador from "../../components/viz/TreinoLoteOtimizador.astro";
+import DatasetMNIST from "../../components/viz/DatasetMNIST.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Você já sabe o que a rede calcula (Aula 4), como ela se organiza e como o erro volta por ela (Aula 5). Falta a mecânica de fazer isso rodar milhares de vezes sem que o computador engasgue — e as decisões práticas que aparecem aí. No fim desta aula o desafio do MNIST é lançado.
+
+## Epoch, batch e iteração
+
+Na Aula 1 o gradient descent olhava o conjunto inteiro para dar um passo. Com 60 mil imagens isso é inviável: não cabe na memória de uma vez, e você daria pouquíssimos passos por minuto. A saída é dividir o dado em **lotes**.
+
+Três palavras aparecem juntas e são confundidas o tempo todo. Vale fixar cada uma:
+
+- **Batch** é o lote: quantos exemplos entram numa única atualização de pesos.
+- **Iteração** é uma atualização de pesos — um lote atravessando o ciclo completo de forward, backward e passo.
+- **Epoch** é uma passada por **todos** os exemplos de treino, ou seja, quantas iterações forem necessárias para o dataset acabar.
+
+A relação entre as três é uma divisão:
+
+$$
+\text{iterações por epoch} = \frac{\text{exemplos de treino}}{\text{batch size}}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "exemplos de treino", significado: "o tamanho do conjunto — 60.000 no MNIST completo" },
+    { simbolo: "batch size", significado: "quantos exemplos por lote. É escolha sua, e 32 ou 64 são os valores por onde quase todo mundo começa" },
+    { simbolo: "iterações por epoch", significado: "quantas vezes os pesos são atualizados até o dataset acabar uma vez" },
+  ]}
+/>
+
+Com 60.000 imagens e batch de 32, um epoch são **1.875** <Termo id="iteracao">iterações</Termo>. Rodar 10 epochs significa 18.750 atualizações de peso — e não 10.
+
+<Caixa tipo="erro">
+Epoch **não** é iteração. Um epoch é uma volta completa no dataset; uma iteração é uma única atualização de pesos. Elas só coincidem quando o batch é o dataset inteiro, que é justamente o caso que não se usa na prática. O sintoma clássico dessa confusão é alguém dizer "treinei 1.000 iterações" achando que passou mil vezes pelos dados, quando com batch 32 isso foi metade de um epoch num dataset de 60 mil.
+</Caixa>
+
+O batch size é um <Termo id="hiperparametro">hiperparâmetro</Termo>, como o learning rate — você escolhe antes de treinar. E ele tem um efeito bem visível na cara da curva de erro:
+
+- **Lote pequeno**: cada passo enxerga poucos exemplos, então a estimativa do gradiente é imprecisa e a curva **treme**. Em compensação, você dá muito mais passos no mesmo tempo de dataset.
+- **Lote grande**: cada passo enxerga muita gente, a estimativa é mais confiável e a curva fica **lisa**. Só que você dá pouquíssimos passos, e o treino avança devagar em termos de epochs.
+
+**Mexa no batch size** abaixo e olhe duas coisas ao mesmo tempo: o formato da curva e o contador de iterações no painel.
+
+<VizEmbed titulo="mexa no batch size e veja o ruído e a contagem">
+  <TreinoLoteOtimizador />
+</VizEmbed>
+
+<Pergunta pergunta="Se lote grande dá uma curva mais lisa e uma estimativa melhor do gradiente, por que não usar sempre o dataset inteiro?">
+Por duas razões, e a segunda é a que surpreende.
+
+A primeira é prática: 60 mil imagens não cabem na memória de uma GPU de uma vez, e mesmo que coubessem, cada passo custaria uma eternidade. Com lote de 32 você dá 1.875 passos no tempo em que daria **um**. Passo impreciso dado muitas vezes chega mais longe do que passo perfeito dado uma vez.
+
+A segunda é que o ruído **ajuda**. O tremor que o lote pequeno introduz sacode o modelo para fora de mínimos ruins e de regiões planas onde o gradiente quase some. Um treino perfeitamente liso pode estacionar num lugar medíocre e não ter como sair; um treino ruidoso tende a escapar. É um caso raro em que a imprecisão é um recurso, não um defeito — e é por isso que "batch pequeno" continua sendo a escolha padrão mesmo quando há memória de sobra.
+</Pergunta>
+
+<Quiz
+  id="a6-epoch-vs-iteracao"
+  pergunta="Você tem 50.000 exemplos de treino e usa batch size 100. Quantas atualizações de pesos acontecem em 4 epochs?"
+  alternativas={[
+    {
+      texto: "2.000 — são 500 iterações por epoch (50.000 ÷ 100), vezes 4 epochs.",
+      certa: true,
+      porque: "Isso. Cada lote de 100 produz uma atualização, e cabem 500 lotes no dataset. O número de epochs multiplica esse total.",
+    },
+    {
+      texto: "4 — uma atualização por epoch, já que o epoch é a passada completa pelos dados.",
+      porque: "Essa é exatamente a confusão que a aula ataca. A passada completa é feita **em pedaços**, e cada pedaço atualiza os pesos: são 500 atualizações dentro de um único epoch.",
+    },
+    {
+      texto: "400 — 100 iterações por epoch, vezes 4.",
+      porque: "Aqui o 100 do batch size foi usado como se fosse o número de iterações. Ele é o tamanho de cada lote; o número de lotes sai da divisão 50.000 ÷ 100.",
+    },
+    {
+      texto: "200.000 — uma atualização por exemplo, vezes 4 epochs.",
+      porque: "Isso valeria se o batch fosse 1 (um exemplo por atualização). Com batch 100, cada atualização consome 100 exemplos de uma vez.",
+    },
+  ]}
+/>
+
+## Otimizadores: quem decide o passo
+
+Na Aula 5 ficou clara a divisão de trabalho: o backprop calcula os gradientes, e outra coisa decide o passo a partir deles. Essa outra coisa é o **otimizador**, e há mais de uma opção.
+
+O **SGD** (_stochastic gradient descent_) é o que você já conhece: anda na direção contrária ao gradiente, multiplicado pelo <Termo id="learning-rate">learning rate</Termo>. O "stochastic" só indica que agora ele opera sobre lotes, e não sobre o conjunto inteiro.
+
+O problema dele é ter um learning rate **único**, igual para todos os parâmetros e em todas as fases do treino. Só que os parâmetros não são iguais: uns recebem gradiente grande e instável, outros recebem gradiente minúsculo e constante. Um passo que serve para os primeiros é grande demais; o que serve para os segundos é lento demais. Se você lembra do problema de escala da Aula 2, é o mesmo desconforto, agora dentro do otimizador.
+
+O **momentum** é a primeira ideia para melhorar isso: em vez de usar só o gradiente atual, acumule a direção dos passos anteriores.
+
+$$
+v \leftarrow \beta\,v + g, \qquad w \leftarrow w - \alpha\,v
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$g$", significado: "o gradiente calculado agora, neste lote" },
+    { simbolo: "$v$", significado: "a velocidade acumulada: uma média dos gradientes recentes, e não só o último" },
+    { simbolo: "$\\beta$", significado: "o quanto da velocidade anterior se conserva. Costuma ser 0,9 — ou seja, o passado pesa bastante" },
+    { simbolo: "$\\alpha$", significado: "o learning rate de sempre, agora multiplicando a velocidade em vez do gradiente cru" },
+  ]}
+/>
+
+A metáfora é uma bola pesada descendo a tigela: ela não para a cada irregularidade do terreno, e atravessa regiões planas por inércia. Onde o gradiente vive mudando de sinal, as oscilações se cancelam; onde ele aponta sempre para o mesmo lado, a velocidade se soma e o passo cresce.
+
+O **Adam** junta essa ideia a uma segunda: adaptar o tamanho do passo **por parâmetro**, olhando o histórico de gradientes de cada um. Parâmetro que vem recebendo gradiente grande e errático anda com mais cautela; parâmetro que vem recebendo gradiente pequeno e consistente ganha passo maior. É por isso que o <Termo id="adam">Adam</Termo> chega mais fundo que o SGD no gráfico acima, sobretudo quando as features estão em escalas diferentes.
+
+A regra prática é curta: **comece com Adam.** Ele é o padrão, funciona bem sem ajuste fino, e é o que vocês vão usar no MNIST. Entender por dentro por que funciona é uma boa curiosidade, não um pré-requisito.
+
+<Caixa tipo="erro">
+Adam **não** salva learning rate ruim. Ele ajuda muito, e é bem mais tolerante que o SGD — mas se você puser $\alpha = 10$, ele diverge igual. O que o Adam adapta é o passo **relativo** de cada parâmetro; a escala geral continua sendo a que você escolheu. Se o erro explodir com Adam, a primeira coisa a mexer continua sendo o learning rate, exatamente como na Aula 1.
+</Caixa>
+
+<Quiz
+  id="a6-adam-nao-salva"
+  pergunta="Seu treino com SGD estava divergindo. Você troca para Adam, mantém o mesmo learning rate, e ele continua divergindo. O que isso indica?"
+  alternativas={[
+    {
+      texto: "Que o learning rate está grande demais para este problema. O Adam adapta o passo relativo de cada parâmetro, mas não corrige uma escala global errada — o valor de $\\alpha$ continua sendo seu.",
+      certa: true,
+      porque: "Isso. Trocar de otimizador é ajuste fino; learning rate errado é problema de ordem de grandeza, e nenhum otimizador conserta isso sozinho.",
+    },
+    {
+      texto: "Que o Adam foi mal implementado ou mal configurado, porque com Adam não existe divergência.",
+      porque: "Existe, sim. O Adam normaliza o passo por parâmetro, o que o torna mais robusto — mas o passo ainda é multiplicado por $\\alpha$, e um $\\alpha$ absurdo produz atualizações absurdas.",
+    },
+    {
+      texto: "Que o problema é o batch size: com Adam é preciso aumentar o lote.",
+      porque: "Batch maior reduz o ruído da estimativa, o que suaviza a curva — mas divergência acelerada não é ruído, é passo grande demais. O sintoma aponta para $\\alpha$, não para o lote.",
+    },
+    {
+      texto: "Que a arquitetura da rede é profunda demais e precisa de menos camadas.",
+      porque: "Profundidade pode dificultar o treino, mas a evidência aqui é específica: o erro cresce de forma acelerada, que é a assinatura de passo grande demais. Mexer na arquitetura antes de testar um $\\alpha$ menor é trocar o pneu por causa de barulho no motor.",
+    },
+  ]}
+/>
+
+## O desafio: MNIST
+
+O MNIST é o dataset mais conhecido de machine learning: imagens de dígitos escritos à mão, de 0 a 9, cada uma com **28×28 pixels** em tons de cinza. A tarefa é dizer qual é o dígito.
+
+Repare no que isso significa para a rede: 28 × 28 = **784 números** entre 0 e 1, um por pixel. Essa é a camada de entrada, e é de onde saiu a conta de parâmetros da Aula 5. A camada de saída são 10 neurônios com softmax, um por dígito.
+
+A parte que o número esconde é que **nem todo exemplo tem resposta óbvia**. Boa parte do MNIST é limpa, mas há dígitos que uma pessoa também erraria. **Arraste a ambiguidade** e veja onde a sua própria leitura desiste — e depois troque para **"desenhe você"** e escreva um dígito com o mouse ou o dedo, para ver o seu traço virando os 784 números:
+
+<VizEmbed titulo="o que a rede recebe — e quando nem você decide">
+  <DatasetMNIST />
+</VizEmbed>
+
+Desenhar vale o minuto que custa, por causa de uma coisa que fica óbvia na hora: você traça uma linha **contínua**, e o que chega na rede é uma **fila de 784 números soltos**. Ela não sabe que dois pixels vizinhos eram vizinhos, nem que você levantou a caneta no meio. Guarde esse incômodo — ele é o ponto de partida da Aula 9.
+
+<Caixa tipo="nota" titulo="Sobre os dígitos desta página">
+Os dígitos acima são **desenhados aqui**, no mesmo formato do MNIST (28×28, tons de cinza) — não são amostras do dataset real. O que interessa é o formato e a ambiguidade, e nisso eles são fiéis. O MNIST de verdade vem no notebook do desafio.
+</Caixa>
+
+### A regra que importa: só MLP
+
+A restrição do desafio é **usar apenas MLP**. Nada de convolução. Isso é intencional, e não é para dificultar: é para vocês sentirem na pele o limite de tratar uma imagem como 784 números soltos, sem nenhuma noção de que o pixel 32 fica ao lado do pixel 33. Quando a Aula 9 apresentar as CNNs, o ganho vai ser óbvio porque vocês terão passado por isso.
+
+<Caixa tipo="atencao" titulo="Logística do desafio">
+Prazo, formato de entrega, critério de avaliação e o funcionamento do leaderboard são combinados **em aula** e valem o que estiver no comunicado oficial — esta página não é a fonte dessa informação. O que já está definido: é uma competição **individual**, o modelo é **MLP apenas**, e o notebook de partida sai junto com o lançamento.
+</Caixa>
+
+Sobre usar IA no desafio, o recado é direto e sem rodeio: **podem usar.** Ninguém vai fiscalizar. O que mede se você entendeu é a provinha semanal e a apresentação — e nas duas você está sozinho com o que sabe. Usar IA para escrever o código e não entender o que ele faz é uma troca que se paga na semana seguinte, com juros.
+
+<Caixa tipo="erro">
+Começar o MNIST na véspera é o erro mais caro desta lista, e o mais comum. Treinar um modelo não é escrever um trabalho: cada tentativa leva minutos, você vai precisar de dezenas delas, e a maior parte do aprendizado está justamente em ver o que cada mudança fez. Quem começa na véspera entrega o primeiro modelo que rodou — e é sempre o pior. Rode um treino qualquer no primeiro dia, mesmo que ruim: ter um número na tela é o que faz o resto começar.
+</Caixa>
+
+<p class="nota">
+  Com isto você consegue explicar o loop de treino sem tropeçar em epoch e
+  iteração, escolher otimizador e batch size com um motivo, e tem o MNIST na
+  mão. A Aula 7 é a que vai te dizer o que fazer quando o treino roda mas o
+  resultado não presta — e é ela que mais vai render no desafio.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a6-ruido-do-lote"
+  pergunta="Sua curva de erro está muito trêmula, subindo e descendo a cada iteração, embora a tendência geral seja de queda. O treino está quebrado?"
+  alternativas={[
+    {
+      texto: "Não necessariamente: com batch pequeno, cada passo enxerga poucos exemplos e a estimativa do gradiente varia bastante. Tremor com tendência de queda é o comportamento esperado — e o tremor até ajuda a escapar de mínimos ruins.",
+      certa: true,
+      porque: "Isso. O sinal de problema é o erro **crescer** de forma sustentada, não oscilar. Se o tremor incomodar na hora de ler o gráfico, aumente o lote ou plote a média por epoch.",
+    },
+    {
+      texto: "Sim: curva de erro correta é sempre monotonicamente decrescente.",
+      porque: "Isso só valeria com gradient descent de lote completo, em que cada passo usa o dataset inteiro. Com mini-lotes, cada passo otimiza uma amostra diferente — e o erro de um lote não precisa ser menor que o do anterior.",
+    },
+    {
+      texto: "Sim, e a correção é trocar o otimizador por Adam, que elimina o tremor.",
+      porque: "O Adam suaviza um pouco, porque usa uma média dos gradientes recentes — mas o tremor vem da amostragem dos lotes, e nenhum otimizador faz o lote enxergar exemplos que ele não tem.",
+    },
+    {
+      texto: "Não, e a única forma de confirmar é olhar a acurácia no conjunto de treino.",
+      porque: "A conclusão está certa, mas a evidência sugerida é a errada: medir no treino não diz se o modelo generaliza. Quem responde essa pergunta é o conjunto de validação, assunto da Aula 7.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a6-quem-faz-o-que"
+  pergunta="Num loop de treino, quem faz o quê?"
+  alternativas={[
+    {
+      texto: "O forward pass produz a previsão, a função de custo mede o erro, o backprop calcula o gradiente de cada peso e o otimizador decide o passo a partir desses gradientes.",
+      certa: true,
+      porque: "Isso — quatro papéis distintos, na ordem. Trocar o otimizador (SGD por Adam) mexe só no último; trocar a função de custo mexe só no segundo.",
+    },
+    {
+      texto: "O otimizador calcula os gradientes e o backprop aplica a atualização nos pesos.",
+      porque: "Os dois papéis estão invertidos. É o backprop que percorre a rede calculando gradiente; o otimizador só recebe esses números prontos e decide o tamanho e a direção do passo.",
+    },
+    {
+      texto: "O forward pass calcula previsão e gradiente ao mesmo tempo, e o otimizador só aplica.",
+      porque: "O forward guarda as ativações que o backward vai usar, mas não calcula gradiente nenhum — ele nem sabe ainda qual foi o erro, que só é medido no fim da passada.",
+    },
+    {
+      texto: "A função de custo calcula os gradientes, e o backprop os distribui pelas camadas.",
+      porque: "A função de custo devolve um número: o quanto o modelo errou. Quem transforma esse número em uma derivada por peso, camada por camada, é o backprop.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a6-batch-grande"
+  pergunta="Um colega quer treinar mais rápido e sobe o batch size de 32 para 2.048, mantendo o mesmo número de epochs. O que provavelmente acontece?"
+  alternativas={[
+    {
+      texto: "Cada iteração fica mais pesada e o número de atualizações cai 64 vezes, então em geral o modelo termina os mesmos epochs bem menos treinado — curva lisa, mas parada mais alto.",
+      certa: true,
+      porque: "Isso. É o efeito que aparece no gráfico da aula: lote grande dá curva bonita e progresso pequeno. Para compensar seriam necessários mais epochs, ou um learning rate maior.",
+    },
+    {
+      texto: "Treina 64 vezes mais rápido, porque processa 64 vezes mais exemplos por iteração.",
+      porque: "Processa mais exemplos por iteração, sim — mas faz 64 vezes menos iterações para cobrir o mesmo dataset. O tempo total por epoch muda pouco; o que muda mesmo é o número de atualizações de peso.",
+    },
+    {
+      texto: "O resultado final é o mesmo: batch size não afeta o modelo aprendido, só a velocidade.",
+      porque: "Afeta bastante. Batch size muda o número de atualizações, o ruído da estimativa do gradiente e até o tipo de mínimo em que o treino costuma parar — por isso ele é um hiperparâmetro, e não um detalhe de implementação.",
+    },
+    {
+      texto: "O erro vai divergir, porque lotes grandes desestabilizam o treino.",
+      porque: "É o contrário: lote grande **estabiliza** a estimativa do gradiente e a curva fica mais lisa. O risco de divergência vem do learning rate, não do tamanho do lote.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a6-teto-do-mnist"
+  pergunta="Por que nenhum modelo chega a 100% de acerto no MNIST, por melhor que seja?"
+  alternativas={[
+    {
+      texto: "Porque parte dos exemplos é genuinamente ambígua — há dígitos que uma pessoa também leria errado, e o rótulo do dataset é o palpite de alguém. Esse erro está no dado, não no modelo.",
+      certa: true,
+      porque: "Isso. Existe um teto imposto pelo próprio dataset. Perseguir os últimos décimos costuma significar decorar as ambiguidades do conjunto de treino, que é overfitting — assunto da Aula 7.",
+    },
+    {
+      texto: "Porque MLPs não têm capacidade suficiente; com uma CNN daria 100%.",
+      porque: "CNNs realmente vão bem melhor em imagem (Aula 9), mas elas também param abaixo de 100%. O limite não é de arquitetura — é dos exemplos que não têm resposta certa.",
+    },
+    {
+      texto: "Porque 60.000 exemplos são poucos para 10 classes.",
+      porque: "60 mil é bastante para esse problema, e é por isso que o MNIST é considerado fácil. Mais dados ajudariam num problema limitado por dados; aqui o limite é a ambiguidade dos casos difíceis.",
+    },
+    {
+      texto: "Porque o treino sempre para num mínimo local, nunca no mínimo global.",
+      porque: "Mínimos locais atrapalham menos do que a intuição sugere em redes grandes — e, mesmo achando o mínimo global, o modelo continuaria errando os exemplos cujo rótulo é discutível.",
+    },
+  ]}
+/>
+
+</QuizBloco>

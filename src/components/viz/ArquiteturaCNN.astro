@@ -1,0 +1,219 @@
+---
+// Aula 10 · Montar a arquitetura e ver o tensor mudando de forma a cada camada.
+// Controle principal: acrescentar e tirar blocos conv+pool. O painel mostra a
+// forma (altura × largura × canais) e a contagem de parâmetros se recalculando —
+// e avisa quando a resolução espacial acaba, que é o erro comum da aula.
+---
+
+<div class="viz-arq" data-viz="arquitetura">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="arq-abaixo">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Parâmetros da rede</p>
+      <p class="stat-valor" data-total>—</p>
+      <span class="stat-unidade" data-onde>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Blocos conv + pool <span class="valor" data-blocos-val>—</span></label>
+        <input type="range" data-blocos min="0" max="4" step="1" value="2" />
+      </div>
+      <p class="stat-caminho">Cada bloco: conv 3×3 com padding 1, depois max pool 2×2.</p>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Camada a camada</p>
+      <ol class="arq-lista" data-lista></ol>
+    </div>
+  </div>
+
+  <p class="stat-caminho arq-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-arq {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .arq-abaixo {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr 1.3fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .arq-abaixo .stat-destaque .stat-valor {
+    font-size: clamp(1.7rem, 3.8vw, 2.2rem);
+  }
+  .arq-lista {
+    margin: 8px 0 0;
+    padding-left: 1.3em;
+    font-family: var(--fonte-dados);
+    font-size: 0.8rem;
+    line-height: 1.65;
+    color: var(--texto-suave);
+  }
+  .arq-lista :global(b) {
+    color: var(--insper-azul-aco);
+  }
+  .arq-nota {
+    margin: 0;
+  }
+  .arq-alerta {
+    color: var(--vermelho);
+    font-weight: 600;
+  }
+  @media (max-width: 760px) {
+    .arq-abaixo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="arquitetura"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-blocos]")!;
+
+    const ENTRADA = 28, DENSA = 64, CLASSES = 10;
+    const FILTROS = [16, 32, 64, 128]; // o número de filtros cresce com a profundidade
+    const COR = {
+      conv: "#7c3aed", pool: "#0ea5e9", densa: "#f4603e",
+      azulAco: "#294a6b", suave: "#8b95a5", borda: "#c7d2e0",
+    };
+
+    interface Camada {
+      tipo: "entrada" | "conv" | "pool" | "flatten" | "densa" | "saida";
+      rotulo: string;
+      lado: number;
+      canais: number;
+      params: number;
+    }
+
+    function montar(blocos: number): Camada[] {
+      const saida: Camada[] = [
+        { tipo: "entrada", rotulo: "entrada", lado: ENTRADA, canais: 1, params: 0 },
+      ];
+      let lado = ENTRADA, canais = 1;
+      for (let b = 0; b < blocos; b++) {
+        const f = FILTROS[Math.min(b, FILTROS.length - 1)];
+        // conv 3×3, padding 1, stride 1 → o lado não muda
+        saida.push({ tipo: "conv", rotulo: `conv 3×3 · ${f}`, lado, canais: f, params: f * (9 * canais) + f });
+        canais = f;
+        const novo = Math.floor(lado / 2);
+        if (novo >= 1) {
+          lado = novo;
+          saida.push({ tipo: "pool", rotulo: "max pool 2×2", lado, canais, params: 0 });
+        }
+      }
+      const achatado = lado * lado * canais;
+      saida.push({ tipo: "flatten", rotulo: `flatten → ${achatado}`, lado: 1, canais: achatado, params: 0 });
+      saida.push({ tipo: "densa", rotulo: `densa ${DENSA}`, lado: 1, canais: DENSA, params: achatado * DENSA + DENSA });
+      saida.push({ tipo: "saida", rotulo: `softmax ${CLASSES}`, lado: 1, canais: CLASSES, params: DENSA * CLASSES + CLASSES });
+      return saida;
+    }
+
+    let blocos = 2;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const milhar = (v: number) => v.toLocaleString("pt-BR");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const camadas = montar(blocos);
+      const vao = Math.max(6, Math.min(18, (W - 20) / camadas.length / 4));
+      const larguraCaixa = (W - 16 - vao * (camadas.length - 1)) / camadas.length;
+      const meio = H / 2;
+
+      camadas.forEach((c, i) => {
+        const x = 8 + i * (larguraCaixa + vao);
+        // altura proporcional à resolução espacial; profundidade vira largura
+        const alturaMax = H * 0.52;
+        const altura = c.tipo === "entrada" || c.tipo === "conv" || c.tipo === "pool"
+          ? Math.max(10, (c.lado / ENTRADA) * alturaMax)
+          : Math.max(10, alturaMax * 0.28);
+        const largura = Math.min(larguraCaixa, 10 + Math.log2(c.canais + 1) * 7);
+
+        const cor =
+          c.tipo === "conv" ? COR.conv
+            : c.tipo === "pool" ? COR.pool
+              : c.tipo === "entrada" ? COR.suave : COR.densa;
+        ctx.fillStyle = cor + "33";
+        ctx.strokeStyle = cor;
+        ctx.lineWidth = 2;
+        const cx = x + larguraCaixa / 2;
+        ctx.fillRect(cx - largura / 2, meio - altura / 2, largura, altura);
+        ctx.strokeRect(cx - largura / 2, meio - altura / 2, largura, altura);
+
+        // forma do tensor, embaixo
+        ctx.fillStyle = COR.azulAco;
+        ctx.font = "700 10px " + fonte();
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        const forma = c.lado > 1 ? `${c.lado}×${c.lado}×${c.canais}` : `${c.canais}`;
+        ctx.fillText(forma, cx, meio + alturaMax / 2 + 8);
+        // nome, em cima, alternando altura para não colidir
+        ctx.textBaseline = "bottom";
+        ctx.font = "600 10px " + fonte();
+        ctx.fillStyle = COR.suave;
+        const curto = c.rotulo.replace("max pool 2×2", "pool").replace("softmax ", "saída ");
+        ctx.fillText(curto, cx, meio - alturaMax / 2 - 6 - (i % 2) * 13);
+      });
+
+      const total = camadas.reduce((s, c) => s + c.params, 0);
+      const densa = camadas.filter((c) => c.tipo === "densa" || c.tipo === "saida").reduce((s, c) => s + c.params, 0);
+      const conv = total - densa;
+      const ultimoEspacial = [...camadas].reverse().find((c) => c.tipo === "pool" || c.tipo === "conv" || c.tipo === "entrada")!;
+
+      el("total").textContent = milhar(total);
+      el("onde").innerHTML = `<strong>${Math.round((densa / total) * 100)}%</strong> deles estão na parte densa do fim`;
+      el("blocos-val").textContent = blocos === 1 ? "1 bloco" : `${blocos} blocos`;
+      el("lista").innerHTML = camadas
+        .map((c) => `<li>${c.rotulo} → <b>${c.lado > 1 ? `${c.lado}×${c.lado}×${c.canais}` : c.canais}</b>${c.params ? ` · ${milhar(c.params)} par.` : ""}</li>`)
+        .join("");
+
+      el("nota").innerHTML =
+        blocos === 0
+          ? "Sem nenhum bloco convolucional isto é a <strong>MLP do MNIST</strong> — a imagem é achatada direto e entregue à camada densa. Acrescente blocos e olhe as duas coisas que mudam juntas: a resolução espacial cai pela metade a cada pool, e o número de canais cresce."
+          : ultimoEspacial.lado <= 1
+            ? "<span class='arq-alerta'>A resolução espacial acabou.</span> Não há mais o que reduzir — mais um pool aqui não faz nada, e é o tipo de coisa que só aparece quando o código quebra. Repare que a conta de tamanho da Aula 9 é o que evita isso."
+            : `Repare no que a profundidade faz com os parâmetros: cada bloco acrescenta pouca coisa (o filtro é compartilhado), e ainda <strong>reduz</strong> o total, porque o mapa que chega no flatten fica menor. A parte cara continua sendo a camada densa do fim — ${milhar(densa)} dos ${milhar(total)} parâmetros.`;
+    }
+
+    slider.addEventListener("input", () => { blocos = parseInt(slider.value, 10); desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 280, 220), 480)
+        : Math.round(Math.min(Math.max(W * 0.4, 210), 320));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

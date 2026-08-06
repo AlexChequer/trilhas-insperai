@@ -1,0 +1,411 @@
+---
+// Aula 7 · O slider de complexidade — o polinômio de grau alto da Aula 2 volta
+// aqui com nome. Um controle só (o grau) e dois desenhos que mudam juntos: o
+// ajuste em cima dos pontos, e as duas curvas de erro (treino e validação) se
+// separando. Os três cenários que o roteiro pede não são três painéis: são três
+// posições deste mesmo slider, e o painel diz em qual delas você está.
+//
+// Tudo é calculado de verdade: mínimos quadrados sobre features polinomiais.
+---
+
+<div class="viz-complex" data-viz="complexidade">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="complex-abaixo">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Diagnóstico</p>
+      <p class="stat-valor" data-diag>—</p>
+      <span class="stat-unidade" data-diag-nota>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Grau do polinômio <span class="valor" data-grau-val>—</span></label>
+        <input type="range" data-grau min="0" max="12" step="1" value="1" />
+      </div>
+      <p class="stat-caminho">13 pontos de treino · 60 pontos de validação, nunca vistos no ajuste.</p>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Erro (RMSE)</p>
+      <ul class="complex-placar">
+        <li><i style="background: #2563eb"></i> treino <span class="complex-sub">(dado que ele viu)</span> <b data-err-treino>—</b></li>
+        <li><i style="background: #f4603e"></i> validação <span class="complex-sub">(dado novo)</span> <b data-err-val>—</b></li>
+        <li class="complex-gap">diferença <b data-gap>—</b></li>
+      </ul>
+      <p class="complex-comoler">
+        O <strong>treino</strong> mede nos 13 pontos que o modelo ajustou; a <strong>validação</strong>, em 60 pontos que ele nunca viu. Quem manda é a segunda — a primeira só diz o quanto ele decorou.
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .viz-complex {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .complex-abaixo {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr 1.4fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .complex-abaixo .stat-destaque .stat-valor {
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+  }
+  .complex-placar {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.92rem;
+    color: var(--texto-suave);
+  }
+  .complex-placar li {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .complex-sub {
+    font-size: 0.78rem;
+    opacity: 0.75;
+  }
+  .complex-placar i {
+    width: 20px;
+    height: 4px;
+    border-radius: 999px;
+    flex: none;
+  }
+  .complex-placar b {
+    margin-left: auto;
+    font-family: var(--fonte-dados);
+    font-size: 1.05rem;
+    color: var(--insper-azul-aco);
+  }
+  .complex-gap {
+    padding-top: 8px;
+    border-top: 1px solid var(--borda);
+  }
+  .complex-comoler {
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--borda);
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--texto-suave);
+  }
+  .complex-comoler strong {
+    color: var(--insper-azul-aco);
+  }
+  @media (max-width: 760px) {
+    .complex-abaixo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="complexidade"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-grau]")!;
+
+    const GRAU_MAX = 12;
+    const ERRO_MAX = 0.9; // o eixo corta aqui; a curva de validação sai por cima
+    const COR = {
+      treino: "#2563eb", validacao: "#f4603e", ajuste: "#7c3aed",
+      grade: "#eef2f8", eixo: "#c7d2e0", suave: "#8b95a5", azulAco: "#294a6b",
+    };
+
+    function rng(seed: number) {
+      return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    }
+    function normal(R: () => number) {
+      let u = 0, v = 0;
+      while (u === 0) u = R();
+      while (v === 0) v = R();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    const verdade = (x: number) => Math.sin(x * 2.2) * 0.8 + x * 0.25;
+    function conjunto(n: number, semente: number, ruido: number) {
+      const R = rng(semente);
+      return Array.from({ length: n }, (_, i) => {
+        const x = -1 + (2 * (i + 0.5)) / n;
+        return { x, y: verdade(x) + normal(R) * ruido };
+      });
+    }
+    const TREINO = conjunto(13, 3, 0.16);
+    const VALIDACAO = conjunto(60, 99, 0.16);
+
+    // mínimos quadrados nas features 1, x, x², … (equações normais + eliminação)
+    function ajustar(dados: { x: number; y: number }[], grau: number) {
+      const m = grau + 1;
+      const A = Array.from({ length: m }, () => new Array(m).fill(0));
+      const b = new Array(m).fill(0);
+      for (const d of dados) {
+        const p: number[] = [];
+        let v = 1;
+        for (let k = 0; k < m; k++) { p.push(v); v *= d.x; }
+        for (let i = 0; i < m; i++) {
+          for (let j = 0; j < m; j++) A[i][j] += p[i] * p[j];
+          b[i] += p[i] * d.y;
+        }
+      }
+      for (let i = 0; i < m; i++) A[i][i] += 1e-9; // só para não estourar em grau alto
+      const M = A.map((linha, i) => [...linha, b[i]]);
+      for (let c = 0; c < m; c++) {
+        let pivo = c;
+        for (let r = c + 1; r < m; r++) if (Math.abs(M[r][c]) > Math.abs(M[pivo][c])) pivo = r;
+        [M[c], M[pivo]] = [M[pivo], M[c]];
+        if (Math.abs(M[c][c]) < 1e-14) continue;
+        for (let r = 0; r < m; r++) {
+          if (r === c) continue;
+          const k = M[r][c] / M[c][c];
+          for (let j = c; j <= m; j++) M[r][j] -= k * M[c][j];
+        }
+      }
+      return M.map((linha, i) => (Math.abs(M[i][i]) < 1e-14 ? 0 : linha[m] / linha[i]));
+    }
+    const avaliar = (w: number[], x: number) => {
+      let s = 0, v = 1;
+      for (const c of w) { s += c * v; v *= x; }
+      return s;
+    };
+    const rmse = (w: number[], D: { x: number; y: number }[]) =>
+      Math.sqrt(D.reduce((s, d) => s + (avaliar(w, d.x) - d.y) ** 2, 0) / D.length);
+
+    const MODELOS = Array.from({ length: GRAU_MAX + 1 }, (_, g) => {
+      const w = ajustar(TREINO, g);
+      return { w, treino: rmse(w, TREINO), validacao: rmse(w, VALIDACAO) };
+    });
+    // o grau que a validação elege — é ele que define onde fica "no ponto"
+    const MELHOR = MODELOS.reduce((m, x, i) => (x.validacao < MODELOS[m].validacao ? i : m), 0);
+
+    let grau = 1;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    function areas() {
+      const colunas = W >= 560;
+      const PAD = 6, VAO = 18;
+      const M = { topo: 26, dir: 12, base: 40, esq: 46 };
+      return [0, 1].map((i) => {
+        const r = colunas
+          ? { x: PAD + i * ((W - PAD * 2 - VAO) / 2 + VAO), y: PAD, w: (W - PAD * 2 - VAO) / 2, h: H - PAD * 2 }
+          : { x: PAD, y: PAD + i * ((H - PAD * 2 - VAO) / 2 + VAO), w: W - PAD * 2, h: (H - PAD * 2 - VAO) / 2 };
+        return { r, p: { x: r.x + M.esq, y: r.y + M.topo, w: r.w - M.esq - M.dir, h: r.h - M.topo - M.base } };
+      });
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const [esq, dir] = areas();
+      const mod = MODELOS[grau];
+
+      // ---------- painel 1: o ajuste em cima dos pontos ----------
+      {
+        const { r, p } = esq;
+        const YMIN = -1.6, YMAX = 1.6;
+        const gx = (x: number) => p.x + ((x + 1) / 2) * p.w;
+        const gy = (y: number) => p.y + (1 - (y - YMIN) / (YMAX - YMIN)) * p.h;
+
+        ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+        ctx.fillStyle = COR.suave; ctx.font = "600 12px " + fonte();
+        ctx.textAlign = "right"; ctx.textBaseline = "middle";
+        for (let y = -1.5; y <= 1.51; y += 0.75) {
+          const yy = gy(y);
+          ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+          ctx.fillText(num(y, 1), p.x - 7, yy);
+        }
+        ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1.5; ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+        // a relação verdadeira, de fundo
+        ctx.strokeStyle = "rgba(41,74,107,0.25)"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        for (let i = 0; i <= 200; i++) {
+          const x = -1 + (2 * i) / 200;
+          i === 0 ? ctx.moveTo(gx(x), gy(verdade(x))) : ctx.lineTo(gx(x), gy(verdade(x)));
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+        // o polinômio ajustado
+        ctx.strokeStyle = COR.ajuste; ctx.lineWidth = 3.5; ctx.lineJoin = "round";
+        ctx.beginPath();
+        for (let i = 0; i <= 400; i++) {
+          const x = -1 + (2 * i) / 400;
+          const y = avaliar(mod.w, x);
+          i === 0 ? ctx.moveTo(gx(x), gy(y)) : ctx.lineTo(gx(x), gy(y));
+        }
+        ctx.stroke();
+        // pontos de treino
+        for (const d of TREINO) {
+          ctx.beginPath(); ctx.arc(gx(d.x), gy(d.y), 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = COR.treino; ctx.fill();
+          ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText(`grau ${grau} nos 13 pontos`, r.x + 4, r.y + 4);
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        ctx.font = "600 12px " + fonte(); ctx.fillStyle = COR.suave;
+        ctx.fillText("tracejado = a relação verdadeira", p.x + p.w / 2, p.y + p.h + 14);
+      }
+
+      // ---------- painel 2: erro × complexidade ----------
+      {
+        const { r, p } = dir;
+        const gx = (g: number) => p.x + (g / GRAU_MAX) * p.w;
+        const gy = (e: number) => p.y + (1 - Math.min(e, ERRO_MAX) / ERRO_MAX) * p.h;
+
+        // As três regiões de diagnóstico, pintadas ao fundo. Elas são o que
+        // transforma o gráfico em ferramenta de leitura: o aluno passa a
+        // reconhecer o padrão em vez de só ver duas curvas.
+        const REGIOES = [
+          { de: 0, ate: MELHOR - 1, cor: "rgba(217,119,6,0.09)", rotulo: "underfitting" },
+          { de: MELHOR - 1, ate: MELHOR + 1, cor: "rgba(22,163,74,0.11)", rotulo: "bom" },
+          { de: MELHOR + 1, ate: GRAU_MAX, cor: "rgba(244,96,62,0.09)", rotulo: "overfitting" },
+        ];
+        for (const reg of REGIOES) {
+          const x0 = gx(reg.de), x1 = gx(reg.ate);
+          ctx.fillStyle = reg.cor;
+          ctx.fillRect(x0, p.y, x1 - x0, p.h);
+          if (x1 - x0 > 44) {
+            ctx.fillStyle = "rgba(41,74,107,0.55)";
+            ctx.font = "600 10px " + fonte();
+            ctx.textAlign = "center"; ctx.textBaseline = "top";
+            ctx.fillText(reg.rotulo, (x0 + x1) / 2, p.y + 5);
+          }
+        }
+
+        ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+        ctx.fillStyle = COR.suave; ctx.font = "600 12px " + fonte();
+        ctx.textAlign = "right"; ctx.textBaseline = "middle";
+        for (let e = 0; e <= ERRO_MAX + 0.001; e += 0.3) {
+          const yy = gy(e);
+          ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+          ctx.fillText(num(e, 1), p.x - 7, yy);
+        }
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        for (let g = 0; g <= GRAU_MAX; g += 3) ctx.fillText(String(g), gx(g), p.y + p.h + 6);
+        ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1.5; ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+        for (const [chave, cor] of [["treino", COR.treino], ["validacao", COR.validacao]] as const) {
+          ctx.strokeStyle = cor; ctx.lineWidth = 3; ctx.lineJoin = "round";
+          ctx.beginPath();
+          MODELOS.forEach((m, g) => {
+            const y = gy((m as any)[chave]);
+            g === 0 ? ctx.moveTo(gx(g), y) : ctx.lineTo(gx(g), y);
+          });
+          ctx.stroke();
+        }
+        // onde o slider está
+        ctx.setLineDash([5, 4]); ctx.strokeStyle = "rgba(41,74,107,0.45)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(gx(grau), p.y); ctx.lineTo(gx(grau), p.y + p.h); ctx.stroke();
+        ctx.setLineDash([]);
+        for (const [chave, cor] of [["treino", COR.treino], ["validacao", COR.validacao]] as const) {
+          const v = (mod as any)[chave];
+          if (v <= ERRO_MAX) {
+            ctx.beginPath(); ctx.arc(gx(grau), gy(v), 6, 0, Math.PI * 2);
+            ctx.fillStyle = cor; ctx.fill();
+            ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff"; ctx.stroke();
+          }
+        }
+        ctx.restore();
+
+        ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+        ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText("erro × complexidade", r.x + 4, r.y + 4);
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        ctx.font = "600 12px " + fonte(); ctx.fillStyle = COR.suave;
+        ctx.fillText("grau do polinômio", p.x + p.w / 2, p.y + p.h + 22);
+      }
+
+      // ---------- painel lateral ----------
+      const folga = mod.validacao - mod.treino;
+      el("grau-val").textContent = String(grau);
+      el("err-treino").textContent = num(mod.treino, 3);
+      el("err-val").textContent = mod.validacao > 9 ? num(mod.validacao, 1) : num(mod.validacao, 3);
+      el("gap").textContent = folga > 9 ? num(folga, 1) : num(folga, 3);
+
+      let diag: string, nota: string;
+      if (grau < MELHOR - 1) {
+        diag = "Simples demais";
+        nota =
+          `underfitting: os dois erros estão altos (${num(mod.treino, 2)} e ${num(mod.validacao, 2)}) e ` +
+          `praticamente iguais. O modelo vai mal no dado que viu e vai igualmente mal no dado novo — ` +
+          `não é que ele decorou errado, é que ele não tem forma suficiente para o padrão que existe. ` +
+          `O remédio é aumentar a complexidade.`;
+      } else if (grau <= MELHOR + 1) {
+        diag = "No ponto";
+        nota =
+          `os dois erros estão baixos e próximos, e a validação está no menor valor que ela chega ` +
+          `(grau ${MELHOR}). Repare em quem apontou para cá: foi a curva de validação, que parou de ` +
+          `cair aqui. O erro de treino continua caindo depois deste ponto e ignora ele completamente — ` +
+          `por isso não se escolhe modelo olhando o treino.`;
+      } else if (folga < 0.12) {
+        diag = "Começando a decorar";
+        nota =
+          `o erro de treino ainda cai (${num(mod.treino, 2)}), mas o de validação parou e já começou a ` +
+          `subir (${num(mod.validacao, 2)}). É o começo do overfitting, e o sinal não é nenhum dos dois ` +
+          `números sozinho: é a **separação** entre as duas curvas crescendo enquanto a de validação piora.`;
+      } else {
+        diag = "Decorou o treino";
+        nota =
+          `overfitting: o treino caiu para ${num(mod.treino, 2)} e a validação disparou para ` +
+          `${mod.validacao > 9 ? num(mod.validacao, 1) : num(mod.validacao, 2)}. A curva passa perto de ` +
+          `cada ponto de treino — inclusive por cima do ruído deles, que não se repete em dado novo. ` +
+          `Um modelo assim é excelente no que já sabe e inútil no resto.`;
+      }
+      el("diag").textContent = diag;
+      el("diag-nota").innerHTML = nota.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    }
+
+    slider.addEventListener("input", () => { grau = parseInt(slider.value, 10); desenhar(); });
+
+    function ajustarTela() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const colunas = W >= 560;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 240, 300), 720)
+        : colunas
+          ? Math.round(Math.min(Math.max(W * 0.44, 260), 400))
+          : Math.round(Math.min(Math.max(W * 1.15, 420), 660));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustarTela();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustarTela(); });
+
+    ajustarTela();
+  });
+</script>

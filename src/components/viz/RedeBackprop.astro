@@ -1,0 +1,371 @@
+---
+// Aula 5 · Uma MLP de verdade treinando no XOR (2 → 4 → 3 → 1), com o ciclo
+// desmontado em etapas visíveis. O objetivo pedagógico é a etapa 8: separar o
+// que o BACKPROP faz (calcular quanto cada peso contribuiu para o erro) do que o
+// GRADIENT DESCENT faz (usar esses números para mexer nos pesos) — a confusão
+// mais comum da aula. A rede é real: os gradientes desenhados são os calculados.
+---
+
+<div class="viz-rede" data-viz="rede">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="rede-abaixo">
+    <div class="stat rede-fase">
+      <p class="stat-rotulo" data-fase-num>—</p>
+      <p class="rede-fase-nome" data-fase-nome>—</p>
+      <p class="rede-fase-txt" data-fase-txt>—</p>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Erro nos 4 exemplos</p>
+      <p class="stat-valor" data-perda>—</p>
+      <span class="stat-unidade" data-iteracao>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="viz-controles" style="margin-top: 0">
+        <button class="btn" type="button" data-rodar>Rodar</button>
+        <button class="btn btn-secundario" type="button" data-passo>Etapa a etapa</button>
+        <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+      </div>
+      <p class="stat-caminho">Problema: XOR. Ocultas com <b>tanh</b>, saída com <b>sigmoid</b>.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .viz-rede {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .rede-abaixo {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1.2fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .rede-fase-nome {
+    margin: 4px 0 0;
+    font-family: var(--fonte-titulo);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--insper-azul-aco);
+  }
+  .rede-fase-txt {
+    margin: 6px 0 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--texto-suave);
+  }
+  .rede-fase-txt b {
+    color: var(--insper-azul-aco);
+  }
+  .rede-abaixo .stat-valor {
+    font-size: 1.9rem;
+  }
+  @media (max-width: 760px) {
+    .rede-abaixo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="rede"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    const TAMANHOS = [2, 4, 3, 1];
+    const NOMES_CAMADA = ["entrada", "oculta", "oculta", "saída"];
+    const SEED = 7, LR = 1.2;
+    const DADOS = [
+      { x: [-1, -1], y: 0 }, { x: [-1, 1], y: 1 },
+      { x: [1, -1], y: 1 }, { x: [1, 1], y: 0 },
+    ];
+    const COR = {
+      frente: "#2563eb", erro: "#f4603e", volta: "#d97706",
+      atualiza: "#16a34a", inerte: "#dbe3ef", azulAco: "#294a6b", suave: "#8b95a5",
+    };
+
+    // As 8 etapas de uma iteração. `camada` diz qual bloco de conexões acende.
+    const ETAPAS = [
+      { tipo: "frente", camada: 0, nome: "Forward: entrada → 1ª oculta", txt: "Os dois valores de entrada são multiplicados pelos pesos e somados em cada neurônio da primeira camada oculta." },
+      { tipo: "frente", camada: 1, nome: "Forward: 1ª → 2ª oculta", txt: "O que saiu da camada anterior é a <b>entrada</b> desta. Nada de novo acontece — é a mesma conta, um andar acima." },
+      { tipo: "frente", camada: 2, nome: "Forward: → saída", txt: "O último neurônio aplica a sigmoid e devolve a previsão. Aqui termina a passada para a frente." },
+      { tipo: "erro", camada: -1, nome: "Mede-se o erro", txt: "Compara-se a previsão com a resposta certa. Este é o único ponto do ciclo em que a rede olha o rótulo." },
+      { tipo: "volta", camada: 2, nome: "Backprop: saída → 2ª oculta", txt: "Começa a volta. Cada peso desta camada recebe <b>a parcela da culpa</b> proporcional ao quanto ele contribuiu para o erro." },
+      { tipo: "volta", camada: 1, nome: "Backprop: 2ª → 1ª oculta", txt: "A culpa continua se repartindo camada por camada. É a regra da cadeia: multiplica-se a derivada de cada etapa do caminho." },
+      { tipo: "volta", camada: 0, nome: "Backprop: → primeira camada", txt: "Chegou nos pesos mais distantes da saída. Agora todos os pesos da rede têm um número dizendo o quanto pioram o erro." },
+      { tipo: "atualiza", camada: -1, nome: "Gradient descent atualiza", txt: "Só <b>agora</b> os pesos mudam. O backprop calculou os gradientes; quem dá o passo é o gradient descent — são coisas diferentes." },
+    ];
+
+    function rng(seed: number) {
+      return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    }
+    const sig = (z: number) => 1 / (1 + Math.exp(-z));
+
+    interface Rede { W: number[][][]; b: number[][] }
+
+    function iniciar(): Rede {
+      const R = rng(SEED);
+      const W: number[][][] = [], b: number[][] = [];
+      for (let l = 0; l < 3; l++) {
+        W.push(Array.from({ length: TAMANHOS[l + 1] }, () => Array.from({ length: TAMANHOS[l] }, () => R() * 2 - 1)));
+        b.push(Array.from({ length: TAMANHOS[l + 1] }, () => R() * 0.4 - 0.2));
+      }
+      return { W, b };
+    }
+
+    function frente(r: Rede, x: number[]) {
+      const a: number[][] = [x];
+      for (let l = 0; l < 3; l++) {
+        const z = r.W[l].map((linha, i) => linha.reduce((s, w, j) => s + w * a[l][j], 0) + r.b[l][i]);
+        a.push(l < 2 ? z.map(Math.tanh) : z.map(sig));
+      }
+      return a;
+    }
+
+    // Uma passada completa no lote de 4: devolve a perda, os gradientes e as
+    // magnitudes médias usadas para acender o desenho.
+    function ciclo(r: Rede) {
+      const gW = r.W.map((m) => m.map((linha) => linha.map(() => 0)));
+      const gb = r.b.map((v) => v.map(() => 0));
+      const ativacoes = TAMANHOS.map((n) => new Array(n).fill(0));
+      let perda = 0;
+
+      for (const d of DADOS) {
+        const a = frente(r, d.x);
+        a.forEach((camada, l) => camada.forEach((v, i) => (ativacoes[l][i] += Math.abs(v) / DADOS.length)));
+        const p = Math.min(Math.max(a[3][0], 1e-7), 1 - 1e-7);
+        perda += -(d.y * Math.log(p) + (1 - d.y) * Math.log(1 - p)) / DADOS.length;
+
+        let delta = [a[3][0] - d.y]; // sigmoid + cross-entropy: a derivada colapsa nisto
+        for (let l = 2; l >= 0; l--) {
+          for (let i = 0; i < TAMANHOS[l + 1]; i++) {
+            gb[l][i] += delta[i] / DADOS.length;
+            for (let j = 0; j < TAMANHOS[l]; j++) gW[l][i][j] += (delta[i] * a[l][j]) / DADOS.length;
+          }
+          if (l > 0) {
+            const proximo = new Array(TAMANHOS[l]).fill(0);
+            for (let j = 0; j < TAMANHOS[l]; j++) {
+              let s = 0;
+              for (let i = 0; i < TAMANHOS[l + 1]; i++) s += r.W[l][i][j] * delta[i];
+              proximo[j] = s * (1 - a[l][j] ** 2); // derivada da tanh
+            }
+            delta = proximo;
+          }
+        }
+      }
+      return { perda, gW, gb, ativacoes };
+    }
+
+    function aplicar(r: Rede, gW: number[][][], gb: number[][]) {
+      for (let l = 0; l < 3; l++) {
+        for (let i = 0; i < TAMANHOS[l + 1]; i++) {
+          r.b[l][i] -= LR * gb[l][i];
+          for (let j = 0; j < TAMANHOS[l]; j++) r.W[l][i][j] -= LR * gW[l][i][j];
+        }
+      }
+    }
+
+    let rede = iniciar();
+    let estado = ciclo(rede);
+    let etapa = 0, iteracao = 0;
+    let timer: number | null = null;
+    let W = 0, H = 0, ultimaLargura = -1;
+
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+
+    function posicoes() {
+      const M = { topo: 34, base: 30, esq: 52, dir: 52 };
+      const largura = W - M.esq - M.dir, altura = H - M.topo - M.base;
+      return TAMANHOS.map((n, l) => {
+        const x = M.esq + (largura * l) / (TAMANHOS.length - 1);
+        const passo = Math.min(altura / Math.max(n, 1), 62);
+        const y0 = M.topo + altura / 2 - (passo * (n - 1)) / 2;
+        return Array.from({ length: n }, (_, i) => ({ x, y: y0 + passo * i }));
+      });
+    }
+
+    // intensidade 0..1 de cada conexão, conforme a etapa
+    function intensidades(bloco: number, tipo: string) {
+      const fonteVal = tipo === "volta" ? estado.gW[bloco] : null;
+      const linhas = TAMANHOS[bloco + 1], colunas = TAMANHOS[bloco];
+      const bruto: number[][] = [];
+      let maximo = 1e-9;
+      for (let i = 0; i < linhas; i++) {
+        bruto.push([]);
+        for (let j = 0; j < colunas; j++) {
+          const v = fonteVal
+            ? Math.abs(fonteVal[i][j])
+            : Math.abs(rede.W[bloco][i][j] * estado.ativacoes[bloco][j]);
+          bruto[i].push(v);
+          maximo = Math.max(maximo, v);
+        }
+      }
+      return bruto.map((linha) => linha.map((v) => v / maximo));
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const P = posicoes();
+      const info = ETAPAS[etapa];
+      const raio = Math.min(15, Math.max(9, W / 46));
+
+      // todas as conexões, apagadas
+      ctx.strokeStyle = COR.inerte; ctx.lineWidth = 1.5;
+      for (let l = 0; l < 3; l++) {
+        for (let i = 0; i < TAMANHOS[l + 1]; i++) {
+          for (let j = 0; j < TAMANHOS[l]; j++) {
+            ctx.beginPath(); ctx.moveTo(P[l][j].x, P[l][j].y); ctx.lineTo(P[l + 1][i].x, P[l + 1][i].y); ctx.stroke();
+          }
+        }
+      }
+
+      // o bloco de conexões que está acendendo nesta etapa
+      if (info.camada >= 0) {
+        const forca = intensidades(info.camada, info.tipo);
+        const cor = info.tipo === "volta" ? COR.volta : COR.frente;
+        for (let i = 0; i < TAMANHOS[info.camada + 1]; i++) {
+          for (let j = 0; j < TAMANHOS[info.camada]; j++) {
+            const t = forca[i][j];
+            ctx.strokeStyle = cor;
+            ctx.globalAlpha = 0.18 + 0.82 * t;
+            ctx.lineWidth = 1 + 5 * t;
+            ctx.beginPath();
+            ctx.moveTo(P[info.camada][j].x, P[info.camada][j].y);
+            ctx.lineTo(P[info.camada + 1][i].x, P[info.camada + 1][i].y);
+            ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 1;
+        // a seta do sentido, sobre o bloco aceso
+        const meioX = (P[info.camada][0].x + P[info.camada + 1][0].x) / 2;
+        const paraFrente = info.tipo !== "volta";
+        ctx.fillStyle = cor;
+        ctx.beginPath();
+        const ponta = meioX + (paraFrente ? 11 : -11);
+        ctx.moveTo(ponta, H - 16);
+        ctx.lineTo(ponta - (paraFrente ? 16 : -16), H - 22);
+        ctx.lineTo(ponta - (paraFrente ? 16 : -16), H - 10);
+        ctx.closePath(); ctx.fill();
+      }
+
+      // atualização: pisca a rede inteira de verde
+      if (info.tipo === "atualiza") {
+        ctx.strokeStyle = COR.atualiza; ctx.globalAlpha = 0.55; ctx.lineWidth = 2.5;
+        for (let l = 0; l < 3; l++)
+          for (let i = 0; i < TAMANHOS[l + 1]; i++)
+            for (let j = 0; j < TAMANHOS[l]; j++) {
+              ctx.beginPath(); ctx.moveTo(P[l][j].x, P[l][j].y); ctx.lineTo(P[l + 1][i].x, P[l + 1][i].y); ctx.stroke();
+            }
+        ctx.globalAlpha = 1;
+      }
+
+      // neurônios
+      P.forEach((camada, l) => {
+        camada.forEach((p, i) => {
+          const ativo = Math.min(1, estado.ativacoes[l][i]);
+          const aceso = info.camada >= 0 && (l === info.camada || l === info.camada + 1);
+          ctx.beginPath(); ctx.arc(p.x, p.y, raio, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(41,74,107,${0.1 + 0.55 * ativo})`;
+          ctx.fill();
+          ctx.lineWidth = aceso ? 3 : 2;
+          ctx.strokeStyle = aceso ? (info.tipo === "volta" ? COR.volta : COR.frente) : "#c7d2e0";
+          ctx.stroke();
+        });
+      });
+
+      // o neurônio de saída pulsa quando o erro é medido
+      if (info.tipo === "erro") {
+        const p = P[3][0];
+        ctx.beginPath(); ctx.arc(p.x, p.y, raio + 8, 0, Math.PI * 2);
+        ctx.strokeStyle = COR.erro; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = COR.erro; ctx.font = "700 13px " + fonte();
+        ctx.textAlign = "right"; ctx.textBaseline = "middle";
+        ctx.fillText("erro = " + num(estado.perda, 3), p.x - raio - 14, p.y);
+      }
+
+      // rótulos das camadas
+      ctx.fillStyle = COR.suave; ctx.font = "600 12px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      P.forEach((camada, l) => {
+        const texto = `${NOMES_CAMADA[l]} (${TAMANHOS[l]})`;
+        // as colunas das pontas ficam perto da borda: puxa o rótulo para dentro
+        const meio = ctx.measureText(texto).width / 2 + 4;
+        ctx.fillText(texto, Math.min(Math.max(camada[0].x, meio), W - meio), 8);
+      });
+
+      // painel
+      el("fase-num").textContent = `Etapa ${etapa + 1} de 8`;
+      el("fase-nome").textContent = info.nome;
+      el("fase-txt").innerHTML = info.txt;
+      el("perda").textContent = num(estado.perda, 3);
+      el("iteracao").textContent = iteracao === 0 ? "antes da primeira atualização" : `depois de ${iteracao} ${iteracao === 1 ? "iteração" : "iterações"}`;
+    }
+
+    function avancar() {
+      if (ETAPAS[etapa].tipo === "atualiza") {
+        aplicar(rede, estado.gW, estado.gb);
+        iteracao++;
+        estado = ciclo(rede);
+        etapa = 0;
+      } else {
+        etapa++;
+      }
+      desenhar();
+    }
+
+    function rodar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; el("rodar").textContent = "Rodar"; return; }
+      el("rodar").textContent = "Pausar";
+      timer = window.setInterval(avancar, 520);
+    }
+    function passoUnico() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; el("rodar").textContent = "Rodar"; }
+      avancar();
+    }
+    function reiniciar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; el("rodar").textContent = "Rodar"; }
+      rede = iniciar(); estado = ciclo(rede); etapa = 0; iteracao = 0;
+      desenhar();
+    }
+    el("rodar").addEventListener("click", rodar);
+    el("passo").addEventListener("click", passoUnico);
+    el("reiniciar").addEventListener("click", reiniciar);
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 220, 300), 700)
+        : Math.round(Math.min(Math.max(W * 0.46, 260), 420));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>
