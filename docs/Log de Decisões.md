@@ -71,6 +71,53 @@ conceito do zero (com intuição, o "porquê" e os termos definidos), mantendo a
 visualizações nos mesmos pontos. É o novo padrão de tom/profundidade — ver
 [[Filosofia Pedagógica]].
 
+## 8. Toda aula ganha um notebook prático
+
+Depois do comparativo com o site do Thomas/Gabriel
+([[Comparativo com o Site 2026.1]]), o Alex definiu: cada aula terá um
+**notebook com o exemplo prático e aplicado do que ele deu naquela aula** — o
+mesmo dataset, o mesmo problema, agora em código. A1 em California Housing
+(m² × preço); A2 continuando no mesmo dado com `PolynomialFeatures`, mostrando
+o grau subir e o modelo melhorar. O princípio completo e os candidatos das 13
+aulas estão em [[Notebooks das Aulas]].
+
+Ainda em aberto: onde o notebook vive (Classroom / Colab / download).
+
+## 9. O site passa a ser o material completo (não só as aulas visuais)
+
+Depois do comparativo, o Alex definiu o rumo: **o nosso site substitui o do
+Thomas/Gabriel como material principal**. Isso traz para cá o que hoje só existe
+lá. Decisões, todas dele:
+
+- **Quizzes** de múltipla escolha, com explicação de **toda** alternativa (por que
+  a certa está certa e por que a errada está errada), botão de refazer e suporte a
+  imagem. Colocação: **~4 no fim de cada aula + 1–2 no meio**, nos pontos difíceis.
+  Referência de estilo: o curso do Andrew Ng — mas as perguntas são **originais em
+  pt-BR** (as dele são material protegido; copiar está fora de questão).
+- **Caixas destacadas** e **perguntas recolhíveis** no meio do texto.
+- **Explicação de termos e variáveis** para quem não tem base: glossário único do
+  site, com a definição abrindo **no clique** (hover não existe no celular), mais
+  **tabela de símbolos** depois das fórmulas.
+- **Trilha de setup de ambiente** no site: Git, GitHub, VS Code, Python + uv.
+- **Aula 0 — Fundamentos**: material de **consulta**, **fora do arco** das 13
+  aulas. Cobre o conceito: o que é programar, Python, NumPy, estatística e
+  matemática, e o básico de Git (o *porquê*; o *como* fica no setup). É onde entra
+  quem nunca programou.
+- **Prática** = rodar um **notebook pronto** com uma aplicação do que foi dado
+  naquele dia. Um notebook por aula, em repositório **público só de leitura**
+  (clonar sim, commitar não), com `uv` para o venv e um README explicando o
+  básico de git. **O repositório ainda não foi criado** — por ora os notebooks
+  ficam em `notebooks/` neste repo. Ver [[Notebooks das Aulas]].
+- **Navegação**: a sidebar ganha uma seção **"Antes de começar"** (Setup, Aula 0)
+  acima dos 6 blocos, e um rodapé de nav com Projetos e Recursos.
+- **Utilidades / links externos**: entram, mas **mais para frente**, junto das
+  aulas que os usam.
+- **Links úteis e rodapé**: entram. O link do repositório aponta para o site até
+  o repo dos notebooks existir.
+
+Ordem de execução combinada: **componentes primeiro, com a Aula 1 de piloto** —
+o Alex aprova o padrão numa aula só antes de escalar para as Aulas 2 e 3.
+
 ---
 
 ### Princípios que se mantêm firmes
@@ -78,3 +125,27 @@ visualizações nos mesmos pontos. É o novo padrão de tom/profundidade — ver
 - Visualização é o instrumento de ensino ([[Filosofia Pedagógica]]).
 - Um controle, uma consequência ([[Princípios das Visualizações]]).
 - Projetor + celular, tudo pt-BR.
+
+---
+
+## 6 de agosto de 2026 — a Aula 0 e o que fazer com a home
+
+Depois de rever as Aulas 4 a 10 e a primeira versão da Aula 0, o Alex fechou
+quatro pontos:
+
+- **A Aula 0 é pré-requisito**, fora do arco das 13 aulas. Encerra a dúvida que o
+  [[Comparativo com o Site 2026.1]] ainda listava em aberto.
+- **O acesso é pela sidebar** ("a aula pode aparecer na sidebar"), na seção
+  "Antes de começar". Sem card na home por enquanto.
+- **O setup de ambiente mora dentro da Aula 0**, não numa trilha de guias
+  separada. A trilha de 6 páginas do site 2026.1 não será copiada.
+- **A home será refeita inteira**, e não incrementada. Nada foi mexido nela.
+
+O conteúdo da Aula 0 ficou a meu critério ("faz a aula zero como vc achar melhor
+e depois eu julgo") — o que entrou e por quê está em [[Aula 0 e os Guias]], e
+falta o julgamento dele.
+
+Antes disso, na mesma conversa, ele reprovou a primeira `CamadasColapsando` da
+Aula 4 por ser abstrata demais. A regra que saiu dali — **toda visualização
+precisa de uma tarefa visível na tela** — está registrada em
+[[Retrofit das Aulas]].
