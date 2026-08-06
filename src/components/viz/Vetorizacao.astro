@@ -1,0 +1,209 @@
+---
+// Aula 0 · Por que se escreve `precos * 2` em vez de um laço. Aperte rodar e
+// veja a diferença: o laço acende um número por vez, o NumPy acende todos de uma
+// vez. O contador de voltas cresce com o tamanho do array; o código, não — e é
+// esse par (contador que explode, código que fica igual) que é o argumento.
+---
+
+<div class="viz-vet" data-viz="vetorizacao">
+  <div class="vet-codigos">
+    <div class="stat vet-bloco">
+      <p class="stat-rotulo">Com laço</p>
+      <pre class="vet-codigo">dobrados = []
+for p in precos:
+    dobrados.append(p * 2)</pre>
+      <p class="vet-medida">voltas que o Python dá: <b data-voltas>—</b></p>
+    </div>
+
+    <div class="stat vet-bloco">
+      <p class="stat-rotulo">Com NumPy</p>
+      <pre class="vet-codigo">dobrados = precos * 2</pre>
+      <p class="vet-medida">voltas que <b>você</b> escreve: <b>nenhuma</b></p>
+    </div>
+  </div>
+
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="vet-painel">
+    <div class="stat">
+      <div class="viz-controles" style="margin-top: 0">
+        <button class="btn" type="button" data-rodar>Rodar os dois</button>
+        <button class="btn btn-secundario" type="button" data-limpar>Reiniciar</button>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Quantos números <span class="valor" data-tam-val>—</span></label>
+        <input type="range" data-tam min="0" max="3" step="1" value="0" />
+      </div>
+      <p class="stat-caminho">O desenho mostra sempre 12; o contador mostra o tamanho de verdade.</p>
+    </div>
+
+    <p class="stat-caminho vet-nota" data-nota></p>
+  </div>
+</div>
+
+<style>
+  .viz-vet {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .vet-codigos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .vet-bloco {
+    min-width: 0;
+  }
+  .vet-codigo {
+    margin: 10px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--texto);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .vet-medida {
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--borda);
+    font-size: 0.86rem;
+    color: var(--texto-suave);
+  }
+  .vet-medida b {
+    font-family: var(--fonte-dados);
+    color: var(--insper-azul-aco);
+  }
+  .vet-painel {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .vet-painel > * {
+    min-width: 0;
+  }
+  .vet-nota {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  @media (max-width: 700px) {
+    .vet-codigos,
+    .vet-painel {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="vetorizacao"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-tam]")!;
+
+    const VALORES = [250, 310, 180, 420, 275, 199, 360, 145, 288, 330, 210, 405];
+    const N = VALORES.length;
+    const TAMANHOS = [12, 1_000, 100_000, 1_000_000];
+    const COR = {
+      laco: "#d97706", numpy: "#16a34a", inerte: "#eef2f8",
+      azulAco: "#294a6b", suave: "#8b95a5",
+    };
+
+    let passo = -1;          // -1 parado; 0..N-1 é o laço; N é "o NumPy fez tudo"
+    let timer: number | null = null;
+    let tamanho = 0;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const milhar = (v: number) => v.toLocaleString("pt-BR");
+
+    function desenharLinha(titulo: string, y: number, altura: number, aceso: (i: number) => boolean, cor: string) {
+      if (!ctx) return;
+      const vao = 5;
+      const largura = (W - 16 - vao * (N - 1)) / N;
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 13px " + fonte();
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText(titulo, 8, y - 6);
+      for (let i = 0; i < N; i++) {
+        const x = 8 + i * (largura + vao);
+        const on = aceso(i);
+        ctx.fillStyle = on ? cor : COR.inerte;
+        ctx.beginPath();
+        ctx.roundRect(x, y, largura, altura, 7);
+        ctx.fill();
+        ctx.fillStyle = on ? "#fff" : COR.suave;
+        ctx.font = "700 " + (largura < 34 ? 11 : 13) + "px " + fonte();
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(on ? VALORES[i] * 2 : VALORES[i]), x + largura / 2, y + altura / 2);
+      }
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const altura = Math.min(46, (H - 70) / 2);
+      desenharLinha("com laço — um por vez", 26, altura, (i) => i <= passo, COR.laco);
+      desenharLinha("com NumPy — todos de uma vez", 26 + altura + 44, altura, () => passo >= N, COR.numpy);
+
+      const total = TAMANHOS[tamanho];
+      el("tam-val").textContent = milhar(total);
+      el("voltas").textContent = milhar(total);
+      el("nota").innerHTML =
+        passo < 0
+          ? "Os dois códigos fazem <strong>a mesma coisa</strong>: dobrar todos os preços. Aperte <strong>Rodar</strong> e veja a diferença de caminho."
+          : passo < N
+            ? `O laço está na posição <strong>${passo + 1}</strong> de ${N}. Ele precisa passar por cada número, um de cada vez.`
+            : `Pronto. O laço deu <strong>${milhar(total)}</strong> voltas; a linha do NumPy é <strong>uma só</strong>, e a conta acontece em bloco, num código otimizado por baixo. Escrever a operação para o array inteiro se chama <strong>vetorização</strong> — e é a forma normal de escrever código de machine learning. <strong>Aumente o tamanho</strong> e repare no que muda: o contador explode e o código continua igual.`;
+    }
+
+    function parar() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
+      el("rodar").textContent = "Rodar os dois";
+    }
+    el("rodar").addEventListener("click", () => {
+      if (timer !== null) { parar(); return; }
+      if (passo >= N) passo = -1;
+      el("rodar").textContent = "Pausar";
+      timer = window.setInterval(() => {
+        passo++;
+        desenhar();
+        if (passo >= N) parar();
+      }, 260);
+    });
+    el("limpar").addEventListener("click", () => { parar(); passo = -1; desenhar(); });
+    slider.addEventListener("input", () => { tamanho = parseInt(slider.value, 10); desenhar(); });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia ? 260 : Math.round(Math.min(Math.max(W * 0.34, 180), 230));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

@@ -10,6 +10,8 @@ interface Props {
 }
 const { title, descricao, slugAtual } = Astro.props;
 const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
+// Material de consulta, fora do arco — aparece numa seção própria acima dos blocos.
+const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.data.ordem);
 ---
 
 <Base title={title} descricao={descricao}>
@@ -24,6 +26,26 @@ const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
         <img src="/insperai-claro.png" alt="InsperAI · Trilha de Trainees" />
       </a>
       <nav class="sidebar-nav" aria-label="Índice das aulas">
+        {
+          guias.length > 0 && (
+            <div class="nav-bloco">
+              <p class="nav-bloco-titulo">Antes de começar</p>
+              {guias.map((g) => {
+                const ativa = g.id === slugAtual;
+                return (
+                  <a
+                    href={`/guias/${g.id}`}
+                    class={"nav-aula" + (ativa ? " ativa" : "")}
+                    aria-current={ativa ? "page" : undefined}
+                  >
+                    <span class="nav-aula-codigo">{g.data.codigo}</span>
+                    <span class="nav-aula-titulo">{g.data.rotulo}</span>
+                  </a>
+                );
+              })}
+            </div>
+          )
+        }
         {
           BLOCOS.map((bloco) => (
             <div class="nav-bloco">

@@ -1,0 +1,225 @@
+---
+// Aula 0 · Média e desvio padrão. As notas são bolinhas que se arrastam: o
+// aluno mexe numa e vê os dois números responderem. O ponto de chegada são os
+// dois botões de turma — as duas têm média 7 e realidades opostas, que é a
+// frase do texto virando evidência.
+---
+
+<div class="viz-md" data-viz="mediadesvio">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="md-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Média</p>
+      <p class="stat-valor" data-media>—</p>
+      <span class="stat-unidade">a nota típica da turma</span>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Desvio padrão</p>
+      <p class="stat-valor" data-desvio>—</p>
+      <span class="stat-unidade" data-desvio-nota>—</span>
+    </div>
+
+    <div class="stat">
+      <p class="stat-rotulo">Duas turmas, a mesma média</p>
+      <div class="viz-controles">
+        <button class="btn btn-secundario" type="button" data-turma="a">Turma A</button>
+        <button class="btn btn-secundario" type="button" data-turma="b">Turma B</button>
+      </div>
+      <p class="stat-caminho">Arraste qualquer bolinha para montar a sua.</p>
+    </div>
+
+    <p class="stat-caminho md-nota" data-nota></p>
+  </div>
+</div>
+
+<style>
+  .viz-md {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .md-painel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.3fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .md-painel > * {
+    min-width: 0;
+  }
+  .md-painel .stat-valor {
+    font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+  }
+  .md-nota {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  @media (max-width: 700px) {
+    .md-painel {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="mediadesvio"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    // As duas turmas do texto: mesma soma (84 em 12 notas → média 7), espalhamentos opostos.
+    const TURMAS: Record<string, number[]> = {
+      a: [6.3, 7.5, 6.8, 7.6, 6.6, 7.2, 7.4, 6.4, 7.0, 7.5, 6.7, 7.0],
+      b: [3.5, 10.0, 4.0, 9.5, 4.5, 10.0, 3.0, 10.0, 5.5, 9.5, 4.5, 10.0],
+    };
+    const COR = {
+      nota: "#7c3aed", media: "#f4603e", faixa: "rgba(244,96,62,0.12)",
+      grade: "#eef2f8", eixo: "#c7d2e0", suave: "#8b95a5", azulAco: "#294a6b",
+    };
+
+    let notas = [...TURMAS.a];
+    let arrastando = -1;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const MARGEM = { topo: 26, dir: 22, base: 46, esq: 22 };
+
+    const media = () => notas.reduce((s, v) => s + v, 0) / notas.length;
+    const desvio = () => {
+      const m = media();
+      return Math.sqrt(notas.reduce((s, v) => s + (v - m) ** 2, 0) / notas.length);
+    };
+
+    const geo = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const gx = (nota: number) => { const p = geo(); return p.x + (nota / 10) * p.w; };
+    // as bolinhas se espalham em faixas para não se sobreporem quando as notas repetem
+    const gy = (i: number) => { const p = geo(); return p.y + p.h * (0.18 + 0.64 * ((i % 4) / 3)); };
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = geo();
+      const m = media(), d = desvio();
+
+      // a faixa de "um desvio para cada lado" da média
+      const x0 = gx(Math.max(0, m - d)), x1 = gx(Math.min(10, m + d));
+      ctx.fillStyle = COR.faixa;
+      ctx.fillRect(x0, p.y, x1 - x0, p.h);
+
+      ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+      ctx.fillStyle = COR.suave; ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let n = 0; n <= 10; n += 2) {
+        ctx.beginPath(); ctx.moveTo(gx(n), p.y); ctx.lineTo(gx(n), p.y + p.h); ctx.stroke();
+        ctx.fillText(String(n), gx(n), p.y + p.h + 8);
+      }
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y + p.h); ctx.lineTo(p.x + p.w, p.y + p.h); ctx.stroke();
+
+      // a linha da média
+      ctx.strokeStyle = COR.media; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(gx(m), p.y - 6); ctx.lineTo(gx(m), p.y + p.h); ctx.stroke();
+      ctx.fillStyle = COR.media; ctx.font = "700 13px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("média " + num(m, 1), gx(m), p.y - 10);
+
+      // as notas
+      notas.forEach((n, i) => {
+        ctx.beginPath(); ctx.arc(gx(n), gy(i), 11, 0, Math.PI * 2);
+        ctx.fillStyle = COR.nota; ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+      });
+
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("nota da prova", p.x + p.w / 2, H - 6);
+
+      el("media").textContent = num(m, 2);
+      el("desvio").textContent = num(d, 2);
+      el("desvio-nota").textContent =
+        d < 0.8
+          ? "quase todo mundo perto da média"
+          : d < 2
+            ? "espalhamento moderado"
+            : "as notas se afastam muito da média";
+      el("nota").innerHTML =
+        d < 0.8
+          ? `A faixa vermelha é <strong>um desvio para cada lado</strong> da média, e aqui ela é estreita: a nota de quase todo mundo cabe dentro dela. Dizer “a média foi ${num(m, 1)}” descreve bem esta turma. <strong>Clique em Turma B</strong> e compare.`
+          : d < 2
+            ? "A faixa já está mais larga: a média continua sendo o centro, mas as notas se afastam bastante dela."
+            : `Mesma média de antes, faixa larguíssima: aqui quase <strong>ninguém</strong> tirou perto de ${num(m, 1)} — metade foi mal e metade foi muito bem. É por isso que média sozinha engana, e o desvio anda sempre ao lado dela.`;
+    }
+
+    function paraNota(evento: PointerEvent) {
+      const r = canvas!.getBoundingClientRect();
+      const px = ((evento.clientX - r.left) / r.width) * W;
+      const p = geo();
+      return Math.min(Math.max(((px - p.x) / p.w) * 10, 0), 10);
+    }
+    function maisPerto(evento: PointerEvent) {
+      const r = canvas!.getBoundingClientRect();
+      const px = ((evento.clientX - r.left) / r.width) * W;
+      const py = ((evento.clientY - r.top) / r.height) * H;
+      let melhor = -1, dist = 26; // raio de tolerância no toque
+      notas.forEach((n, i) => {
+        const d = Math.hypot(gx(n) - px, gy(i) - py);
+        if (d < dist) { dist = d; melhor = i; }
+      });
+      return melhor;
+    }
+    canvas.addEventListener("pointerdown", (e) => {
+      arrastando = maisPerto(e);
+      if (arrastando >= 0) canvas!.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (arrastando < 0) return;
+      notas[arrastando] = paraNota(e);
+      desenhar();
+    });
+    const soltar = () => { arrastando = -1; };
+    canvas.addEventListener("pointerup", soltar);
+    canvas.addEventListener("pointercancel", soltar);
+
+    raiz.querySelectorAll<HTMLElement>("[data-turma]").forEach((b) =>
+      b.addEventListener("click", () => {
+        notas = [...TURMAS[b.dataset.turma!]];
+        desenhar();
+      }),
+    );
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 260, 240), 460)
+        : Math.round(Math.min(Math.max(W * 0.42, 220), 320));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

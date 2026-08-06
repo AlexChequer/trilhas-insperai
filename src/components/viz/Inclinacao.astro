@@ -1,0 +1,215 @@
+---
+// Aula 0 · O que é inclinação (e, por tabela, o que é derivada). Arraste o ponto
+// pela curva e veja a reta curta que encosta nela mudar de ângulo. É a mesma
+// linguagem visual da viz de ativações da Aula 4, de propósito: quando o aluno
+// chegar lá, a leitura já vai ser familiar.
+//
+// O ponto de chegada é a frase do painel: onde a inclinação é zero, a curva está
+// no fundo. É literalmente o que o gradient descent procura na Aula 1.
+---
+
+<div class="viz-incl" data-viz="inclinacao">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <div class="incl-painel">
+    <div class="stat stat-destaque">
+      <p class="stat-rotulo">Inclinação aqui</p>
+      <p class="stat-valor" data-incl>—</p>
+      <span class="stat-unidade" data-leitura>—</span>
+    </div>
+
+    <div class="stat">
+      <div class="slider-campo">
+        <label>Onde você está <span class="valor" data-x-val>—</span></label>
+        <input type="range" data-x min="-2.6" max="2.6" step="0.05" value="-2" />
+      </div>
+      <p class="stat-caminho">Também dá para arrastar o ponto direto no gráfico.</p>
+    </div>
+
+    <p class="stat-caminho incl-nota" data-nota></p>
+  </div>
+</div>
+
+<style>
+  /* A curva precisa de largura: na coluna estreita do painel ela virava um
+     selo de 150px e a reta da inclinação não se lia. */
+  .viz-incl {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .incl-painel {
+    display: grid;
+    grid-template-columns: 1.2fr 1.4fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .incl-painel > * {
+    min-width: 0;
+  }
+  .incl-nota {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  @media (max-width: 620px) {
+    .incl-painel {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="inclinacao"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-x]")!;
+
+    const XMIN = -2.6, XMAX = 2.6, YMIN = -0.6, YMAX = 4.2;
+    const COR = {
+      curva: "#7c3aed", sobe: "#f4603e", desce: "#2563eb", plano: "#16a34a",
+      grade: "#eef2f8", eixo: "#c7d2e0", suave: "#8b95a5", azulAco: "#294a6b",
+    };
+
+    // uma tigela levemente torta: tem descida, fundo e subida, e o fundo não
+    // está no zero (senão parece que "inclinação zero" é a mesma coisa que "x = 0")
+    const f = (x: number) => 0.45 * (x - 0.4) ** 2 + 0.35;
+    const df = (x: number) => 0.9 * (x - 0.4);
+
+    let x = -2;
+    let W = 0, H = 0, ultimaLargura = -1;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const MARGEM = { topo: 18, dir: 18, base: 44, esq: 50 };
+
+    const geo = () => ({
+      x: MARGEM.esq, y: MARGEM.topo,
+      w: W - MARGEM.esq - MARGEM.dir, h: H - MARGEM.topo - MARGEM.base,
+    });
+    const gx = (v: number) => { const p = geo(); return p.x + ((v - XMIN) / (XMAX - XMIN)) * p.w; };
+    const gy = (v: number) => { const p = geo(); return p.y + (1 - (v - YMIN) / (YMAX - YMIN)) * p.h; };
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const p = geo();
+
+      ctx.strokeStyle = COR.grade; ctx.lineWidth = 1;
+      ctx.fillStyle = COR.suave; ctx.font = "600 13px " + fonte();
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (let v = 0; v <= 4.01; v += 1) {
+        const yy = gy(v);
+        ctx.beginPath(); ctx.moveTo(p.x, yy); ctx.lineTo(p.x + p.w, yy); ctx.stroke();
+        ctx.fillText(String(v), p.x - 9, yy);
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      for (let v = -2; v <= 2.01; v += 1) ctx.fillText(String(v), gx(v), p.y + p.h + 8);
+      ctx.strokeStyle = COR.eixo; ctx.lineWidth = 1.5;
+      ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x, p.y, p.w, p.h); ctx.clip();
+
+      ctx.strokeStyle = COR.curva; ctx.lineWidth = 4; ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (let i = 0; i <= 240; i++) {
+        const v = XMIN + ((XMAX - XMIN) * i) / 240;
+        i === 0 ? ctx.moveTo(gx(v), gy(f(v))) : ctx.lineTo(gx(v), gy(f(v)));
+      }
+      ctx.stroke();
+
+      // a reta que encosta na curva: é ela que mostra a inclinação
+      const inclinacao = df(x);
+      const plano = Math.abs(inclinacao) < 0.08;
+      const cor = plano ? COR.plano : inclinacao > 0 ? COR.sobe : COR.desce;
+      const escalaX = p.w / (XMAX - XMIN), escalaY = p.h / (YMAX - YMIN);
+      const dx = 1, dy = -inclinacao * (escalaY / escalaX);
+      const norma = Math.hypot(dx, dy);
+      const meio = Math.min(72, p.w * 0.3);
+      const cx = gx(x), cy = gy(f(x));
+      ctx.strokeStyle = cor; ctx.lineWidth = 5; ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cx - (dx / norma) * meio, cy - (dy / norma) * meio);
+      ctx.lineTo(cx + (dx / norma) * meio, cy + (dy / norma) * meio);
+      ctx.stroke();
+
+      ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+      ctx.fillStyle = COR.curva; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = COR.azulAco; ctx.font = "700 14px " + fonte();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText("onde você está", p.x + p.w / 2, H - 6);
+      ctx.save(); ctx.translate(14, p.y + p.h / 2); ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("altura", 0, 0); ctx.restore();
+
+      el("x-val").textContent = num(x, 2);
+      el("incl").textContent = num(inclinacao, 2);
+      el("leitura").textContent = plano
+        ? "está plano — nem sobe nem desce"
+        : inclinacao > 0
+          ? "positiva: andando para a direita, você sobe"
+          : "negativa: andando para a direita, você desce";
+      el("nota").innerHTML = plano
+        ? "Inclinação <strong>zero</strong> é o fundo. Repare que a reta ficou deitada — e que este é o ponto mais baixo da curva. Guarde isso: na Aula 1, treinar um modelo é justamente <strong>procurar o lugar onde a inclinação zera</strong>."
+        : inclinacao > 0
+          ? `Inclinação <strong>${num(inclinacao, 2)}</strong>: para cada passo para a direita, a curva sobe cerca de ${num(Math.abs(inclinacao), 2)}. Quanto mais inclinada a reta, mais íngreme o terreno ali. <strong>Para descer, ande para a esquerda.</strong>`
+          : `Inclinação <strong>${num(inclinacao, 2)}</strong>: o sinal negativo quer dizer que a curva <strong>desce</strong> quando você anda para a direita. É assim que um número só te diz para que lado ir.`;
+    }
+
+    slider.addEventListener("input", () => { x = parseFloat(slider.value); desenhar(); });
+
+    // arrastar direto no gráfico
+    let arrastando = false;
+    const mover = (evento: PointerEvent) => {
+      const r = canvas!.getBoundingClientRect();
+      const px = ((evento.clientX - r.left) / r.width) * W;
+      const p = geo();
+      const v = XMIN + ((px - p.x) / p.w) * (XMAX - XMIN);
+      x = Math.min(Math.max(v, XMIN), XMAX);
+      slider.value = String(x);
+      desenhar();
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+      arrastando = true;
+      canvas!.setPointerCapture(e.pointerId);
+      mover(e);
+    });
+    canvas.addEventListener("pointermove", (e) => { if (arrastando) mover(e); });
+    const soltar = () => { arrastando = false; };
+    canvas.addEventListener("pointerup", soltar);
+    canvas.addEventListener("pointercancel", soltar);
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia
+        ? Math.min(Math.max(window.innerHeight - 150, 320), 720)
+        : Math.round(Math.min(Math.max(W * 0.46, 260), 400));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+  });
+</script>

@@ -1,0 +1,54 @@
+---
+// Página de material de consulta (Aula 0, e depois a trilha de setup). Mesma
+// leitura das aulas, sem o prev/next do arco — um guia não tem "próxima aula".
+import SiteLayout from "./SiteLayout.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  data: CollectionEntry<"guias">["data"];
+  slug: string;
+  headings: { depth: number; slug: string; text: string }[];
+}
+const { data, slug, headings } = Astro.props;
+const secoes = headings.filter((h) => h.depth === 2);
+---
+
+<SiteLayout title={`${data.titulo} — InsperAI`} descricao={data.objetivo} slugAtual={slug}>
+  <div class="aula-doc">
+    <article class="conteudo-aula">
+      <header class="aula-hero">
+        <span class="badge badge-guia">Antes de começar</span>
+        <h1>{data.titulo}</h1>
+        <p class="objetivo">{data.objetivo}</p>
+      </header>
+
+      <div class="leitura">
+        <slot />
+      </div>
+
+      <nav class="aula-nav">
+        <a href="/">
+          <div class="rotulo">Começo</div>
+          <div class="nome">← Visão geral do semestre</div>
+        </a>
+        <a class="direita" href="/aulas/aula-01">
+          <div class="rotulo">Quando estiver pronto · A1</div>
+          <div class="nome">Intro a ML + Regressão Linear →</div>
+        </a>
+      </nav>
+    </article>
+
+    {
+      secoes.length > 0 && (
+        <aside class="rail">
+          <p class="rail-titulo">Nesta página</p>
+          <nav>
+            {secoes.map((h) => (
+              <a href={`#${h.slug}`}>{h.text}</a>
+            ))}
+          </nav>
+        </aside>
+      )
+    }
+  </div>
+</SiteLayout>

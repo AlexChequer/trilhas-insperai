@@ -1,0 +1,330 @@
+---
+titulo: "Aula 0 — Fundamentos"
+rotulo: "Fundamentos"
+codigo: "A0"
+ordem: 0
+objetivo: "O pré-requisito do curso: o mínimo de programação, Python, NumPy e matemática para acompanhar as aulas — e o passo a passo para deixar a máquina pronta."
+---
+
+import VizEmbed from "../../components/VizEmbed.astro";
+import Inclinacao from "../../components/viz/Inclinacao.astro";
+import MediaDesvio from "../../components/viz/MediaDesvio.astro";
+import Vetorizacao from "../../components/viz/Vetorizacao.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
+
+Esta página não é uma aula do semestre — é o **pré-requisito** dele, e material de consulta o tempo todo. Ela existe porque o programa recebe gente que nunca programou, e porque nenhuma das treze aulas vai parar para explicar o que é uma função ou o que quer dizer uma média.
+
+São duas metades independentes. A primeira é **conceito**: o que você precisa entender para as aulas fazerem sentido. A segunda é **prática**: o passo a passo para deixar a sua máquina pronta para rodar os notebooks.
+
+<Caixa tipo="dica" titulo="Como usar esta página">
+Não precisa ler de cabo a rabo antes de começar. O que funciona é: faça a parte de **montar o ambiente** uma vez, vá para a **Aula 1**, e volte aqui quando esbarrar em algo. Cada seção é independente e o índice à direita leva direto ao ponto. Se você já programa em Python, provavelmente só a seção de matemática interessa.
+</Caixa>
+
+## O que é programar
+
+Um programa é uma **sequência de instruções** que o computador executa na ordem em que estão escritas. Não há mágica nem inteligência nisso: ele faz exatamente o que está no papel, inclusive quando o que está no papel é bobagem.
+
+Três ideias cobrem quase tudo o que você vai ver nos notebooks do curso:
+
+- **Variável** — um nome que guarda um valor. `preco = 250` quer dizer "a partir de agora, `preco` vale 250". O sinal de igual aqui não é o da matemática: ele não afirma uma igualdade, ele **atribui**. Por isso `x = x + 1` faz sentido em código e não faria numa equação.
+- **Função** — um trecho de código com nome, que recebe entradas e devolve uma saída. `media([2, 4, 6])` devolve `4`. Você usa dezenas de funções que outra pessoa escreveu, e é isso que torna o trabalho viável.
+- **Repetição** — mandar o computador fazer a mesma coisa muitas vezes. É daí que vem o poder: treinar um modelo é repetir uma correção milhares de vezes, e a máquina não se cansa nem erra a conta.
+
+<Caixa tipo="erro">
+Achar que precisa **decorar** a sintaxe. Ninguém decora — nem quem programa há dez anos. O que se aprende é o **repertório**: saber que existe uma forma de fazer aquilo e saber procurar como. Errar a vírgula e o computador reclamar não é sinal de que você não leva jeito; é o funcionamento normal da coisa, todo dia, para todo mundo.
+</Caixa>
+
+## Python: o que aparece nas aulas
+
+Python é a linguagem do curso, e a escolha não é gosto: praticamente todo o ecossistema de machine learning é escrito nela. O que você vai encontrar nos notebooks cabe em pouca coisa.
+
+**Listas** guardam vários valores em ordem, e a contagem começa no **zero** — o primeiro item é o item `0`. É a fonte de metade dos erros de quem está começando.
+
+```python
+precos = [250, 310, 180]
+precos[0]        # 250, o primeiro
+len(precos)      # 3, quantos itens tem
+```
+
+**Laços** repetem um bloco para cada item:
+
+```python
+for p in precos:
+    print(p * 2)
+```
+
+**Funções** empacotam uma tarefa com nome:
+
+```python
+def dobro(x):
+    return x * 2
+
+dobro(21)        # 42
+```
+
+E **bibliotecas** são código pronto que você importa. `import numpy as np` quer dizer "traga o NumPy e me deixe chamá-lo de `np`". Você vai ver `np` em todo notebook do semestre.
+
+<Pergunta pergunta="Preciso saber programar bem para acompanhar o curso?">
+Não — mas precisa saber **ler** código e mexer nele.
+
+O curso não é de programação: é de machine learning, e os notebooks já vêm escritos. O que se espera de você é abrir, entender o que cada bloco faz, mudar um número, rodar de novo e interpretar o que mudou. Isso é bem menos do que "programar bem".
+
+O que **não** dá para terceirizar é o entendimento do que o código está fazendo. A Aula 8 trata exatamente disso: você pode delegar a escrita para uma IA, e continua responsável por revisar. Quem não sabe ler o código não sabe revisar — e é por isso que esta página existe.
+
+Se você nunca programou, o investimento que mais rende é uma tarde com listas, laços e funções. Só isso já destrava a leitura dos notebooks.
+</Pergunta>
+
+## NumPy: por que ele existe
+
+Uma lista comum do Python é flexível e lenta. O **NumPy** troca a flexibilidade por velocidade: ele guarda os números todos do mesmo tipo, lado a lado na memória, e opera neles em bloco. Essa estrutura se chama **array**.
+
+A diferença prática é enorme na escrita. Sem NumPy, dobrar mil números pede um laço; com NumPy, é uma linha:
+
+```python
+import numpy as np
+
+precos = np.array([250, 310, 180])
+precos * 2           # array([500, 620, 360]) — multiplicou todos de uma vez
+precos.mean()        # 246.67
+precos > 200         # array([True, True, False])
+```
+
+Escrever a operação para o array **inteiro**, sem laço, se chama **vetorização**. **Aperte "rodar os dois"** e compare os caminhos:
+
+<VizEmbed titulo="o mesmo trabalho, dois caminhos">
+  <Vetorizacao />
+</VizEmbed>
+
+Repare no que muda quando você aumenta o tamanho: o número de voltas do laço explode e **o código do NumPy continua o mesmo**. Além de mais curto de escrever, ele é dezenas de vezes mais rápido, porque a conta acontece em código otimizado por baixo em vez de rodar linha a linha no Python.
+
+O outro conceito que vale trazer é o **formato** (_shape_) de um array: quantas linhas e colunas ele tem. Uma imagem de 28×28 pixels é um array de formato `(28, 28)`; mil imagens dessas viram `(1000, 28, 28)`. Quase todo erro que você vai ver rodando notebook de ML é um erro de formato — dois arrays que não batem —, e ler a mensagem com calma resolve a maior parte deles.
+
+<Caixa tipo="nota" titulo="A Aula 2 depende disto">
+Quando a Aula 2 escrever $\mathbf{w} \cdot \mathbf{x} + b$ com aquelas letras em negrito, ela está falando de arrays: $\mathbf{w}$ e $\mathbf{x}$ são listas de números, e o ponto entre eles é uma operação que multiplica os dois em bloco e soma tudo. Se essa ideia estiver confortável, o resto da notação do curso vem junto.
+</Caixa>
+
+## A matemática que o curso usa
+
+Menos do que parece, e sempre com um significado concreto por trás. Quatro coisas.
+
+**Probabilidade** é o quanto se acredita em algo, entre 0 e 1. Vai aparecer na Aula 3, quando o modelo deixar de responder "é spam" e passar a responder "82% de chance de ser spam".
+
+**Média** é o valor típico: some tudo e divida pela quantidade. Ela resume um conjunto num número — e esconde a variação dentro dele. **Desvio padrão** é justamente o quanto os valores costumam se afastar dessa média.
+
+Duas turmas podem ter a **mesma média** e realidades completamente diferentes. **Arraste as bolinhas** e depois compare as duas turmas:
+
+<VizEmbed titulo="arraste as notas e olhe os dois números">
+  <MediaDesvio />
+</VizEmbed>
+
+É por isso que os dois andam juntos: a média sozinha diria que as duas turmas foram iguais. Isso volta na Aula 2, quando o curso for **padronizar** as features — a conta ali é exatamente "subtraia a média e divida pelo desvio".
+
+**Inclinação** é a última, e é a que costuma assustar. Ela responde: *se eu andar um pouquinho para a direita, o que acontece com a altura?* Se sobe, a inclinação é positiva; se desce, negativa; se não muda, é zero. **Arraste o ponto** pela curva:
+
+<VizEmbed titulo="arraste o ponto e olhe a reta que encosta na curva">
+  <Inclinacao />
+</VizEmbed>
+
+Guarde a última observação: **onde a inclinação é zero, você está no fundo.** Toda a Aula 1 é sobre isso — treinar um modelo é procurar o ponto mais baixo de uma curva de erro, e a inclinação é a bússola que diz para que lado andar. Quando aparecer a palavra **derivada**, ela quer dizer exatamente "a inclinação naquele ponto".
+
+<Caixa tipo="erro">
+Travar por achar que precisa saber cálculo. Você **não** vai derivar nada à mão neste curso, e nenhuma prova vai pedir isso — as bibliotecas calculam as derivadas sozinhas. O que você precisa é entender o que a inclinação **significa**: para que lado a coisa está subindo, e quanto. Se você entendeu o gráfico acima, já tem o suficiente.
+</Caixa>
+
+## Git e GitHub: para que servem
+
+Git é o programa que guarda o **histórico** do seu código: cada versão salva fica registrada, com quem mudou o quê e quando, e dá para voltar a qualquer ponto anterior. GitHub é um site que hospeda esses históricos na internet, para várias pessoas trabalharem no mesmo projeto.
+
+Por que isso importa para você agora: os notebooks das aulas ficam num repositório, e o jeito de pegá-los é com Git. Quatro palavras cobrem o uso do semestre:
+
+- **repositório** — a pasta do projeto, com todo o histórico dentro.
+- **clonar** — baixar uma cópia do repositório para a sua máquina.
+- **commit** — salvar um ponto no histórico, com uma mensagem dizendo o que mudou.
+- **push** — mandar os seus commits para o GitHub.
+
+O *como* está logo abaixo.
+
+## Montar o ambiente
+
+Meia hora, uma vez só. São quatro peças: **Python**, um **editor**, o **Git** e o **projeto**. Se travar em qualquer passo, traga o erro para a aula — é mais rápido resolver junto do que sozinho.
+
+### 1. Python, com o uv
+
+Não instale o Python direto do site. Use o **uv**, que instala o Python e cuida das bibliotecas de cada projeto sem misturar um com o outro — que é o problema que faz todo mundo perder tarde de trabalho.
+
+No **macOS** ou **Linux**, abra o Terminal e cole:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+No **Windows**, abra o PowerShell e cole:
+
+```powershell
+winget install --id=astral-sh.uv -e
+```
+
+Feche e reabra o terminal, e confira se funcionou:
+
+```bash
+uv --version
+```
+
+Se aparecer um número de versão, está pronto. O uv baixa a versão certa do Python sozinho na primeira vez que precisar — você não precisa instalar o Python separadamente.
+
+### 2. O editor: VS Code
+
+Baixe o **Visual Studio Code** em [code.visualstudio.com](https://code.visualstudio.com/). Depois de instalar, abra o painel de extensões (o ícone de blocos na barra lateral) e instale duas:
+
+- **Python**, da Microsoft;
+- **Jupyter**, também da Microsoft — é ela que faz o VS Code abrir e rodar notebooks.
+
+### 3. Git
+
+No **macOS**, o jeito mais simples é digitar `git --version` no Terminal: se ele não estiver instalado, o próprio sistema oferece instalar. No **Windows**, baixe em [git-scm.com](https://git-scm.com/downloads) e aceite as opções padrão.
+
+Depois, diga ao Git quem é você — isso vai junto de cada commit:
+
+```bash
+git config --global user.name "Seu Nome"
+git config --global user.email "seu@email.com"
+```
+
+Use o mesmo e-mail da sua conta do GitHub. Se você ainda não tem conta, crie uma em [github.com](https://github.com/) — leva dois minutos e é grátis.
+
+### 4. O projeto e o primeiro notebook
+
+Com o repositório da aula clonado (`git clone <endereço do repositório>`), entre na pasta e prepare o ambiente:
+
+```bash
+cd nome-da-pasta
+uv sync
+```
+
+O `uv sync` lê a lista de bibliotecas do projeto e instala todas numa pasta `.venv` ali dentro, isolada do resto da máquina. Para abrir o notebook, abra a pasta no VS Code (`code .`), clique no arquivo `.ipynb` e, no canto superior direito, escolha o **kernel** — selecione o Python que está em `.venv`. Rode a primeira célula com `Shift + Enter`.
+
+Se preferir o Jupyter no navegador em vez do VS Code:
+
+```bash
+uv run --with jupyter jupyter lab
+```
+
+<Caixa tipo="atencao" titulo="O repositório dos notebooks ainda não existe">
+Os comandos acima são o fluxo final, mas o endereço do repositório das aulas ainda vai ser divulgado. Enquanto isso, dá para fazer os passos 1 a 3 — que são os que costumam dar trabalho — e deixar a máquina pronta. Quando o repositório sair, só falta o `git clone` e o `uv sync`.
+</Caixa>
+
+<Caixa tipo="erro">
+Instalar bibliotecas "para o computador inteiro" com `pip install` solto, sem ambiente isolado. Funciona no primeiro projeto e quebra no terceiro, quando dois projetos precisam de versões diferentes da mesma biblioteca — e o erro que aparece não tem nada a ver com a causa. O `uv sync` cria um ambiente por projeto justamente para isso, e é por isso que o curso pede o uv em vez do pip.
+</Caixa>
+
+<p class="nota">
+  Se as seções de conceito fizeram sentido e a máquina está pronta, você tem o
+  suficiente para começar a Aula 1 sem tropeçar em pré-requisito. E se não
+  fizeram, tudo bem: volte a esta página quando a dúvida aparecer de verdade —
+  ela costuma ficar bem mais fácil de entender quando você já sabe para que serve.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Quatro perguntas rápidas para conferir se a base está de pé. Responda, veja a explicação e refaça quantas vezes quiser.">
+
+<Quiz
+  id="a0-igual-nao-e-igualdade"
+  pergunta="Em Python, a linha `contador = contador + 1` faz o quê?"
+  alternativas={[
+    {
+      texto: "Pega o valor atual de `contador`, soma 1, e guarda o resultado de volta no mesmo nome. O sinal de igual atribui um valor, não afirma uma igualdade.",
+      certa: true,
+      porque: "Isso. É por isso que essa linha, que seria absurda numa equação matemática, é uma das mais comuns em programação.",
+    },
+    {
+      texto: "Nada: é uma equação impossível, porque um número não pode ser igual a ele mesmo mais um.",
+      porque: "Seria impossível se o `=` fosse o da matemática. Em código ele é uma ordem — “calcule a direita e guarde na esquerda” —, e a ordem faz todo sentido.",
+    },
+    {
+      texto: "Cria uma variável nova chamada `contador + 1`.",
+      porque: "O lado direito é uma conta a ser feita, não um nome. O único nome criado (ou atualizado) é o do lado esquerdo.",
+    },
+    {
+      texto: "Compara `contador` com `contador + 1` e devolve falso.",
+      porque: "Comparar é outro operador, com dois sinais: `==`. Confundir os dois é um erro clássico, e o Python costuma avisar quando isso acontece.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a0-por-que-numpy"
+  pergunta="Por que o curso inteiro usa NumPy em vez de listas comuns do Python?"
+  alternativas={[
+    {
+      texto: "Porque ele permite operar no array inteiro de uma vez, sem laço — o que deixa o código mais curto de escrever e muito mais rápido de rodar.",
+      certa: true,
+      porque: "Isso, e os dois ganhos vêm juntos: `precos * 2` é mais legível que um laço **e** roda em código otimizado por baixo, em vez de linha a linha.",
+    },
+    {
+      texto: "Porque listas do Python não conseguem guardar números decimais.",
+      porque: "Guardam sem problema — guardam qualquer coisa, aliás, e é justamente essa flexibilidade que as torna lentas. O NumPy abre mão dela em troca de velocidade.",
+    },
+    {
+      texto: "Porque o NumPy já vem com os modelos de machine learning prontos.",
+      porque: "Não vem: ele é a camada de baixo, a dos números e das contas. Os modelos vêm de outras bibliotecas, que por sua vez usam o NumPy por dentro.",
+    },
+    {
+      texto: "Porque o NumPy evita erros de formato entre os dados.",
+      porque: "É quase o contrário — é o NumPy que **cobra** o formato certo e reclama quando dois arrays não batem. Isso é uma proteção, mas não é o motivo de existir.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a0-inclinacao-zero"
+  pergunta="Numa curva com formato de tigela, você está num ponto onde a inclinação é zero. O que isso significa?"
+  alternativas={[
+    {
+      texto: "Você está no fundo: andar um pouquinho para qualquer lado não muda a altura. É exatamente o lugar que o treino de um modelo procura.",
+      certa: true,
+      porque: "Isso. Inclinação zero é a assinatura do ponto mais baixo — e é por isso que a Aula 1 vai dizer que o treino acaba quando o gradiente some.",
+    },
+    {
+      texto: "Você está na altura zero.",
+      porque: "São coisas diferentes: inclinação é o quanto a curva **sobe ou desce** ali, e altura é onde ela está. Na visualização, o fundo tem inclinação zero e altura 0,35.",
+    },
+    {
+      texto: "A curva acabou naquele ponto.",
+      porque: "A curva continua normalmente — ela só está momentaneamente plana. Se você seguir andando, ela volta a subir.",
+    },
+    {
+      texto: "Você está exatamente no meio do gráfico, em x = 0.",
+      porque: "Só se o fundo da tigela estivesse ali por coincidência. Na visualização o fundo fica em x = 0,4, justamente para separar as duas ideias.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a0-media-e-desvio"
+  pergunta="Duas turmas tiraram média 7 na mesma prova. A turma A tem desvio padrão 0,4 e a turma B, 2,9. O que dá para afirmar?"
+  alternativas={[
+    {
+      texto: "Na turma A quase todo mundo tirou perto de 7; na B, as notas se espalharam bastante — muita gente bem abaixo e muita gente bem acima.",
+      certa: true,
+      porque: "Isso, e é o motivo de o desvio andar sempre ao lado da média: sozinha, ela apaga exatamente a informação que costuma importar mais.",
+    },
+    {
+      texto: "A turma A foi melhor, porque desvio menor indica notas mais altas.",
+      porque: "Desvio mede espalhamento, não nível. As duas turmas têm a mesma média — o que muda é a distância típica de cada aluno até ela.",
+    },
+    {
+      texto: "A turma B tem mais alunos, já que o desvio é maior.",
+      porque: "O desvio não depende da quantidade de alunos. Uma turma de 200 pessoas com notas parecidas teria desvio pequeno do mesmo jeito.",
+    },
+    {
+      texto: "Nada: com a mesma média, as duas turmas tiveram o mesmo desempenho.",
+      porque: "Essa é justamente a conclusão que o desvio existe para desmentir. Média igual com desvios muito diferentes descreve realidades opostas.",
+    },
+  ]}
+/>
+
+</QuizBloco>
