@@ -1,0 +1,34 @@
+---
+// Tabela "o que cada símbolo quer dizer", para ir logo depois de uma fórmula.
+// Os símbolos vêm por prop (com LaTeX entre $...$), então são renderizados no
+// build pelo KaTeX — ver src/lib/mat.ts.
+import { mat } from "../lib/mat";
+
+export interface Simbolo {
+  simbolo: string;
+  significado: string;
+}
+interface Props {
+  itens: Simbolo[];
+  titulo?: string;
+}
+const { itens, titulo = "O que cada símbolo quer dizer" } = Astro.props;
+
+if (itens.length === 0) {
+  throw new Error("<Simbolos>: a lista de itens está vazia.");
+}
+---
+
+<div class="simbolos">
+  <p class="simbolos-titulo">{titulo}</p>
+  <dl class="simbolos-lista">
+    {
+      itens.map((item) => (
+        <div class="simbolos-linha">
+          <dt set:html={mat(item.simbolo)} />
+          <dd set:html={mat(item.significado)} />
+        </div>
+      ))
+    }
+  </dl>
+</div>

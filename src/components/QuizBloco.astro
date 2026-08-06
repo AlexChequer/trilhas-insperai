@@ -1,0 +1,21 @@
+---
+// Bloco de fechamento da aula: agrupa vários <Quiz> e mostra quantos já foram
+// respondidos. O contador é atualizado pelo script do próprio Quiz.
+//
+// `titulo` é opcional de propósito: quando a aula já tem um `##` em Markdown
+// antes do bloco (o que faz a seção aparecer no rail "Nesta aula"), deixe sem.
+interface Props {
+  titulo?: string;
+  intro?: string;
+}
+const { titulo, intro } = Astro.props;
+---
+
+<section class="quiz-bloco" data-quiz-bloco>
+  <header class="quiz-bloco-topo">
+    {titulo && <h2 class="quiz-bloco-titulo">{titulo}</h2>}
+    <p class="quiz-bloco-contador" data-contador hidden></p>
+  </header>
+  {intro && <p class="quiz-bloco-intro">{intro}</p>}
+  <slot />
+</section>

@@ -9,6 +9,12 @@ import VizEmbed from "../../components/VizEmbed.astro";
 import GrauPolinomio from "../../components/viz/GrauPolinomio.astro";
 import NormalizacaoZigzag from "../../components/viz/NormalizacaoZigzag.astro";
 import HistogramasNormalizacao from "../../components/viz/HistogramasNormalizacao.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
 
 Na Aula 1, o modelo tinha uma variável só: previsão a partir da metragem. É ótimo para aprender, mas ninguém prevê preço de imóvel só com metragem — entram quartos, idade, bairro, andar. Esta aula tem um tema único: **o vetor de entrada pode ter o que você quiser dentro**. E, surpreendentemente, quase nada do algoritmo muda para acomodar isso.
 
@@ -20,13 +26,54 @@ $$
 \text{previsão} = w_1 x_1 + w_2 x_2 + \dots + w_n x_n + b
 $$
 
-Cada feature $x_i$ ganha o seu próprio peso $w_i$, que diz o quanto ela influencia a previsão. Escrever tudo por extenso não escala — imagine com 200 features. Então empacota-se as features num **vetor** $\mathbf{x}$ e os pesos num vetor $\mathbf{w}$, e a soma inteira vira um **produto escalar**:
+<Simbolos
+  itens={[
+    { simbolo: "$x_i$", significado: "a i-ésima feature do imóvel — $x_1$ metragem, $x_2$ número de quartos, $x_3$ idade…" },
+    { simbolo: "$w_i$", significado: "o peso da feature $i$: quanto o preço muda quando ela sobe uma unidade e as outras ficam paradas" },
+    { simbolo: "$n$", significado: "quantas features o modelo usa" },
+    { simbolo: "$b$", significado: "o mesmo deslocamento da Aula 1 — não pertence a nenhuma feature" },
+  ]}
+/>
+
+Escrever tudo por extenso não escala — imagine com 200 features. Então empacota-se as features num **vetor** $\mathbf{x}$ e os pesos num vetor $\mathbf{w}$, e a soma inteira vira um <Termo id="produto-escalar">produto escalar</Termo>:
 
 $$
 \text{previsão} = \mathbf{w} \cdot \mathbf{x} + b
 $$
 
-Repare que é a **mesma** regressão da Aula 1 — a mesma reta, a mesma ideia de ajustar pesos para minimizar o custo, o mesmo gradient descent. A única diferença é que $\mathbf{x}$ agora é um vetor em vez de um número. Guarde essa notação vetorial com carinho: **sem ela, a Aula 5 (redes neurais) vira um muro**, porque uma rede nada mais é do que muitos desses produtos escalares empilhados.
+<Simbolos
+  itens={[
+    { simbolo: "$\\mathbf{x}$", significado: "o vetor de features de um imóvel: $(x_1, x_2, \\dots, x_n)$" },
+    { simbolo: "$\\mathbf{w}$", significado: "o vetor de pesos, um para cada feature — o que o modelo aprende" },
+    { simbolo: "$\\mathbf{w} \\cdot \\mathbf{x}$", significado: "multiplica cada peso pela sua feature e soma tudo: exatamente a linha de cima, escrita curto" },
+  ]}
+/>
+
+Repare que é a **mesma** regressão da Aula 1 — a mesma ideia de ajustar pesos para minimizar o custo, o mesmo gradient descent. A única diferença é que $\mathbf{x}$ agora é um vetor em vez de um número. Guarde essa notação vetorial com carinho: **sem ela, a Aula 5 (redes neurais) vira um muro**, porque uma rede nada mais é do que muitos desses produtos escalares empilhados.
+
+<Quiz
+  id="a2-de-uma-para-muitas"
+  pergunta="Você sai de um modelo com 1 feature para um com 200. O que muda no algoritmo de treino?"
+  alternativas={[
+    {
+      texto: "Nada de essencial: continua sendo função de custo mais gradient descent. Cada um dos 200 pesos tem a sua derivada parcial, e todos são atualizados juntos a cada passo.",
+      certa: true,
+      porque: "Exatamente — é o que faz a notação vetorial valer a pena. A tigela agora vive em muitas dimensões e não dá para desenhar, mas a mecânica é a mesma: medir o erro, olhar a inclinação, dar um passo.",
+    },
+    {
+      texto: "É preciso trocar o gradient descent por um algoritmo próprio para muitas dimensões.",
+      porque: "O gradient descent não tem limite de dimensões — é justamente por escalar bem que ele continua sendo o motor de treino até das redes neurais, com milhões de parâmetros.",
+    },
+    {
+      texto: "O custo deixa de ser um número só e passa a ser um vetor com um erro por feature.",
+      porque: "O custo continua sendo um número só: ele resume o erro do modelo no conjunto inteiro. Quem vira vetor é o gradiente, que tem uma derivada parcial por parâmetro.",
+    },
+    {
+      texto: "Passa a ser necessário treinar uma regressão por feature e depois combinar os resultados.",
+      porque: "Nesse esquema cada feature seria ajustada sozinha, ignorando as outras — e o ganho de usar várias features é justamente pesar todas ao mesmo tempo, cada peso medindo o efeito da sua feature com as demais fixas.",
+    },
+  ]}
+/>
 
 ## Feature engineering: escolher o que entra
 
@@ -37,27 +84,67 @@ Se o vetor pode ter o que você quiser, a pergunta passa a ser: o que colocar ne
 - Às vezes **transformar** uma feature ajuda: o log da renda costuma funcionar melhor que a renda crua, porque comprime a cauda dos muito ricos.
 - E cuidado: uma feature ruim **não é neutra** — ela adiciona ruído e pode atrapalhar o treino.
 
+<Caixa tipo="erro">
+Mais features **não** é sempre melhor. Cada feature sem informação dá ao modelo mais uma maneira de se ajustar ao ruído dos dados de treino, além de exigir mais exemplos para que os pesos se estabilizem. Feature entra por merecimento, não por disponibilidade.
+</Caixa>
+
 ## Regressão polinomial
 
 E se a relação não for uma reta, mas uma curva? Aqui está o truque mais elegante da aula: você **cria features novas** a partir das que tem. Se tem $x$, crie também $x^2$, $x^3$, e por aí vai. Aí é só rodar a **mesma** regressão linear sobre esse conjunto ampliado.
 
-O resultado é uma curva, mas — e essa é a sacada que faz a ficha cair — você **não mudou o algoritmo**, só mudou a entrada. Por isso "linear" se refere aos **parâmetros** (os pesos entram de forma linear), não à forma do gráfico. Regressão polinomial é feature engineering, não um método novo.
+O resultado é uma curva, mas — e essa é a sacada que faz a ficha cair — você **não mudou o algoritmo**, só mudou a entrada. Por isso "linear" se refere aos **parâmetros** (os pesos entram de forma linear), não à forma do gráfico. Regressão polinomial é <Termo id="feature-engineering">feature engineering</Termo>, não um método novo.
 
-Mas há um perigo. <span class="destaque">Aumente o grau do polinômio</span> abaixo e observe: com grau baixo, a curva é simples demais e passa longe dos pontos (isso é **underfitting**). Com grau alto, ela se contorce para tocar cada ponto:
+<Pergunta pergunta="Se o gráfico virou uma curva, em que sentido o modelo ainda é “linear”?">
+No sentido de como os **parâmetros** entram na conta. Com as features $x$, $x^2$ e $x^3$, a previsão é $w_1 x + w_2 x^2 + w_3 x^3 + b$: cada peso multiplica a sua feature e as parcelas são somadas. Nenhum peso aparece elevado a algo, multiplicado por outro peso ou dentro de uma função.
+
+Quem é curvo é o **$x$**, não o $w$ — e, do ponto de vista do treino, $x^2$ é só mais uma coluna de números que chegou pronta. O algoritmo nem fica sabendo que ela nasceu de outra.
+</Pergunta>
+
+Mas há um perigo. **Aumente o grau do polinômio** abaixo e observe: com grau baixo, a curva é simples demais e passa longe dos pontos (isso é **underfitting**). Com grau alto, ela se contorce para tocar cada ponto:
 
 <VizEmbed titulo="arraste o slider de grau, de 1 a 15">
   <GrauPolinomio />
 </VizEmbed>
 
-No **grau 15**, a curva passa por todos os pontos e o erro de treino vai a zero. Parece perfeito — mas ela decorou o **ruído**, não a tendência. Numa metragem nova, ela chuta qualquer coisa. Guarde essa imagem: é o retrato do **overfitting**, e ela volta com esse nome na Aula 7.
+No **grau 15**, a curva passa por todos os pontos e o erro de treino vai a zero. Parece perfeito — mas ela decorou o **ruído**, não a tendência. Numa metragem nova, ela chuta qualquer coisa. Guarde essa imagem: é o retrato do <Termo id="overfitting">overfitting</Termo>, e ela volta com esse nome na Aula 7.
+
+O grau, aliás, é mais um **hiperparâmetro**: você escolhe antes de treinar, o modelo não descobre sozinho. E, como o learning rate da Aula 1, ele tem um ponto certo entre dois extremos ruins.
+
+<Caixa tipo="erro">
+Regressão polinomial **não** é um algoritmo diferente. É a mesma regressão linear rodando sobre features que você fabricou. Quem trata os dois como métodos distintos acaba procurando uma biblioteca nova quando bastava acrescentar colunas à entrada.
+</Caixa>
+
+<Quiz
+  id="a2-erro-treino-zero"
+  pergunta="No grau 15, o erro nos dados de treino foi a zero. Por que isso não é uma boa notícia?"
+  alternativas={[
+    {
+      texto: "Erro zero no treino é sempre a meta; o único problema é o custo de cálculo de um polinômio tão grande.",
+      porque: "A meta nunca foi errar zero no que o modelo já viu — isso qualquer curva suficientemente flexível consegue. A meta é acertar em dado novo.",
+    },
+    {
+      texto: "A curva decorou o ruído dos pontos que viu. O que interessa é o erro em dados que o modelo nunca viu, e nesses ela vai muito mal.",
+      certa: true,
+      porque: "Isso. Erro de treino baixíssimo com erro alto em dado novo é a assinatura do overfitting. Repare que o próprio erro de treino deixou de ser um sinal confiável de qualidade.",
+    },
+    {
+      texto: "Erro de treino igual a zero indica que faltam features no modelo.",
+      porque: "É o contrário: sobra flexibilidade. Com grau 15 o modelo ganhou liberdade de sobra para se contorcer até passar por cada ponto.",
+    },
+    {
+      texto: "Grau 15 torna o modelo não-linear, e aí a convergência do gradient descent deixa de ser garantida.",
+      porque: "O modelo continua linear nos parâmetros — foi o assunto desta seção. O problema do grau 15 é de generalização, não de convergência.",
+    },
+  ]}
+/>
 
 ## A escala atrapalha o treino
 
-Agora um problema traiçoeiro que só aparece com várias features. Metragem vai de 30 a 500; número de quartos, de 1 a 5. São escalas completamente diferentes, e o gradient descent sente isso.
+Agora um problema traiçoeiro que só aparece com várias <Termo id="feature">features</Termo>. Metragem vai de 30 a 500; número de quartos, de 1 a 5. São escalas completamente diferentes, e o <Termo id="gradient-descent">gradient descent</Termo> sente isso.
 
 Lembra da tigela de custo da Aula 1? Com features de escalas parecidas, ela é redonda, e a bola rola direto para o fundo. Com escalas muito diferentes, a tigela vira um **vale comprido e estreito** — íngreme numa direção, quase plano na outra. O gradiente aponta forte na direção íngreme e fraco na plana, então a bola **ziguezagueia**: bate de um lado a outro do vale enquanto se arrasta devagar rumo ao fundo. Ela chega, mas leva muito mais passos.
 
-<span class="destaque">Ligue e desligue a normalização</span> e veja o caminho mudar (o painel conta os passos até o fundo):
+**Ligue e desligue a normalização** e veja o caminho mudar (o painel conta os passos até o fundo):
 
 <VizEmbed titulo="alterne entre com e sem normalização">
   <NormalizacaoZigzag />
@@ -69,24 +156,123 @@ Pior ainda: se você criou $x^3$ na regressão polinomial, a escala daquela feat
 
 A solução é deixar as features comparáveis, com uma de duas técnicas:
 
-- **Normalização**: espreme cada feature para o intervalo de 0 a 1.
+- <Termo id="normalizacao">**Normalização**</Termo>: espreme cada feature para o intervalo de 0 a 1.
 - **Padronização**: recentra cada feature para ter **média 0 e desvio 1**.
 
-As duas resolvem o vale esticado; a padronização costuma ser a escolha padrão. Veja o efeito: no eixo real, a metragem se espalha e os quartos viram um risquinho perto do zero — incomparáveis. <span class="destaque">Padronize</span> e as duas passam a ocupar a mesma faixa:
+As duas resolvem o vale esticado; a padronização costuma ser a escolha padrão. Veja o efeito: no eixo real, a metragem se espalha e os quartos viram um risquinho perto do zero — incomparáveis. **Padronize** e as duas passam a ocupar a mesma faixa:
 
 <VizEmbed titulo="padronize as duas features">
   <HistogramasNormalizacao />
 </VizEmbed>
 
-<p class="nota">
-  Um cuidado que volta na Aula 7: calcule a média e o desvio da escala usando
-  <strong>só os dados de treino</strong>, nunca o conjunto inteiro. Se você usa o
-  conjunto todo, informação do teste vaza para dentro do treino, e você passa a se
-  enganar sobre o quão bom o modelo é.
-</p>
+<Caixa tipo="erro" titulo="Erro comum — e caro">
+Calcule a média e o desvio da escala usando **só os dados de treino**, e depois aplique esses mesmos números ao teste. Se você calcula sobre o conjunto inteiro, informação do teste vaza para dentro do treino e você passa a se enganar sobre o quão bom o modelo é. O assunto volta com todo o rigor na Aula 7.
+</Caixa>
 
 <p class="nota">
   No fim da aula você monta um modelo com várias entradas, cria features novas a
   partir das que tem, e sabe explicar por que a escala das features atrapalha o
   treino — e como consertar.
 </p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a2-polinomial-nao-e-algoritmo"
+  pergunta="Você adiciona $x^2$ e $x^3$ como features e roda a regressão. Um colega comenta: “agora não é mais regressão linear, virou regressão polinomial — outro algoritmo”. Onde está o erro?"
+  alternativas={[
+    {
+      texto: "Não há erro: são dois algoritmos distintos, cada um com a sua rotina de treino.",
+      porque: "A rotina de treino é a mesma, linha por linha. A única coisa que mudou foi a tabela de entrada, que ganhou colunas novas calculadas a partir de uma coluna antiga.",
+    },
+    {
+      texto: "O algoritmo é o mesmo: você mudou a entrada, não o método. “Linear” descreve como os parâmetros entram na conta — cada peso multiplica a sua feature e as parcelas se somam —, não o formato do gráfico.",
+      certa: true,
+      porque: "Isso. Do ponto de vista do treino, $x^2$ é só mais uma coluna de números; ele nem fica sabendo que ela nasceu de outra. É por isso que regressão polinomial é feature engineering, não um método novo.",
+    },
+    {
+      texto: "O erro é só de nome: o correto seria chamar de “regressão não-linear”.",
+      porque: "Trocar o nome não conserta o entendimento. E “não-linear” designa outra coisa: modelos em que os próprios parâmetros aparecem de forma não-linear — o que não é o caso aqui.",
+    },
+    {
+      texto: "São o mesmo algoritmo até o grau 2; do grau 3 em diante passa a ser outro método.",
+      porque: "Não há nenhuma fronteira em grau nenhum. Grau 3, 15 ou 100 continuam sendo pesos multiplicando colunas e somando — muda a flexibilidade do modelo, não a natureza do algoritmo.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a2-escala-so-no-treino"
+  pergunta="Você vai padronizar as features do seu conjunto. Sobre quais dados a média e o desvio devem ser calculados?"
+  alternativas={[
+    {
+      texto: "Sobre o conjunto inteiro, antes de separar treino e teste — assim tudo fica exatamente na mesma escala.",
+      porque: "É o erro clássico. A média do conjunto inteiro carrega informação dos dados de teste, que entra no treino por essa porta dos fundos. O modelo parece melhor do que é, e a surpresa vem depois, em produção.",
+    },
+    {
+      texto: "Só sobre o treino; a mesma média e o mesmo desvio calculados ali são depois aplicados ao teste.",
+      certa: true,
+      porque: "Isso. A escala é parte do modelo: aprendida no treino e aplicada tal e qual em qualquer dado novo. O teste tem de ser tratado como dado que você nunca viu — porque é exatamente o que ele representa.",
+    },
+    {
+      texto: "Sobre treino e teste separadamente, cada conjunto com a sua própria média e o seu próprio desvio.",
+      porque: "Aí os dois conjuntos passam a viver em escalas diferentes: o mesmo imóvel viraria números distintos em cada um. O modelo foi treinado numa escala e seria avaliado noutra.",
+    },
+    {
+      texto: "Sobre o conjunto de teste, já que é nele que o desempenho do modelo será medido.",
+      porque: "Isso inverte os papéis. O teste serve para medir, nunca para ajustar nada — nem os pesos, nem a escala. Tudo que o modelo usa tem de ter saído do treino.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a2-mais-features"
+  pergunta="Seu modelo de preço usa 6 features e vai bem. Você acrescenta outras 40, várias sem relação clara com preço, e mantém tudo o mais igual. O que esperar?"
+  alternativas={[
+    {
+      texto: "Melhora garantida: informação a mais nunca piora um modelo.",
+      porque: "Só seria verdade se features inúteis fossem inofensivas — e não são. Elas dão ao modelo mais maneiras de encaixar o ruído do treino, que é exatamente o caminho do overfitting.",
+    },
+    {
+      texto: "Pode piorar. Feature sem informação não é neutra: ela oferece ao modelo mais formas de se ajustar ao ruído, e ainda exige mais exemplos para que os pesos se estabilizem.",
+      certa: true,
+      porque: "Isso. Feature entra por merecimento, não por disponibilidade. Escolher o que **não** entra faz tanta parte do feature engineering quanto escolher o que entra.",
+    },
+    {
+      texto: "Nada muda: no treino, os pesos das features inúteis vão exatamente a zero.",
+      porque: "Eles tendem a ficar pequenos, mas raramente zeram. Com ruído nos dados, uma feature irrelevante quase sempre acha alguma coincidência para explicar — e ganha peso por causa dela.",
+    },
+    {
+      texto: "Melhora tanto no treino quanto no teste, contanto que você padronize todas as 46.",
+      porque: "Padronizar resolve o problema de **escala**, não o de **relevância**. Uma feature inútil padronizada continua inútil — só que agora na mesma faixa das outras.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a2-zigzag"
+  pergunta="Metragem vai de 30 a 500 e número de quartos vai de 1 a 5. Você treina sem padronizar. O que acontece com o gradient descent?"
+  alternativas={[
+    {
+      texto: "Ele não roda: features em escalas diferentes tornam a conta do gradiente indefinida.",
+      porque: "A conta funciona normalmente — nada nela exige escalas parecidas. O prejuízo é de eficiência, não de validade.",
+    },
+    {
+      texto: "A superfície de custo vira um vale comprido e estreito. O gradiente aponta forte na direção íngreme e fraco na plana, então o caminho ziguezagueia e leva muitos passos a mais até o fundo.",
+      certa: true,
+      porque: "Isso — é o caminho que você viu no gráfico do ziguezague. E note a consequência prática: o modelo final é o mesmo, mas você paga muito mais tempo de treino para chegar nele.",
+    },
+    {
+      texto: "Ele converge para os parâmetros errados, e o modelo final fica incorreto.",
+      porque: "O fundo do vale continua no mesmo lugar — a escala não muda onde está o mínimo, muda o **caminho** até ele. Com paciência (e um learning rate adequado) o treino chega ao mesmo destino, só que devagar.",
+    },
+    {
+      texto: "A feature de escala maior é descartada automaticamente durante o treino.",
+      porque: "Nada é descartado: o treino ajusta o peso de cada feature, sem nunca remover nenhuma. Aliás, é o contrário — a feature de escala grande tende a dominar a direção do gradiente.",
+    },
+  ]}
+/>
+
+</QuizBloco>

@@ -1,0 +1,19 @@
+---
+// Pergunta recolhível: a pergunta fica visível, a resposta só aparece no clique.
+// Serve para o professor pausar no projetor e para quem lê sozinho tentar antes
+// de ver. A resposta vai no slot (Markdown normal, com LaTeX se precisar).
+import { mat } from "../lib/mat";
+
+interface Props {
+  pergunta: string;
+}
+const { pergunta } = Astro.props;
+---
+
+<details class="pergunta">
+  <summary class="pergunta-titulo">
+    <span class="pergunta-rotulo">Pergunta</span>
+    <span set:html={mat(pergunta)} />
+  </summary>
+  <div class="pergunta-resposta"><slot /></div>
+</details>

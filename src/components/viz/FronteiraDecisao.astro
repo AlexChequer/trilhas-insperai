@@ -114,10 +114,39 @@
           const r = Math.round(14 + pr * (244 - 14));
           const g = Math.round(165 + pr * (96 - 165));
           const bl = Math.round(233 + pr * (62 - 233));
-          ctx.fillStyle = `rgba(${r},${g},${bl},0.16)`;
+          ctx.fillStyle = `rgba(${r},${g},${bl},0.2)`;
           ctx.fillRect(X, Y, passo, passo);
         }
       }
+
+      // A fronteira de decisão em si: o lugar onde a probabilidade cruza 0,5.
+      // Varremos o plano em coluna e em linha procurando a troca de lado —
+      // as duas passadas garantem contorno contínuo tanto onde ele é íngreme
+      // quanto onde é deitado. Serve igual para a reta e para a curva.
+      const PASSO_CONTORNO = 3;
+      const RAIO_CONTORNO = 2.2;
+      const acima = (X: number, Y: number) => fit.prob((X - cx) / s, -(Y - cy) / s) >= 0.5;
+      const marca = (X: number, Y: number) => {
+        ctx.beginPath(); ctx.arc(X, Y, RAIO_CONTORNO, 0, Math.PI * 2); ctx.fill();
+      };
+      ctx.fillStyle = COR.azulAco;
+      for (let X = p.x; X <= p.x + p.w; X += PASSO_CONTORNO) {
+        let anterior = acima(X, p.y);
+        for (let Y = p.y + PASSO_CONTORNO; Y <= p.y + p.h; Y += PASSO_CONTORNO) {
+          const atual = acima(X, Y);
+          if (atual !== anterior) marca(X, Y - PASSO_CONTORNO / 2);
+          anterior = atual;
+        }
+      }
+      for (let Y = p.y; Y <= p.y + p.h; Y += PASSO_CONTORNO) {
+        let anterior = acima(p.x, Y);
+        for (let X = p.x + PASSO_CONTORNO; X <= p.x + p.w; X += PASSO_CONTORNO) {
+          const atual = acima(X, Y);
+          if (atual !== anterior) marca(X - PASSO_CONTORNO / 2, Y);
+          anterior = atual;
+        }
+      }
+
       // eixos
       ctx.strokeStyle = "rgba(41,74,107,0.12)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(p.x, cy); ctx.lineTo(p.x + p.w, cy); ctx.moveTo(cx, p.y); ctx.lineTo(cx, p.y + p.h); ctx.stroke();

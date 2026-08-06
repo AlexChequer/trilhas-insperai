@@ -1,0 +1,69 @@
+---
+// Termo do glossário: a palavra fica marcada no texto e a definição abre no
+// clique (hover não existe no celular). O texto do verbete vem de
+// src/data/glossario.ts, então o mesmo termo se explica igual em todo o site.
+import { GLOSSARIO } from "../data/glossario";
+
+interface Props {
+  id: string;
+}
+const { id } = Astro.props;
+
+const definicao = GLOSSARIO[id];
+if (!definicao) {
+  throw new Error(
+    `<Termo id="${id}"> não existe no glossário. Adicione o verbete em src/data/glossario.ts.`,
+  );
+}
+---
+
+<span class="termo-wrap">
+  <button class="termo" type="button" aria-expanded="false"><slot /></button>
+  <span class="termo-balao" role="tooltip" hidden>{definicao}</span>
+</span>
+
+<script>
+  // Um handler só para todos os termos da página (delegação).
+  const MARGEM_BORDA = 12; // px de folga até a beirada da tela
+
+  function fecharTodos(menos?: Element) {
+    document.querySelectorAll<HTMLElement>(".termo-balao").forEach((balao) => {
+      if (balao === menos) return;
+      balao.hidden = true;
+      balao.style.transform = "";
+      balao.previousElementSibling?.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  /** Empurra o balão para dentro da tela — a regra é não gerar rolagem horizontal. */
+  function encaixarNaTela(balao: HTMLElement) {
+    balao.style.transform = "";
+    const r = balao.getBoundingClientRect();
+    // clientWidth, não innerWidth: innerWidth inclui a barra de rolagem e
+    // deixaria o balão passar alguns pixels da área visível.
+    const visivel = document.documentElement.clientWidth;
+    const estouraDireita = r.right - (visivel - MARGEM_BORDA);
+    const estouraEsquerda = MARGEM_BORDA - r.left;
+    if (estouraDireita > 0) balao.style.transform = `translateX(${-estouraDireita}px)`;
+    else if (estouraEsquerda > 0) balao.style.transform = `translateX(${estouraEsquerda}px)`;
+  }
+
+  document.addEventListener("click", (ev) => {
+    const alvo = (ev.target as HTMLElement).closest<HTMLButtonElement>(".termo");
+    if (!alvo) {
+      fecharTodos();
+      return;
+    }
+    const balao = alvo.nextElementSibling as HTMLElement | null;
+    if (!balao) return;
+    const abrindo = balao.hidden;
+    fecharTodos(balao);
+    balao.hidden = !abrindo;
+    alvo.setAttribute("aria-expanded", String(abrindo));
+    if (abrindo) encaixarNaTela(balao);
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") fecharTodos();
+  });
+</script>

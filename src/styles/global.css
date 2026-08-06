@@ -180,6 +180,20 @@ body {
   display: inline-block;
 }
 
+/* dica curta de como mexer na visualização */
+.viz-dica {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--texto-suave);
+}
+
+/* A dica ocupa a linha inteira embaixo do gráfico + painel. Dentro do painel
+   ela esticava a coluna da direita e abria um vazio embaixo do gráfico. */
+.viz-dica-larga {
+  grid-column: 1 / -1;
+}
+
 /* ---------- Controles (botões e sliders) ---------- */
 
 .viz-controles {
@@ -212,6 +226,21 @@ body {
 
 .btn:active {
   transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn:disabled:hover {
+  filter: none;
+  box-shadow: none;
+}
+
+.btn:disabled:active {
+  transform: none;
 }
 
 .btn-secundario {
@@ -708,6 +737,19 @@ a.mini-aula:hover {
   border-radius: 999px;
   margin-bottom: 16px;
 }
+/* Material de consulta (Aula 0, setup): selo mais discreto que o das aulas,
+   porque estas páginas ficam fora do arco do semestre. */
+.aula-hero .badge-guia {
+  background: none;
+  color: var(--texto-suave);
+  border: 2px solid var(--borda);
+  font-family: var(--fonte);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 14px;
+}
+
 .aula-hero h1 {
   font-family: var(--fonte-titulo);
   font-weight: 700;
@@ -760,10 +802,9 @@ a.mini-aula:hover {
   color: var(--insper-azul-aco);
   font-weight: 700;
 }
-.leitura .destaque {
-  background: linear-gradient(180deg, transparent 62%, rgba(124, 58, 237, 0.18) 62%);
-  font-weight: 600;
-}
+/* `.destaque` foi removido de propósito: o traço roxo embaixo da frase fazia o
+   texto parecer clicável e competia com o sublinhado do <Termo>, que é o único
+   elemento clicável da leitura. Instrução de "mexa aqui" agora é só negrito. */
 .leitura .nota {
   color: var(--texto-suave);
 }
@@ -788,6 +829,435 @@ a.mini-aula:hover {
   font-size: clamp(1.05rem, 2vw, 1.2rem);
   line-height: 1.75;
   color: var(--texto);
+}
+
+/* ---------- Ajuste de matemática (KaTeX) ---------- */
+
+/* Dígito em subscrito/expoente sai visivelmente maior que letra: o algarismo é
+   desenhado na altura de caixa alta e a minúscula na altura de x — medindo, o
+   "1" de $w_1$ ficava 27% mais alto que o "n" de $w_n$ no mesmo tamanho de
+   fonte. O KaTeX marca o conteúdo em tamanho de script com `.mtight` e as
+   letras itálicas com `.mathnormal`; o que sobra em `.mord` são os algarismos. */
+/* Rede de segurança: fórmula em display que não couber rola dentro do próprio
+   bloco em vez de empurrar a página inteira (o celular a 375px é o caso). O
+   certo continua sendo quebrar a fórmula em duas linhas com \begin{aligned}. */
+.katex-display {
+  overflow-x: auto;
+  padding: 0.25em 0;
+}
+
+.katex .mtight.mord:not(.mathnormal):not(.text):not(.mathbf) {
+  font-size: 0.85em;
+}
+
+/* ---------- Termo do glossário (definição no clique) ---------- */
+
+.termo-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.termo {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: help;
+  font-weight: 600;
+  /* `display: inline` para o termo quebrar linha junto com o texto, e
+     text-decoration em vez de border-bottom: a borda assenta na base da caixa
+     da linha, então a distância mudava conforme o line-height de cada contexto
+     (parágrafo, item de lista, caixa). O offset em `em` fica igual em todos. */
+  display: inline;
+  text-decoration: underline dotted var(--insper-roxo);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.termo:hover,
+.termo[aria-expanded="true"] {
+  color: var(--insper-roxo);
+}
+
+.termo:focus-visible {
+  outline: 3px solid var(--insper-azul);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.termo-balao {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 10px);
+  left: 0;
+  width: max-content;
+  max-width: min(340px, 78vw);
+  background: var(--insper-azul-aco);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: var(--sombra-forte);
+}
+
+/* ---------- Caixa destacada ---------- */
+
+.caixa {
+  border: 1px solid var(--borda);
+  border-left: 5px solid var(--insper-azul);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  padding: 16px 20px;
+}
+
+.caixa-titulo {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--insper-azul);
+}
+
+.caixa-corpo > * {
+  margin: 0;
+}
+
+.caixa-corpo > * + * {
+  margin-top: 10px;
+}
+
+.caixa-corpo p,
+.caixa-corpo li {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--texto);
+}
+
+.caixa-atencao {
+  border-left-color: var(--ambar);
+}
+.caixa-atencao .caixa-titulo {
+  color: var(--ambar);
+}
+
+.caixa-dica {
+  border-left-color: var(--verde);
+}
+.caixa-dica .caixa-titulo {
+  color: var(--verde);
+}
+
+.caixa-erro {
+  border-left-color: var(--coral);
+}
+.caixa-erro .caixa-titulo {
+  color: #d1442a;
+}
+
+/* ---------- Pergunta recolhível ---------- */
+
+.pergunta {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  padding: 4px 20px;
+}
+
+.pergunta-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 0;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--insper-azul-aco);
+  list-style: none;
+}
+
+.pergunta-titulo::-webkit-details-marker {
+  display: none;
+}
+
+.pergunta-titulo::after {
+  content: "mostrar";
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--insper-roxo);
+}
+
+.pergunta[open] .pergunta-titulo::after {
+  content: "esconder";
+}
+
+.pergunta-rotulo {
+  font-family: var(--fonte-dados);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--insper-gradiente);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.pergunta-titulo:focus-visible {
+  outline: 3px solid var(--insper-azul);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.pergunta-resposta {
+  border-top: 1px solid var(--borda);
+  padding: 14px 0 18px;
+}
+
+.pergunta-resposta > * {
+  margin: 0;
+}
+
+.pergunta-resposta > * + * {
+  margin-top: 10px;
+}
+
+.pergunta-resposta p,
+.pergunta-resposta li {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--texto);
+}
+
+/* ---------- Tabela de símbolos ---------- */
+
+.simbolos {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  padding: 16px 20px;
+}
+
+.simbolos-titulo {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-suave);
+}
+
+.simbolos-lista {
+  margin: 0;
+}
+
+.simbolos-linha {
+  display: grid;
+  grid-template-columns: minmax(48px, auto) 1fr;
+  gap: 6px 18px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 1px solid var(--borda);
+}
+
+.simbolos-linha:first-child {
+  border-top: none;
+}
+
+.simbolos-linha dt {
+  font-size: 1.1rem;
+  color: var(--insper-azul-aco);
+}
+
+.simbolos-linha dd {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--texto);
+}
+
+/* ---------- Quiz ---------- */
+
+.quiz-bloco {
+  border-top: 3px solid var(--borda);
+  padding-top: clamp(18px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.quiz-bloco-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quiz-bloco-titulo {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-weight: 700;
+  font-size: clamp(1.3rem, 3.2vw, 1.85rem);
+  letter-spacing: -0.01em;
+  color: var(--insper-azul-aco);
+}
+
+.quiz-bloco-contador {
+  margin: 0;
+  font-family: var(--fonte-dados);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.quiz-bloco-intro {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--texto-suave);
+}
+
+.quiz {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quiz-pergunta {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.65;
+  color: var(--insper-azul-aco);
+}
+
+.quiz-imagem {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+}
+
+.quiz-alts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quiz-alt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--borda);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: var(--texto);
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.quiz-alt:hover {
+  border-color: var(--insper-azul);
+}
+
+.quiz-alt input {
+  margin: 4px 0 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--insper-roxo);
+  flex: none;
+}
+
+.quiz-alt input:disabled {
+  cursor: default;
+}
+
+.quiz-alt:has(input:disabled) {
+  cursor: default;
+}
+
+.quiz-alt:has(input:disabled):hover {
+  border-color: var(--borda);
+}
+
+.quiz-alt.acertou,
+.quiz-alt.era-essa {
+  border-color: var(--verde);
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.quiz-alt.errou {
+  border-color: var(--vermelho);
+  background: rgba(220, 38, 38, 0.07);
+}
+
+.quiz-alt.era-essa {
+  border-style: dashed;
+}
+
+.quiz-alt:has(input:disabled).acertou:hover,
+.quiz-alt:has(input:disabled).era-essa:hover {
+  border-color: var(--verde);
+}
+
+.quiz-alt:has(input:disabled).errou:hover {
+  border-color: var(--vermelho);
+}
+
+.quiz-alt:focus-within {
+  outline: 3px solid var(--insper-azul);
+  outline-offset: 2px;
+}
+
+.quiz-porque {
+  margin: 8px 0 0 14px;
+  padding-left: 14px;
+  border-left: 3px solid var(--borda);
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--texto-suave);
+}
+
+.quiz-veredito {
+  font-weight: 700;
+  color: var(--insper-azul-aco);
+  margin-right: 6px;
+}
+
+.quiz-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-alt {
+    transition: none;
+  }
 }
 
 /* ---------- Visualização embutida (ilha nativa, sem iframe) ---------- */
@@ -863,6 +1333,24 @@ a.mini-aula:hover {
 }
 .viz-embed:fullscreen .viz-corpo,
 .viz-embed:fullscreen .viz-lr2,
+.viz-embed:fullscreen .viz-ativ,
+.viz-embed:fullscreen .viz-saidas,
+.viz-embed:fullscreen .viz-softmax,
+.viz-embed:fullscreen .viz-rede,
+.viz-embed:fullscreen .viz-treino,
+.viz-embed:fullscreen .viz-mnist,
+.viz-embed:fullscreen .viz-complex,
+.viz-embed:fullscreen .viz-dropout,
+.viz-embed:fullscreen .viz-revisao,
+.viz-embed:fullscreen .viz-conv,
+.viz-embed:fullscreen .viz-filtros,
+.viz-embed:fullscreen .viz-params,
+.viz-embed:fullscreen .viz-arq,
+.viz-embed:fullscreen .viz-transfer,
+.viz-embed:fullscreen .viz-incl,
+.viz-embed:fullscreen .viz-md,
+.viz-embed:fullscreen .viz-vet,
+.viz-embed:fullscreen .viz-colapso,
 .viz-embed:fullscreen .viz-3d {
   width: 100%;
 }

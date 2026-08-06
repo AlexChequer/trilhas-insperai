@@ -9,6 +9,12 @@ import VizEmbed from "../../components/VizEmbed.astro";
 import RetaVsSigmoid from "../../components/viz/RetaVsSigmoid.astro";
 import FronteiraDecisao from "../../components/viz/FronteiraDecisao.astro";
 import MatrizConfusao from "../../components/viz/MatrizConfusao.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
 
 Até agora a resposta era um número: um preço, uma nota. Isso é **regressão**. Mas muitos problemas pedem outra coisa: o e-mail é spam ou não? a transação é fraude ou não? o tumor é benigno ou maligno? Aqui a resposta é uma **classe**, não um número — e a maneira de modelar e de medir acerto muda. Isso é **classificação**, o segundo grande tipo de problema supervisionado, e o assunto desta aula. Vamos ficar no caso binário: duas classes, que a gente chama de 0 e 1.
 
@@ -18,9 +24,9 @@ A tentação é reaproveitar a reta da Aula 1: trate a classe como um número (0
 
 O primeiro: a reta não tem noção de limite. Ela passa de 1 e vai abaixo de 0, e não existe "1,7 de spam" ou "−0,3 de fraude". A saída precisava ser uma **probabilidade**, entre 0 e 1, e a reta não entrega isso.
 
-O segundo é mais sutil e mais perigoso: um único ponto distante **gira a reta inteira**. Como a regressão tenta minimizar o erro quadrático, um exemplo lá longe puxa a reta com força para reduzir aquele erro — e, no caminho, move a **fronteira** (o ponto onde a decisão vira de 0 para 1) para um lugar que erra exemplos que eram óbvios.
+O segundo é mais sutil e mais perigoso: um único ponto distante **gira a reta inteira**. Como a regressão tenta minimizar o erro quadrático, um exemplo lá longe puxa a reta com força para reduzir aquele erro — e, no caminho, move a fronteira (o ponto onde a decisão vira de 0 para 1) para um lugar que erra exemplos que eram óbvios.
 
-<span class="destaque">Arraste o ponto vermelho</span> para a direita e compare as duas curvas: a reta (azul) desanda e começa a errar; a sigmoid (verde) aguenta firme.
+**Arraste o ponto vermelho** para a direita e compare as duas curvas: a reta (azul) desanda e começa a errar; a sigmoid (verde) aguenta firme.
 
 <VizEmbed titulo="arraste o ponto vermelho para longe">
   <RetaVsSigmoid />
@@ -30,43 +36,201 @@ O segundo é mais sutil e mais perigoso: um único ponto distante **gira a reta 
 
 A curva verde que aguentou o outlier é uma **sigmoid**. Ela é uma função em formato de "S" que **esmaga qualquer número real para o intervalo entre 0 e 1**: valores muito negativos viram ~0, muito positivos viram ~1, e o zero vira 0,5.
 
-O modelo fica assim: você calcula $\mathbf{w} \cdot \mathbf{x} + b$ exatamente como antes e depois **passa o resultado pela sigmoid**. A saída vira uma **probabilidade** — "80% de chance de ser spam". Para decidir a classe, aplica-se um **limiar**: acima de 0,5, classe 1; abaixo, classe 0. E vale gravar: esse 0,5 é uma **escolha**, não uma lei — mais adiante você vai querer mexer nele.
+O modelo fica assim: você calcula o <Termo id="produto-escalar">produto escalar</Termo> $\mathbf{w} \cdot \mathbf{x} + b$ exatamente como antes e depois **passa o resultado pela sigmoid**:
 
-Esse modelo tem um nome que confunde: **regressão logística**. Apesar do "regressão" no nome, ele é um **classificador**. Vale dizer isso em voz alta, porque o nome atrapalha.
+$$
+p = \sigma(\mathbf{w} \cdot \mathbf{x} + b), \qquad \sigma(z) = \frac{1}{1 + e^{-z}}
+$$
 
-Um detalhe importante sobre o treino: com a sigmoid, usar o MSE cria uma superfície de custo cheia de mínimos locais e com o gradiente quase morto nas pontas — péssimo para o gradient descent. Por isso a função de custo aqui é a **cross-entropy** (entropia cruzada). A intuição dela: ela pune com força a **confiança errada**. Dizer "99% spam" para algo que era legítimo custa muito mais caro do que dizer "60% spam" e errar. Isso empurra o modelo a ser honesto sobre a própria incerteza.
+<Simbolos
+  itens={[
+    { simbolo: "$z$", significado: "o que sai da conta de sempre, $\\mathbf{w} \\cdot \\mathbf{x} + b$ — pode ser qualquer número real" },
+    { simbolo: "$\\sigma$", significado: "a sigmoid: recebe $z$ e devolve algo entre 0 e 1. É ela que faz o S" },
+    { simbolo: "$p$", significado: "a probabilidade estimada de o exemplo ser da classe 1 — “80% de chance de ser spam”" },
+  ]}
+/>
+
+Para decidir a classe, aplica-se um **limiar**: acima de 0,5, classe 1; abaixo, classe 0. E vale gravar: esse 0,5 é uma **escolha**, não uma lei — mais adiante você vai querer mexer nele.
+
+Esse modelo tem um nome que confunde: **regressão logística**. Apesar do "regressão" no nome, ele é um **classificador**.
+
+<Caixa tipo="erro">
+Regressão logística **não** é regressão. O nome vem da conta $\mathbf{w} \cdot \mathbf{x} + b$ que ela faz por dentro — a mesma da regressão linear —, não do tipo de problema que ela resolve. A saída é probabilidade de classe, e o objetivo é classificar. Vale dizer isso em voz alta, porque o nome atrapalha mesmo.
+</Caixa>
+
+Um detalhe importante sobre o treino: com a <Termo id="sigmoid">sigmoid</Termo>, usar o MSE cria uma superfície de custo cheia de mínimos locais e com o gradiente quase morto nas pontas — péssimo para o gradient descent. Por isso a função de custo aqui é a **cross-entropy** (entropia cruzada). A intuição dela: ela pune com força a **confiança errada**. Dizer "99% spam" para algo que era legítimo custa muito mais caro do que dizer "60% spam" e errar. Isso empurra o modelo a ser honesto sobre a própria incerteza.
+
+<Quiz
+  id="a3-o-que-e-a-saida"
+  pergunta="O modelo devolve $0{,}82$ para um e-mail. O que exatamente é esse número?"
+  alternativas={[
+    {
+      texto: "A probabilidade estimada de o e-mail ser spam. Para virar classe, compara-se com um limiar — 0,5 por padrão, mas o valor é uma escolha sua.",
+      certa: true,
+      porque: "Isso. É a sigmoid que garante que a saída caiba entre 0 e 1 e possa ser lida como probabilidade. A decisão em si só acontece depois, quando você compara com o limiar.",
+    },
+    {
+      texto: "Uma nota de 0 a 1 que ordena os e-mails, mas que não tem relação com probabilidade.",
+      porque: "Ela de fato ordena — mas é mais do que isso. A cross-entropy pune confiança errada justamente para que o número seja calibrado como probabilidade, não só como ranking.",
+    },
+    {
+      texto: "A distância entre o e-mail e a fronteira de decisão.",
+      porque: "A distância até a fronteira é o $z$, o resultado de $\\mathbf{w} \\cdot \\mathbf{x} + b$, que pode ser qualquer número real. O 0,82 é o que sai **depois** da sigmoid.",
+    },
+    {
+      texto: "A acurácia do modelo naquele exemplo.",
+      porque: "Acurácia é uma medida do modelo sobre um conjunto de exemplos, não sobre um exemplo só. Num único e-mail o modelo acerta ou erra, não existe “82% de acerto”.",
+    },
+  ]}
+/>
 
 ## A fronteira de decisão
 
 O lugar onde o modelo está em dúvida — onde a probabilidade cruza 0,5 — é a **fronteira de decisão**. Com duas features, ela é uma **reta** que divide o plano em duas regiões, uma para cada classe.
 
-Mas e quando os dados não podem ser divididos por uma reta? O caso clássico: uma classe formando uma bolha no centro, e a outra formando um anel em volta. Nenhuma reta separa um grupo que está _dentro_ do outro — a acurácia fica perto de 50%, um chute.
+Mas e quando os dados não podem ser divididos por uma reta? O caso clássico: uma classe formando uma bolha no centro, e a outra formando um anel em volta. Nenhuma reta separa um grupo que está _dentro_ do outro — a <Termo id="acuracia">acurácia</Termo> fica perto de 50%, um chute.
 
-A saída é a mesma da Aula 2: **features polinomiais**. Adicionando $x_1^2,\ x_2^2,\ x_1 x_2$ ao modelo, a fronteira deixa de ser reta e pode virar um **círculo** ou uma elipse — que separa a bolha do anel sem esforço. <span class="destaque">Ligue as features polinomiais</span> e veja a fronteira entortar (o fundo colorido mostra as duas regiões de decisão):
+A saída é a mesma da Aula 2: **features polinomiais**. Adicionando $x_1^2,\ x_2^2,\ x_1 x_2$ ao modelo, a <Termo id="fronteira-decisao">fronteira</Termo> deixa de ser reta e pode virar um **círculo** ou uma elipse — que separa a bolha do anel sem esforço. **Ligue as features polinomiais** e veja a fronteira entortar (o fundo colorido mostra as duas regiões de decisão):
 
 <VizEmbed titulo="ligue as features polinomiais">
   <FronteiraDecisao />
 </VizEmbed>
 
+<Pergunta pergunta="A fronteira virou um círculo. O modelo deixou de ser linear?">
+Não. É o mesmo raciocínio da Aula 2: o modelo continua sendo pesos multiplicando features e somando. O que mudou foi **quais** features entram.
+
+No espaço original, de $x_1$ e $x_2$, a fronteira parece um círculo. Mas no espaço ampliado — que também tem $x_1^2$, $x_2^2$ e $x_1x_2$ como eixos — ela continua sendo uma divisão reta. A curva é um efeito de estarmos olhando a sombra de um corte reto feito numa dimensão a mais.
+</Pergunta>
+
 ## A métrica certa para o problema
 
-Falta medir acerto — e aqui há uma armadilha famosa. O reflexo é usar **acurácia** (fração de acertos). Mas imagine um problema com 1% de fraude: um modelo que diz "não é fraude" para tudo acerta **99%** — e é completamente inútil, porque nunca pega uma fraude. Em dados desbalanceados, acurácia engana.
+Falta medir acerto — e aqui há uma armadilha famosa. O reflexo é usar **acurácia** (fração de acertos). Mas imagine um problema com 1% de fraude: um modelo que diz "não é fraude" para tudo acerta **99%** — e é completamente inútil, porque nunca pega uma fraude.
+
+<Caixa tipo="erro">
+Acurácia em dado **desbalanceado** não diz nada. Quanto mais rara a classe que interessa, mais fácil é ter acurácia alta ignorando ela por completo. Sempre que as classes forem desiguais, olhe a matriz de confusão e as métricas da classe rara — não o número agregado.
+</Caixa>
 
 O jeito honesto de olhar é a **matriz de confusão**, que separa os acertos e erros em quatro caixas: verdadeiros positivos (peguei um positivo de verdade), falsos positivos (chamei de positivo, mas era negativo), falsos negativos (deixei passar um positivo) e verdadeiros negativos. Dela saem dois números que quase sempre importam mais que a acurácia:
 
 - **Precision**: dos que o modelo chamou de positivo, quantos eram positivos de verdade? (Mede o quanto você pode confiar num alarme.)
 - **Recall**: dos positivos que existiam, quantos o modelo pegou? (Mede o quanto escapa.)
 
-O ponto crucial: os dois **brigam entre si**. Se você abaixa o limiar para pegar mais positivos, o recall sobe, mas entram mais falsos positivos e a precision cai. Se você levanta o limiar para ter certeza, a precision sobe, mas você deixa positivos passarem e o recall cai. <span class="destaque">Arraste o limiar</span> e veja os dois números andarem em direções opostas:
+<Caixa tipo="dica" titulo="Como não trocar as duas">
+Olhe **de onde parte** a fração. Precision parte do que o **modelo disse**: "dos meus alarmes, quantos prestavam?". Recall parte do que **existia de verdade**: "dos casos reais, quantos eu peguei?".
+</Caixa>
+
+O ponto crucial: os dois **brigam entre si**. Se você abaixa o <Termo id="limiar">limiar</Termo> para pegar mais positivos, o recall sobe, mas entram mais falsos positivos e a precision cai. Se você levanta o limiar para ter certeza, a precision sobe, mas você deixa positivos passarem e o recall cai. **Arraste o limiar** e veja os dois números andarem em direções opostas:
 
 <VizEmbed titulo="arraste o limiar de decisão">
   <MatrizConfusao />
 </VizEmbed>
 
-Qual priorizar depende do problema. Diagnóstico de câncer quer **recall** alto — deixar um doente passar é grave, um alarme falso é só um exame a mais. Filtro de spam quer **precision** alta — jogar um e-mail importante no lixo é pior do que deixar um spam entrar. Existe ainda o **F1**, que resume precision e recall num número só; ele é útil, mas engana justamente quando você precisa priorizar um dos dois.
+Qual priorizar depende do problema. Diagnóstico de câncer quer <Termo id="recall">recall</Termo> alto — deixar um doente passar é grave, um alarme falso é só um exame a mais. Filtro de spam quer **precision** alta — jogar um e-mail importante no lixo é pior do que deixar um spam entrar. Existe ainda o **F1**, que resume precision e recall num número só; ele é útil, mas engana justamente quando você precisa priorizar um dos dois.
 
 <p class="nota">
   No fim da aula você monta um classificador binário, explica por que a função de
   custo muda em relação à regressão, e — o mais importante na prática — escolhe a
   métrica certa para o problema em vez de olhar acurácia no automático.
 </p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a3-logistica-e-classificador"
+  pergunta="Regressão logística: apesar do nome, para que ela serve?"
+  alternativas={[
+    {
+      texto: "Para prever números contínuos, como qualquer regressão — a diferença é só a função de custo.",
+      porque: "É a confusão que o nome provoca. A saída dela é sempre um número entre 0 e 1 lido como probabilidade de classe; ela não consegue prever um preço nem uma temperatura.",
+    },
+    {
+      texto: "É um classificador: devolve a probabilidade de o exemplo pertencer a uma classe, e o limiar transforma isso em decisão. O “regressão” do nome vem da conta $\\mathbf{w} \\cdot \\mathbf{x} + b$ que ela faz por dentro, não do tipo de problema.",
+      certa: true,
+      porque: "Isso. Ela herdou o nome do miolo linear que reaproveita da Aula 1 — a sigmoid por cima é que muda o tipo de problema resolvido.",
+    },
+    {
+      texto: "Serve para os dois casos, dependendo de qual função de custo você escolher.",
+      porque: "A sigmoid é parte do modelo, não uma escolha de custo. Enquanto ela estiver ali, a saída fica presa entre 0 e 1 — não há função de custo que faça esse modelo prever um preço.",
+    },
+    {
+      texto: "É uma regressão linear aplicada depois de normalizar os dados.",
+      porque: "Normalizar mexe na escala das entradas. Aqui a mudança é na saída: uma função nova, a sigmoid, é aplicada ao resultado — e é ela que produz a probabilidade.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a3-acuracia-desbalanceada"
+  pergunta="Num conjunto em que 1% das transações são fraude, seu modelo alcança 99% de acurácia. O que fazer com essa informação?"
+  alternativas={[
+    {
+      texto: "Comemorar: 99% de acerto é um resultado excelente.",
+      porque: "Antes de comemorar, compare com o mínimo esforço possível: um modelo que responde “não é fraude” para absolutamente tudo também acerta 99%. O número sozinho não distingue os dois.",
+    },
+    {
+      texto: "Desconfiar. Responder “não é fraude” para tudo já dá 99%, então o número não prova nada. Olhe a matriz de confusão e o recall e a precision sobre a classe rara.",
+      certa: true,
+      porque: "Isso. Com classes desbalanceadas, a acurácia é dominada pela classe majoritária e esconde exatamente o que interessa. O primeiro reflexo deve ser perguntar quantas fraudes de verdade o modelo pegou.",
+    },
+    {
+      texto: "Concluir que houve erro de cálculo: 99% é alto demais para ser real.",
+      porque: "O cálculo pode estar perfeito. O problema não é o valor estar errado, é ele responder a uma pergunta que não interessa nesse contexto.",
+    },
+    {
+      texto: "Subir o limiar de decisão, para melhorar a acurácia ainda mais.",
+      porque: "Subir o limiar deixa o modelo mais conservador em declarar fraude — ou seja, pega menos fraudes ainda. A acurácia até sobe um pouco, e o modelo fica pior no que importa.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a3-precision-ou-recall"
+  pergunta="Um exame de triagem para uma doença grave, mas tratável quando pega cedo. Quem der positivo faz um segundo exame, mais caro, que confirma. Qual métrica priorizar?"
+  alternativas={[
+    {
+      texto: "Recall alto: deixar um doente passar (falso negativo) custa o tratamento inteiro, enquanto um alarme falso custa só o segundo exame.",
+      certa: true,
+      porque: "Isso — e repare que a resposta veio da consequência de cada tipo de erro, não da matemática. A existência do exame de confirmação é o que torna o falso positivo barato.",
+    },
+    {
+      texto: "Precision alta: o importante é que todo alarme seja verdadeiro, para não assustar ninguém à toa.",
+      porque: "Priorizar precision aqui significa só dar alarme quando houver muita certeza — e, com isso, deixar passar doentes em estágio inicial, que é justamente quem a triagem existe para pegar.",
+    },
+    {
+      texto: "Acurácia, porque ela já resume precision e recall num número só.",
+      porque: "Acurácia não resume as duas: ela mistura tudo num número e, numa doença rara, fica alta mesmo num modelo que não detecta ninguém.",
+    },
+    {
+      texto: "F1, que é sempre a escolha mais segura por equilibrar as duas.",
+      porque: "O F1 equilibra precision e recall — e equilíbrio é exatamente o que você **não** quer aqui. Quando o problema pede priorizar um dos lados, o F1 esconde a priorização.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a3-por-que-cross-entropy"
+  pergunta="Por que não se treina regressão logística com MSE, a mesma função de custo da Aula 1?"
+  alternativas={[
+    {
+      texto: "Porque o MSE só funciona quando a saída pode assumir valores negativos.",
+      porque: "O MSE não tem essa restrição — ele é só a média dos erros ao quadrado, e funciona com qualquer faixa de valores. O problema aparece na combinação dele com a sigmoid.",
+    },
+    {
+      texto: "Porque, combinado com a sigmoid, o MSE produz uma superfície de custo cheia de mínimos locais e com gradiente quase nulo nas pontas — o treino trava. A cross-entropy evita isso e ainda pune com força a confiança errada.",
+      certa: true,
+      porque: "Isso. Nas pontas da sigmoid a curva fica quase horizontal, então a derivada some: um modelo bem errado e muito confiante quase não recebe correção. A cross-entropy dá um gradiente forte justo nesse caso.",
+    },
+    {
+      texto: "Porque o MSE não aceita rótulos que sejam 0 e 1.",
+      porque: "Aceita sem problema: 0 e 1 são números como quaisquer outros para o MSE. Aliás, foi assim que a aula começou — tentando prever 0 e 1 com uma reta.",
+    },
+    {
+      texto: "Porque a cross-entropy é computacionalmente mais rápida de calcular.",
+      porque: "As duas são baratas e a diferença de custo de cálculo é irrelevante. A troca é feita pelo comportamento do gradiente durante o treino, não por velocidade.",
+    },
+  ]}
+/>
+
+</QuizBloco>

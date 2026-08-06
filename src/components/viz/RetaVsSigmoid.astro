@@ -12,7 +12,7 @@
     <div class="stat stat-destaque">
       <p class="stat-rotulo">Acertos da reta</p>
       <p class="stat-valor" data-acc-reta>—</p>
-      <span class="stat-unidade">nos 6 pontos originais</span>
+      <span class="stat-unidade">nos 7 pontos originais</span>
     </div>
     <div class="stat">
       <p class="stat-rotulo">Acertos da sigmoid</p>
@@ -40,17 +40,22 @@
     const elSig = raiz.querySelector<HTMLElement>("[data-acc-sig]")!;
     const elNota = raiz.querySelector<HTMLElement>("[data-nota]")!;
 
+    // Cinco exemplos da classe 0 e apenas dois da classe 1: com a classe 1 em
+    // minoria, o outlier domina os poucos pontos dela e arrasta a fronteira da
+    // reta para longe — que é o efeito que a aula precisa mostrar. Com 3 e 3 e
+    // um vão largo no meio, a fronteira se deslocava mas nunca chegava a errar.
     const FIXOS: [number, number][] = [
-      [1, 0], [2, 0], [3, 0], [5, 1], [6, 1], [7, 1],
+      [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 1], [7, 1],
     ];
-    const OUT_MIN = 8, OUT_MAX = 30;
-    let outlierX = 12;
-    const DOMINIO = { xMin: 0, xMax: 31, yMin: -0.25, yMax: 1.25 };
+    const OUT_MIN = 9, OUT_MAX = 24;
+    let outlierX = OUT_MIN;
+    const DOMINIO = { xMin: 0, xMax: 26, yMin: -0.25, yMax: 1.25 };
     const MARGEM = { topo: 24, dir: 20, base: 50, esq: 46 };
 
     const COR = {
       roxo: "#7c3aed", azul: "#2563eb", verde: "#16a34a", coral: "#f4603e",
       ciano: "#0ea5e9", azulAco: "#294a6b", grade: "#eef2f8", eixo: "#c7d2e0",
+      vermelho: "#dc2626",
     };
     let W = 0, H = 0, ultimaLargura = -1, arrastando = false;
 
@@ -145,7 +150,7 @@
       // fronteiras de decisão (onde cada um cruza 0,5)
       const fron = (x: number, cor: string) => {
         if (!isFinite(x) || x < DOMINIO.xMin || x > DOMINIO.xMax) return;
-        ctx.strokeStyle = cor; ctx.lineWidth = 2; ctx.setLineDash([4, 5]); ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = cor; ctx.lineWidth = 3; ctx.setLineDash([7, 5]); ctx.globalAlpha = 0.9;
         ctx.beginPath(); ctx.moveTo(px(x), p.y); ctx.lineTo(px(x), p.y + p.h); ctx.stroke();
         ctx.setLineDash([]); ctx.globalAlpha = 1;
       };
@@ -153,8 +158,13 @@
       fron(log.fronteira, COR.verde);
       ctx.restore();
 
-      // pontos
+      // pontos — quem a reta classifica errado ganha um anel vermelho
       for (const [x, y] of FIXOS) {
+        const erradoNaReta = (lin.prever(x) >= 0.5 ? 1 : 0) !== y;
+        if (erradoNaReta) {
+          ctx.beginPath(); ctx.arc(px(x), py(y), 13, 0, Math.PI * 2);
+          ctx.strokeStyle = COR.vermelho; ctx.lineWidth = 3; ctx.stroke();
+        }
         ctx.beginPath(); ctx.arc(px(x), py(y), 7, 0, Math.PI * 2);
         ctx.fillStyle = y === 1 ? COR.coral : COR.ciano; ctx.fill();
         ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
@@ -170,12 +180,13 @@
       // acurácia nos 6 fixos
       const acc = (prev: (x: number) => number) =>
         FIXOS.filter(([x, y]) => (prev(x) >= 0.5 ? 1 : 0) === y).length;
+      const N = FIXOS.length;
       const aReta = acc(lin.prever), aSig = acc(log.prever);
-      elReta.textContent = aReta + "/6";
-      elSig.textContent = aSig + "/6";
-      elNota.innerHTML = aReta < 6
-        ? "A reta girou para alcançar o outlier e agora <strong>erra</strong> pontos que eram óbvios."
-        : "Arraste o outlier para a direita e veja a reta começar a errar.";
+      elReta.textContent = aReta + "/" + N;
+      elSig.textContent = aSig + "/" + N;
+      elNota.innerHTML = aReta < N
+        ? `A reta girou atrás do outlier e a fronteira dela (tracejado azul) já passou dos <strong>${N - aReta}</strong> pontos com anel vermelho — eram óbvios e agora vão para o lado errado. A fronteira da sigmoid não se mexeu.`
+        : "Arraste o outlier para a direita e veja a fronteira azul começar a andar.";
     }
 
     // arraste do outlier

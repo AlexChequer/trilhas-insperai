@@ -1,0 +1,205 @@
+---
+// Pergunta de múltipla escolha. Toda alternativa traz o porquê — a certa
+// explica por que está certa, a errada explica onde o raciocínio escorrega.
+// Responder guarda a escolha no navegador; "Refazer" limpa e libera de novo.
+import { mat } from "../lib/mat";
+
+export interface Alternativa {
+  texto: string;
+  /** Exatamente uma alternativa deve ser a certa. */
+  certa?: boolean;
+  /** Por que esta alternativa está certa ou errada. Aparece depois de enviar. */
+  porque: string;
+}
+
+interface Props {
+  /** Chave estável e única na página — é ela que lembra a resposta. */
+  id: string;
+  pergunta: string;
+  alternativas: Alternativa[];
+  imagem?: string;
+  alt?: string;
+}
+const { id, pergunta, alternativas, imagem, alt } = Astro.props;
+
+const certas = alternativas.filter((a) => a.certa).length;
+if (certas !== 1) {
+  throw new Error(
+    `<Quiz id="${id}">: precisa de exatamente uma alternativa certa (encontrei ${certas}).`,
+  );
+}
+if (imagem && !alt) {
+  throw new Error(`<Quiz id="${id}">: imagem sem texto alternativo (prop alt).`);
+}
+---
+
+<form class="quiz" data-quiz data-id={id}>
+  <p class="quiz-pergunta" set:html={mat(pergunta)} />
+
+  {imagem && <img class="quiz-imagem" src={imagem} alt={alt} loading="lazy" />}
+
+  <ul class="quiz-alts">
+    {
+      alternativas.map((a, i) => (
+        <li class="quiz-item">
+          <label class="quiz-alt" data-alt={i} data-certa={a.certa ? "1" : undefined}>
+            <input type="radio" name={`quiz-${id}`} value={i} />
+            <span class="quiz-alt-texto" set:html={mat(a.texto)} />
+          </label>
+          <p class="quiz-porque" data-porque={i} hidden>
+            <span class="quiz-veredito" data-veredito />
+            <span set:html={mat(a.porque)} />
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+
+  <div class="quiz-acoes">
+    <button class="btn" type="submit" data-enviar disabled>Enviar</button>
+    <button class="btn btn-secundario" type="button" data-refazer hidden>Refazer</button>
+  </div>
+</form>
+
+<script>
+  // Um script só para todos os quizzes da página (delegação de eventos).
+
+  const chave = (id: string) => `quiz:${location.pathname}:${id}`;
+
+  // localStorage falha em modo privado de alguns navegadores — nunca derrubar a página por isso.
+  function guardar(id: string, escolha: number) {
+    try {
+      localStorage.setItem(chave(id), String(escolha));
+    } catch {
+      /* sem persistência: o quiz continua funcionando na sessão */
+    }
+  }
+  function esquecer(id: string) {
+    try {
+      localStorage.removeItem(chave(id));
+    } catch {
+      /* idem */
+    }
+  }
+  function lembrar(id: string): number | null {
+    try {
+      const bruto = localStorage.getItem(chave(id));
+      if (bruto === null) return null;
+      const n = Number(bruto);
+      return Number.isInteger(n) ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function alternativas(quiz: HTMLElement) {
+    return Array.from(quiz.querySelectorAll<HTMLElement>("[data-alt]"));
+  }
+
+  function revelar(quiz: HTMLElement, escolhida: number) {
+    const alts = alternativas(quiz);
+    const indiceCerto = alts.findIndex((a) => a.dataset.certa === "1");
+    if (escolhida < 0 || escolhida >= alts.length) return;
+    const acertou = escolhida === indiceCerto;
+
+    alts.forEach((altEl, i) => {
+      const input = altEl.querySelector<HTMLInputElement>("input");
+      if (input) {
+        input.checked = i === escolhida;
+        input.disabled = true;
+      }
+      if (i === escolhida) altEl.classList.add(acertou ? "acertou" : "errou");
+      if (i === indiceCerto && !acertou) altEl.classList.add("era-essa");
+    });
+
+    const mostrarPorque = (i: number, veredito: string) => {
+      const p = quiz.querySelector<HTMLElement>(`[data-porque="${i}"]`);
+      if (!p) return;
+      p.hidden = false;
+      const v = p.querySelector<HTMLElement>("[data-veredito]");
+      if (v) v.textContent = veredito;
+    };
+    mostrarPorque(escolhida, acertou ? "Correto." : "Incorreto.");
+    if (!acertou) mostrarPorque(indiceCerto, "A certa era esta.");
+
+    const enviar = quiz.querySelector<HTMLElement>("[data-enviar]");
+    const refazer = quiz.querySelector<HTMLElement>("[data-refazer]");
+    if (enviar) enviar.hidden = true;
+    if (refazer) refazer.hidden = false;
+    quiz.dataset.respondido = "1";
+  }
+
+  function limpar(quiz: HTMLElement) {
+    alternativas(quiz).forEach((altEl) => {
+      altEl.classList.remove("acertou", "errou", "era-essa");
+      const input = altEl.querySelector<HTMLInputElement>("input");
+      if (input) {
+        input.disabled = false;
+        input.checked = false;
+      }
+    });
+    quiz.querySelectorAll<HTMLElement>("[data-porque]").forEach((p) => {
+      p.hidden = true;
+      const v = p.querySelector<HTMLElement>("[data-veredito]");
+      if (v) v.textContent = "";
+    });
+    const enviar = quiz.querySelector<HTMLButtonElement>("[data-enviar]");
+    const refazer = quiz.querySelector<HTMLElement>("[data-refazer]");
+    if (enviar) {
+      enviar.hidden = false;
+      enviar.disabled = true;
+    }
+    if (refazer) refazer.hidden = true;
+    delete quiz.dataset.respondido;
+  }
+
+  function atualizarContadores() {
+    document.querySelectorAll<HTMLElement>("[data-quiz-bloco]").forEach((bloco) => {
+      const total = bloco.querySelectorAll("[data-quiz]").length;
+      const feitos = bloco.querySelectorAll('[data-quiz][data-respondido="1"]').length;
+      const contador = bloco.querySelector<HTMLElement>("[data-contador]");
+      if (!contador || total === 0) return;
+      contador.hidden = false;
+      contador.textContent = `Respondidas ${feitos}/${total}`;
+    });
+  }
+
+  document.addEventListener("change", (ev) => {
+    const input = (ev.target as HTMLElement).closest<HTMLInputElement>(
+      '[data-quiz] input[type="radio"]',
+    );
+    const quiz = input?.closest<HTMLElement>("[data-quiz]");
+    if (!quiz) return;
+    const enviar = quiz.querySelector<HTMLButtonElement>("[data-enviar]");
+    if (enviar) enviar.disabled = false;
+  });
+
+  document.addEventListener("submit", (ev) => {
+    const quiz = (ev.target as HTMLElement).closest<HTMLElement>("[data-quiz]");
+    if (!quiz) return;
+    ev.preventDefault();
+    const escolhido = quiz.querySelector<HTMLInputElement>('input[type="radio"]:checked');
+    if (!escolhido || !quiz.dataset.id) return;
+    const i = Number(escolhido.value);
+    revelar(quiz, i);
+    guardar(quiz.dataset.id, i);
+    atualizarContadores();
+  });
+
+  document.addEventListener("click", (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLElement>("[data-refazer]");
+    const quiz = btn?.closest<HTMLElement>("[data-quiz]");
+    if (!quiz || !quiz.dataset.id) return;
+    limpar(quiz);
+    esquecer(quiz.dataset.id);
+    atualizarContadores();
+  });
+
+  // Reabrir a página não apaga o que já foi respondido.
+  document.querySelectorAll<HTMLElement>("[data-quiz]").forEach((quiz) => {
+    if (!quiz.dataset.id) return;
+    const salvo = lembrar(quiz.dataset.id);
+    if (salvo !== null) revelar(quiz, salvo);
+  });
+  atualizarContadores();
+</script>

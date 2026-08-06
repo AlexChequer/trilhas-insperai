@@ -1,6 +1,7 @@
 ---
 // Aula 1 · Comparação MAE × MSE × RMSE com um outlier que liga/desliga.
 // Lição: o MSE explode, o MAE quase não se move.
+// O professor também pode clicar no gráfico e colocar os pontos que quiser.
 ---
 
 <div class="viz-corpo" data-viz="erros">
@@ -27,8 +28,14 @@
 
     <div class="viz-controles">
       <button class="btn" type="button" data-toggle>Adicionar outlier</button>
+      <button class="btn btn-secundario" type="button" data-limpar disabled>Limpar pontos</button>
     </div>
   </aside>
+
+  <p class="viz-dica viz-dica-larga">
+    Clique no gráfico para colocar um ponto onde quiser — e clique em cima dele
+    para tirar. A reta não se mexe: só os números mudam.
+  </p>
 </div>
 
 <script>
@@ -49,16 +56,22 @@
     const ESPECIAL_OUTLIER = 1400; // bem longe
     const DOMINIO = { xMin: 20, xMax: 290, yMin: 0, yMax: 1500 };
     const MARGEM = { topo: 26, dir: 22, base: 56, esq: 74 };
+    const RAIO_TOQUE = 16; // px: clicar dentro disso remove o ponto colocado
 
     const COR = {
       roxo: "#7c3aed", azul: "#2563eb", azulAco: "#294a6b",
       residuo: "#94a3b8", ponto: "#3730a3", outlier: "#f4603e",
+      extra: "#0ea5e9", // pontos colocados na mão
       grade: "#eef2f8", eixo: "#c7d2e0", verde: "#16a34a", vermelho: "#dc2626",
     };
     const nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
     const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
-    // Reta fixa: mínimos quadrados sobre os pontos-base (o especial não move a reta).
+    type Tipo = "base" | "especial" | "extra";
+    interface Ponto { x: number; y: number; tipo: Tipo }
+
+    // Reta fixa: mínimos quadrados sobre os pontos-base.
+    // Nem o outlier nem os pontos colocados na mão movem a reta — é o ponto da lição.
     const RETA = (() => {
       const n = BASE.length;
       let sx = 0, sy = 0, sxy = 0, sxx = 0;
@@ -70,22 +83,33 @@
     const prever = (x: number) => RETA.w * x + RETA.b;
 
     let outlierLigado = false;
+    let extras: { x: number; y: number }[] = [];
     let W = 0, H = 0, ultimaLargura = -1;
 
-    function pontos(): [number, number][] {
-      const esp: [number, number] = [ESPECIAL_X, outlierLigado ? ESPECIAL_OUTLIER : ESPECIAL_NORMAL];
-      return [...BASE, esp];
+    function pontos(): Ponto[] {
+      const esp: Ponto = {
+        x: ESPECIAL_X,
+        y: outlierLigado ? ESPECIAL_OUTLIER : ESPECIAL_NORMAL,
+        tipo: "especial",
+      };
+      return [
+        ...BASE.map(([x, y]): Ponto => ({ x, y, tipo: "base" })),
+        esp,
+        ...extras.map((p): Ponto => ({ ...p, tipo: "extra" })),
+      ];
     }
-    function metricas(ligado: boolean) {
-      const esp = ligado ? ESPECIAL_OUTLIER : ESPECIAL_NORMAL;
-      const pts = [...BASE, [ESPECIAL_X, esp] as [number, number]];
+    function metricas(pts: Ponto[]) {
       let somaAbs = 0, somaQuad = 0;
-      for (const [x, y] of pts) { const e = prever(x) - y; somaAbs += Math.abs(e); somaQuad += e * e; }
+      for (const { x, y } of pts) { const e = prever(x) - y; somaAbs += Math.abs(e); somaQuad += e * e; }
       const mae = somaAbs / pts.length;
       const mse = somaQuad / pts.length;
       return { mae, mse, rmse: Math.sqrt(mse) };
     }
-    const SEM = metricas(false);
+    // Referência: o conjunto original, sem outlier e sem pontos colocados.
+    const SEM = metricas([
+      ...BASE.map(([x, y]): Ponto => ({ x, y, tipo: "base" })),
+      { x: ESPECIAL_X, y: ESPECIAL_NORMAL, tipo: "especial" },
+    ]);
 
     const plot = () => ({
       x: MARGEM.esq, y: MARGEM.topo,
@@ -125,14 +149,13 @@
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText("preço (R$ mil)", 0, 0); ctx.restore();
 
-      // resíduos
       const pts = pontos();
-      ctx.lineWidth = 2.5;
-      for (let i = 0; i < pts.length; i++) {
-        const [x, y] = pts[i];
-        const ehEspecial = i === pts.length - 1;
-        ctx.strokeStyle = ehEspecial && outlierLigado ? COR.outlier : COR.residuo;
-        ctx.lineWidth = ehEspecial && outlierLigado ? 4 : 2.5;
+
+      // resíduos
+      for (const { x, y, tipo } of pts) {
+        const destacado = tipo === "especial" && outlierLigado;
+        ctx.strokeStyle = destacado ? COR.outlier : tipo === "extra" ? COR.extra : COR.residuo;
+        ctx.lineWidth = destacado || tipo === "extra" ? 4 : 2.5;
         ctx.globalAlpha = 0.85;
         ctx.beginPath(); ctx.moveTo(px(x), py(y)); ctx.lineTo(px(x), py(prever(x))); ctx.stroke();
       }
@@ -147,29 +170,30 @@
       ctx.lineTo(px(DOMINIO.xMax), py(prever(DOMINIO.xMax)));
       ctx.stroke(); ctx.restore();
 
-      // pontos
-      for (let i = 0; i < pts.length; i++) {
-        const [x, y] = pts[i];
-        const ehEspecial = i === pts.length - 1;
-        const destaque = ehEspecial && outlierLigado;
-        ctx.beginPath(); ctx.arc(px(x), py(y), destaque ? 9 : 6.5, 0, Math.PI * 2);
-        ctx.fillStyle = destaque ? COR.outlier : COR.ponto; ctx.fill();
-        ctx.lineWidth = destaque ? 3 : 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+      // pontos (os colocados na mão vêm por último, ficam por cima)
+      for (const { x, y, tipo } of pts) {
+        const destacado = (tipo === "especial" && outlierLigado) || tipo === "extra";
+        ctx.beginPath(); ctx.arc(px(x), py(y), destacado ? 9 : 6.5, 0, Math.PI * 2);
+        ctx.fillStyle = tipo === "extra" ? COR.extra : destacado ? COR.outlier : COR.ponto;
+        ctx.fill();
+        ctx.lineWidth = destacado ? 3 : 2; ctx.strokeStyle = "#fff"; ctx.stroke();
       }
     }
 
     function badge(el: HTMLElement, fator: number) {
       const forte = fator >= 4 ? COR.vermelho : fator >= 2 ? "#d97706" : COR.verde;
       el.hidden = false;
-      el.innerHTML = `com outlier: <strong style="color:${forte}">×${nf1.format(fator)}</strong>`;
+      el.innerHTML = `vs. o conjunto original: <strong style="color:${forte}">×${nf1.format(fator)}</strong>`;
     }
     function atualizar() {
-      const m = metricas(outlierLigado);
+      const pts = pontos();
+      const m = metricas(pts);
+      const mudou = outlierLigado || extras.length > 0;
       const set = (card: string, val: string, fator: number) => {
         const c = raiz.querySelector<HTMLElement>(`[data-card="${card}"]`)!;
         c.querySelector<HTMLElement>("[data-val]")!.textContent = val;
         const f = c.querySelector<HTMLElement>("[data-fator]")!;
-        if (outlierLigado) badge(f, fator); else f.hidden = true;
+        if (mudou) badge(f, fator); else f.hidden = true;
       };
       set("mae", nf0.format(m.mae), m.mae / SEM.mae);
       set("mse", nf0.format(m.mse), m.mse / SEM.mse);
@@ -177,6 +201,10 @@
 
       const btn = raiz.querySelector<HTMLButtonElement>("[data-toggle]")!;
       btn.textContent = outlierLigado ? "Remover outlier" : "Adicionar outlier";
+      const limpar = raiz.querySelector<HTMLButtonElement>("[data-limpar]")!;
+      limpar.disabled = extras.length === 0;
+      limpar.textContent =
+        extras.length > 1 ? `Limpar ${extras.length} pontos` : "Limpar pontos";
       desenhar();
     }
 
@@ -184,6 +212,56 @@
       outlierLigado = !outlierLigado;
       atualizar();
     });
+    raiz.querySelector<HTMLButtonElement>("[data-limpar]")!.addEventListener("click", () => {
+      extras = [];
+      atualizar();
+    });
+
+    // ---- colocar e tirar pontos no clique ----
+
+    function posicaoNoCanvas(ev: MouseEvent) {
+      const r = canvas!.getBoundingClientRect();
+      return { cx: ev.clientX - r.left, cy: ev.clientY - r.top };
+    }
+    function dentroDoPlot(cx: number, cy: number) {
+      const p = plot();
+      return cx >= p.x && cx <= p.x + p.w && cy >= p.y && cy <= p.y + p.h;
+    }
+    /** Índice do ponto colocado sob o cursor, ou -1. */
+    function extraSob(cx: number, cy: number) {
+      for (let i = extras.length - 1; i >= 0; i--) {
+        const dx = px(extras[i].x) - cx;
+        const dy = py(extras[i].y) - cy;
+        if (Math.hypot(dx, dy) <= RAIO_TOQUE) return i;
+      }
+      return -1;
+    }
+    function paraDados(cx: number, cy: number) {
+      const p = plot();
+      const x = DOMINIO.xMin + ((cx - p.x) / p.w) * (DOMINIO.xMax - DOMINIO.xMin);
+      const y = DOMINIO.yMin + (1 - (cy - p.y) / p.h) * (DOMINIO.yMax - DOMINIO.yMin);
+      return { x, y };
+    }
+
+    canvas.addEventListener("click", (ev) => {
+      const { cx, cy } = posicaoNoCanvas(ev);
+      const alvo = extraSob(cx, cy);
+      if (alvo >= 0) {
+        extras = extras.filter((_, i) => i !== alvo);
+        atualizar();
+        return;
+      }
+      if (!dentroDoPlot(cx, cy)) return;
+      extras = [...extras, paraDados(cx, cy)];
+      atualizar();
+    });
+
+    canvas.addEventListener("mousemove", (ev) => {
+      const { cx, cy } = posicaoNoCanvas(ev);
+      canvas.style.cursor =
+        extraSob(cx, cy) >= 0 ? "pointer" : dentroDoPlot(cx, cy) ? "crosshair" : "default";
+    });
+    canvas.addEventListener("mouseleave", () => { canvas.style.cursor = "default"; });
 
     function ajustar() {
       if (!canvas || !ctx) return;

@@ -10,8 +10,18 @@ import ResiduosECusto from "../../components/viz/ResiduosECusto.astro";
 import ErrosMaeMseRmse from "../../components/viz/ErrosMaeMseRmse.astro";
 import SuperficieCusto3D from "../../components/viz/SuperficieCusto3D.astro";
 import LearningRates from "../../components/viz/LearningRates.astro";
+import Termo from "../../components/Termo.astro";
+import Caixa from "../../components/Caixa.astro";
+import Pergunta from "../../components/Pergunta.astro";
+import Simbolos from "../../components/Simbolos.astro";
+import Quiz from "../../components/Quiz.astro";
+import QuizBloco from "../../components/QuizBloco.astro";
 
 Machine learning parece complicado de fora, mas o coração dele é um ciclo só, que se repete o curso inteiro: você escolhe um **modelo**, mede o quanto ele **erra**, e ajusta o modelo para errar menos. Esta aula mostra esse ciclo completo no caso mais simples que existe — uma variável só —, onde dá para desenhar tudo num gráfico e enxergar cada peça.
+
+<Caixa tipo="dica" titulo="Como ler esta página">
+Palavras com sublinhado pontilhado — como <Termo id="hiperparametro">hiperparâmetro</Termo> — abrem uma definição curta no clique. Use sempre que um termo passar batido. Os gráficos são para mexer, não só olhar.
+</Caixa>
 
 ## Programar regras ou aprender com exemplos
 
@@ -27,26 +37,66 @@ $$
 \text{previsão} = w \cdot x + b
 $$
 
-Vamos usar um exemplo concreto que o curso inteiro pode reaproveitar: prever o **preço de um imóvel** (a resposta, $y$) a partir da sua **metragem** (a entrada, $x$). A reta tem dois números que você controla:
+Vamos usar um exemplo concreto que o curso inteiro pode reaproveitar: prever o **preço de um imóvel** (a resposta, $y$) a partir da sua **metragem** (a entrada, $x$).
 
-- $w$, a **inclinação**: quanto o preço sobe a cada metro quadrado a mais. Inclinação maior deixa a reta mais "em pé".
-- $b$, o **deslocamento**: a altura em que a reta começa — o preço-base quando a metragem é zero.
+<Simbolos
+  itens={[
+    { simbolo: "$x$", significado: "a metragem do imóvel, em m² — a entrada, também chamada de feature" },
+    { simbolo: "$y$", significado: "o preço real do imóvel — a resposta que você quer prever" },
+    { simbolo: "$w$", significado: "a inclinação: quanto o preço sobe a cada metro quadrado a mais. Inclinação maior deixa a reta mais “em pé”" },
+    { simbolo: "$b$", significado: "o deslocamento: a altura em que a reta começa — o preço-base quando a metragem é zero" },
+  ]}
+/>
 
-E é só isso: **ajustar o modelo é escolher $w$ e $b$.** Toda a ideia de "treinar" um modelo, por mais sofisticado que ele fique lá na frente, no fundo é encontrar os melhores números para os seus parâmetros.
+E é só isso: **ajustar o modelo é escolher $w$ e $b$.** Toda a ideia de "treinar" um modelo, por mais sofisticado que ele fique lá na frente, no fundo é encontrar os melhores números para os seus <Termo id="parametro">parâmetros</Termo>.
+
+<Caixa tipo="erro">
+"Linear" descreve o formato do **modelo**, não o formato dos **dados**. Nenhum dado real cai exatamente em cima de uma reta — se caísse, não haveria nada para aprender. A reta captura a **tendência**; a distância que sobra em cada ponto é justamente o que a gente vai medir a seguir.
+</Caixa>
 
 ## Medir o erro: os resíduos
 
 Como saber se uma reta é boa? Para cada imóvel, o modelo faz uma previsão, e você compara com o preço real. A diferença entre os dois é o **resíduo** — a distância **vertical** entre o ponto real e a reta.
 
-Por que vertical, e não a distância perpendicular até a reta? Porque o que você está errando é a **previsão** (o preço), não a posição do ponto. O resíduo mede "quão longe o preço previsto ficou do preço real", e isso se lê na vertical.
+<Pergunta pergunta="Por que o resíduo é a distância vertical, e não a distância perpendicular até a reta?">
+Porque o que você está errando é a **previsão** — o preço —, não a posição do ponto no plano. A metragem do imóvel é um dado, não um chute: ela está certa. O que o modelo chutou foi o preço, e a diferença entre o preço chutado e o preço real se lê **na vertical**.
+</Pergunta>
 
 Um resíduo pode ser positivo (a reta previu **a menos**) ou negativo (previu **a mais**). Se você simplesmente somar todos, os positivos cancelam os negativos e o total dá quase zero — mesmo numa reta péssima. Para escapar disso, a gente **eleva cada resíduo ao quadrado** (o que apaga o sinal) e tira a média. Esse número é o **custo**: um resumo, num valor só, de quão errado o modelo está no conjunto inteiro.
 
-No gráfico abaixo, <span class="destaque">mexa nos sliders de $w$ e $b$</span>. Cada traço vertical é um resíduo, e o painel mostra o custo total. Tente deixá-lo o menor possível — é exatamente isso que "treinar" quer dizer.
+<Caixa tipo="erro">
+Custo **não** é o erro de uma previsão. O erro de um imóvel só é o resíduo dele. O custo é o resumo do conjunto **inteiro** — uma média sobre todos os exemplos. Trocar um pelo outro é o tropeço mais comum desta aula.
+</Caixa>
+
+No gráfico abaixo, **mexa nos sliders de $w$ e $b$**. Cada traço vertical é um <Termo id="residuo">resíduo</Termo>, e o painel mostra o custo total. Tente deixá-lo o menor possível — é exatamente isso que "treinar" quer dizer.
 
 <VizEmbed titulo="ajuste w (inclinação) e b (deslocamento)">
   <ResiduosECusto />
 </VizEmbed>
+
+<Quiz
+  id="a1-soma-residuos"
+  pergunta="Você resolve medir o erro de uma reta somando os resíduos com sinal. O total dá quase zero. Isso quer dizer que a reta é boa?"
+  alternativas={[
+    {
+      texto: "Sim — soma perto de zero significa que as previsões ficaram perto dos valores reais.",
+      porque: "A soma perto de zero não diz nada sobre o tamanho dos erros. Uma reta que erra +500 num imóvel e −500 no seguinte também soma zero, e é péssima nos dois.",
+    },
+    {
+      texto: "Não — resíduos positivos e negativos se cancelam, então a soma com sinal pode dar zero mesmo numa reta terrível. É por isso que se eleva ao quadrado (ou se toma o valor absoluto) antes de somar.",
+      certa: true,
+      porque: "Exatamente. O sinal carrega a direção do erro, não o tamanho. Apagar o sinal — ao quadrado ou em módulo — é o que faz erros para cima e para baixo pararem de se anular.",
+    },
+    {
+      texto: "Não — a soma dos resíduos só funciona quando o conjunto tem poucos exemplos.",
+      porque: "O problema não é o tamanho do conjunto: o cancelamento acontece com 10 ou com 10 mil pontos. É o sinal que atrapalha, não a quantidade.",
+    },
+    {
+      texto: "Sim, contanto que todos os resíduos sejam pequenos.",
+      porque: "Se todos os resíduos forem pequenos, a reta é boa mesmo — mas isso é uma informação que a soma com sinal não te deu. Foi você quem supôs; o número zero sozinho não distingue os dois casos.",
+    },
+  ]}
+/>
 
 ## MAE, MSE e RMSE
 
@@ -56,17 +106,19 @@ Elevar ao quadrado não é a única forma de resumir o erro. Existem três medid
 - **MSE** (erro quadrático médio): a média do resíduo **ao quadrado**. Agora um erro de 10 pesa **100** vezes um erro de 1. Ou seja, o MSE se incomoda muito mais com erros grandes.
 - **RMSE**: a raiz quadrada do MSE. Serve para voltar à unidade original: o MSE está em "reais ao quadrado", que não quer dizer nada; o RMSE traz de volta para reais, e aí vira um erro típico que você consegue interpretar.
 
-A diferença fica gritante com um **outlier** — um ponto muito fora da curva. Como o MSE eleva ao quadrado, um único erro enorme domina a conta e explode o valor. O MAE mal se mexe. <span class="destaque">Ligue e desligue o outlier</span> abaixo e compare os três:
+A diferença fica gritante com um **outlier** — um ponto muito fora da curva. Como o MSE eleva ao quadrado, um único erro enorme domina a conta e explode o valor. O MAE mal se mexe. **Ligue e desligue o outlier** abaixo e compare os três.
 
-<VizEmbed titulo="ligue e desligue o outlier">
+Depois teste o seu próprio caso: **clique no gráfico para colocar um ponto onde você quiser** (e clique de novo em cima dele para tirar). A reta continua a mesma — repare que só um ponto bem longe já basta para o MSE disparar, enquanto um ponto perto da reta quase não muda nada.
+
+<VizEmbed titulo="ligue o outlier — ou coloque os seus pontos">
   <ErrosMaeMseRmse />
 </VizEmbed>
 
-A moral prática: se um erro grande é catastrófico no seu problema, use **MSE**, que castiga outlier com força. Se o dado tem ruído grosso e um ponto fora da curva de vez em quando não é o fim do mundo, o **MAE** é mais robusto.
+A moral prática: se um erro grande é catastrófico no seu problema, use **MSE**, que castiga <Termo id="outlier">outlier</Termo> com força. Se o dado tem ruído grosso e um ponto fora da curva de vez em quando não é o fim do mundo, o **MAE** é mais robusto.
 
 ## A função de custo e a tigela
 
-Volte ao custo. Para **cada** par $(w, b)$ que você escolher, existe um valor de custo. Se você puser $w$ num eixo, $b$ em outro, e a altura for o custo, isso desenha uma superfície — e, para a regressão linear, essa superfície tem o formato de uma **tigela**.
+Volte ao <Termo id="custo">custo</Termo>. Para **cada** par $(w, b)$ que você escolher, existe um valor de custo. Se você puser $w$ num eixo, $b$ em outro, e a altura for o custo, isso desenha uma superfície — e, para a regressão linear, essa superfície tem o formato de uma **tigela**.
 
 O ponto mais fundo da tigela é o par $(w, b)$ de menor custo possível: o **melhor modelo**. Achar esse fundo é o problema inteiro do treino.
 
@@ -76,9 +128,22 @@ $$
 w \leftarrow w - \alpha\,\frac{\partial J}{\partial w}, \qquad b \leftarrow b - \alpha\,\frac{\partial J}{\partial b}
 $$
 
-Aqui $\frac{\partial J}{\partial w}$ é a **inclinação** do custo naquele ponto (a derivada), e $\alpha$ é o tamanho do passo. No fundo da tigela a inclinação é zero — o gradiente some e o passo para sozinho. É por isso que otimizar acaba sendo uma conta de **derivada**: a derivada mede a inclinação, e você a segue até ela zerar.
+<Simbolos
+  itens={[
+    { simbolo: "$J$", significado: "a função de custo — o erro do modelo no conjunto inteiro" },
+    { simbolo: "$\\leftarrow$", significado: "“passa a valer”: o resultado da direita substitui o valor antigo da esquerda" },
+    { simbolo: "$\\frac{\\partial J}{\\partial w}$", significado: "a inclinação do custo na direção de $w$: o quanto o custo muda se $w$ mexer um tiquinho. É a derivada" },
+    { simbolo: "$\\alpha$", significado: "o learning rate: o tamanho do passo de cada correção" },
+  ]}
+/>
 
-<span class="destaque">Gire a tigela</span> abaixo e rode a descida passo a passo — dá para girar enquanto a bolinha desce.
+No fundo da tigela a inclinação é zero — o gradiente some e o passo para sozinho. É por isso que otimizar acaba sendo uma conta de **derivada**: a derivada mede a inclinação, e você a segue até ela zerar.
+
+<Caixa tipo="erro">
+O <Termo id="gradiente">gradiente</Termo> **não** é a resposta — ele é só uma **direção**, válida ali onde você está. Ele não sabe onde fica o fundo da tigela nem quanto falta para chegar. Por isso o treino é um monte de passos pequenos, e não uma conta só.
+</Caixa>
+
+**Gire a tigela** abaixo e rode a descida passo a passo — dá para girar enquanto a bolinha desce.
 
 <VizEmbed titulo="gire a tigela e rode a descida">
   <SuperficieCusto3D />
@@ -86,19 +151,43 @@ Aqui $\frac{\partial J}{\partial w}$ é a **inclinação** do custo naquele pont
 
 ## O tamanho do passo: o learning rate
 
-Aquele $\alpha$ da fórmula tem nome: **learning rate** (taxa de aprendizado). É o **primeiro hiperparâmetro** do curso — e "hiperparâmetro" é um número que **você** escolhe antes de treinar, ao contrário de $w$ e $b$, que o modelo aprende sozinho.
+Aquele $\alpha$ da fórmula tem nome: **learning rate** (taxa de aprendizado). É o **primeiro hiperparâmetro** do curso — um número que **você** escolhe antes de treinar, ao contrário de $w$ e $b$, que o modelo aprende sozinho.
 
 O learning rate é um equilíbrio delicado:
 
-- **Grande demais**: cada passo é enorme, a bola pula o fundo e vai parar mais longe do outro lado, cada vez pior — o erro **explode** (diverge).
+- **Grande demais**: cada passo é enorme, a bola pula o fundo e vai parar mais longe do outro lado, cada vez pior — o erro explode (**diverge**).
 - **Pequeno demais**: cada passo é minúsculo, a bola até chega ao fundo, mas leva uma eternidade.
 - **No ponto certo**: desce rápido e estável.
 
-Olhe o **erro a cada iteração** nos três casos — a curva que dispara, a que quase não desce, e a que mergulha:
+Olhe o **erro a cada** <Termo id="iteracao">iteração</Termo> nos três casos — a curva que dispara, a que quase não desce, e a que mergulha:
 
 <VizEmbed titulo="rode e veja o erro cair — ou explodir">
   <LearningRates />
 </VizEmbed>
+
+<Quiz
+  id="a1-erro-explodindo"
+  pergunta="Você põe o treino para rodar e o erro cresce a cada iteração, cada vez mais rápido, até virar um número absurdo. Qual é a primeira coisa a mexer?"
+  alternativas={[
+    {
+      texto: "Diminuir o learning rate.",
+      certa: true,
+      porque: "Esse é o sintoma clássico de passo grande demais: a correção passa do fundo e para do outro lado ainda mais longe, e o próximo passo piora de novo. Passo menor é a primeira coisa a tentar.",
+    },
+    {
+      texto: "Aumentar o learning rate, para chegar mais rápido ao fundo da tigela.",
+      porque: "Isso acelera exatamente o que já está dando errado. O erro não está subindo por falta de velocidade — está subindo porque cada passo já ultrapassa o alvo.",
+    },
+    {
+      texto: "Trocar o MSE pelo MAE.",
+      porque: "A métrica de erro define o formato da superfície, não o tamanho do passo que você dá nela. Trocar de métrica com um learning rate grande demais continua divergindo.",
+    },
+    {
+      texto: "Deixar rodar por mais iterações — em algum momento ele converge.",
+      porque: "Quando o erro cresce de forma acelerada, mais iterações só levam mais longe do fundo. Divergência não se resolve com paciência.",
+    },
+  ]}
+/>
 
 <p class="nota">
   E é isso: o ciclo completo. Você viu o que é um modelo, o que significa ajustá-lo,
@@ -106,3 +195,105 @@ Olhe o **erro a cada iteração** nos três casos — a curva que dispara, a que
   parâmetros. Todo o resto do curso é esse mesmo ciclo — com modelos cada vez mais
   poderosos no lugar da reta.
 </p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="a1-linear-nao-e-o-dado"
+  pergunta="Um colega olha a nuvem de pontos dos imóveis, vê que eles não formam uma reta perfeita, e conclui que regressão linear não serve para esse dado. Onde está o erro do raciocínio dele?"
+  alternativas={[
+    {
+      texto: "Não há erro: regressão linear exige que os pontos estejam sobre uma reta.",
+      porque: "Se os pontos já estivessem sobre uma reta, não haveria nada a aprender — bastaria ligar dois deles. O método existe justamente para dado que só tem uma tendência.",
+    },
+    {
+      texto: "“Linear” é o formato do modelo, não o dos dados. A reta captura a tendência geral, e o que sobra em cada ponto são os resíduos — que é o que o treino minimiza.",
+      certa: true,
+      porque: "Isso mesmo. Espalhamento em volta da reta é o esperado, não um impedimento. Só seria problema se a relação tivesse uma forma claramente curva — e aí a resposta seria mudar de modelo, o assunto da Aula 2.",
+    },
+    {
+      texto: "Ele está certo, mas dá para usar assim mesmo, ignorando os pontos que ficam longe da reta.",
+      porque: "Descartar ponto por estar longe da reta é escolher o dado que confirma o modelo. Ponto distante às vezes é erro de medição, mas às vezes é a informação mais importante do conjunto.",
+    },
+    {
+      texto: "O problema é a escala dos eixos: ajustando a escala, os pontos se alinham.",
+      porque: "Mudar a escala dos eixos muda a aparência do gráfico, não a relação entre as variáveis. Os resíduos continuam os mesmos.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a1-custo-vs-residuo"
+  pergunta="Um imóvel de 80 m² foi previsto em R$ 500 mil e vale R$ 560 mil. Alguém conclui: “então o custo do modelo é 60 mil”. O que está errado nessa frase?"
+  alternativas={[
+    {
+      texto: "Nada — 60 mil é o custo do modelo.",
+      porque: "60 mil é o erro daquele imóvel específico. O custo é uma propriedade do modelo sobre o conjunto inteiro, não de um exemplo.",
+    },
+    {
+      texto: "60 mil é o resíduo daquele imóvel. O custo resume o erro de todos os exemplos num número só — é uma média sobre o conjunto inteiro.",
+      certa: true,
+      porque: "Exato. Um imóvel dá um resíduo; o conjunto dá um custo. É a diferença entre “errou aqui” e “erra assim, em geral”.",
+    },
+    {
+      texto: "O custo seria 60 mil ao quadrado.",
+      porque: "Elevar ao quadrado é parte da conta do MSE, mas o problema da frase não é a operação — é continuar falando de um exemplo só. Mesmo ao quadrado, ainda é o erro de um imóvel.",
+    },
+    {
+      texto: "O custo seria −60 mil, porque o modelo previu a menos.",
+      porque: "O sinal indica a direção do erro, e some assim que a gente eleva ao quadrado (ou toma o módulo). Além disso, o problema segue sendo o mesmo: é um exemplo, não o conjunto.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a1-gradiente-e-direcao"
+  pergunta="No gradient descent, o que o gradiente entrega a cada passo?"
+  alternativas={[
+    {
+      texto: "Os valores de $w$ e $b$ que zeram o custo.",
+      porque: "Se ele entregasse isso, não existiria treino: bastaria um passo. O gradiente não conhece o fundo da tigela — ele só enxerga a vizinhança imediata do ponto onde você está.",
+    },
+    {
+      texto: "A direção de subida mais íngreme do custo naquele ponto — por isso o algoritmo anda no sentido contrário, com passo de tamanho $\\alpha$.",
+      certa: true,
+      porque: "Isso. Ele é uma bússola local, não um mapa. Daí o treino ser uma sequência de passos pequenos, cada um recalculando a direção de novo.",
+    },
+    {
+      texto: "O quanto ainda falta de custo até chegar ao fundo da tigela.",
+      porque: "Essa distância ninguém conhece durante o treino — se conhecesse, o problema já estaria resolvido. O gradiente informa inclinação, não distância até o alvo.",
+    },
+    {
+      texto: "O erro médio do modelo naquela iteração.",
+      porque: "O erro médio é o próprio custo, um número que resume a situação atual. O gradiente é outra coisa: a taxa de variação desse custo em relação a cada parâmetro.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a1-escolher-metrica"
+  pergunta="Você prevê o tempo de entrega de pedidos. Um atraso enorme — uma entrega que some por dias — é desastroso para o negócio; já pequenas imprecisões de alguns minutos, nem tanto. Qual medida de erro combina melhor com esse objetivo?"
+  alternativas={[
+    {
+      texto: "MSE — ou o RMSE, que é a raiz dele e devolve o número para minutos. Elevar ao quadrado faz o erro grande dominar a conta, que é exatamente o comportamento desejado.",
+      certa: true,
+      porque: "Isso. A métrica precisa refletir o que dói no problema. Se atraso enorme é desastre, a medida tem que reagir com força a ele — e é o que o quadrado faz.",
+    },
+    {
+      texto: "MAE — ele é mais robusto a valores extremos, então lida melhor com atrasos enormes.",
+      porque: "“Robusto” aqui significa que ele quase **não reage** ao extremo — o oposto do que você quer. Robustez é qualidade quando o ponto distante é ruído; aqui ele é o caso que mais importa.",
+    },
+    {
+      texto: "Tanto faz: MAE e MSE sempre elegem o mesmo modelo como o melhor.",
+      porque: "Não elegem. Como pesam os erros de formas diferentes, podem ordenar os mesmos modelos de maneiras diferentes — foi isso que você viu no gráfico do outlier.",
+    },
+    {
+      texto: "Nenhuma das duas: erro de tempo pede uma métrica específica de tempo.",
+      porque: "MAE e MSE não têm nada de específico a preço — funcionam em qualquer grandeza numérica, inclusive minutos. A escolha entre elas depende de como você quer pesar os erros grandes.",
+    },
+  ]}
+/>
+
+</QuizBloco>

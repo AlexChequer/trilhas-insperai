@@ -1,0 +1,21 @@
+---
+// Caixa destacada no meio do texto. Quatro tipos, cada um com sua cor e rótulo
+// padrão — o rótulo pode ser trocado pela prop `titulo`.
+interface Props {
+  tipo?: "nota" | "atencao" | "dica" | "erro";
+  titulo?: string;
+}
+const { tipo = "nota", titulo } = Astro.props;
+
+const ROTULO = {
+  nota: "Nota",
+  atencao: "Atenção",
+  dica: "Dica",
+  erro: "Erro comum",
+} as const;
+---
+
+<aside class={`caixa caixa-${tipo}`}>
+  <p class="caixa-titulo">{titulo ?? ROTULO[tipo]}</p>
+  <div class="caixa-corpo"><slot /></div>
+</aside>
