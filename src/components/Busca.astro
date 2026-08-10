@@ -52,6 +52,10 @@
     const limpar = (s: string) =>
       s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+    // o termo digitado volta para a tela: escapa antes de virar HTML
+    const escapar = (s: string) =>
+      s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
     async function carregar() {
       if (indice) return;
       try {
@@ -94,9 +98,12 @@
         return;
       }
       if (achados.length === 0) {
-        saida.innerHTML = `<p class="busca-vazio">Nada encontrado para “${entrada!.value}”.</p>`;
+        saida.innerHTML = `<p class="busca-vazio">Nada encontrado para “${escapar(entrada!.value)}”.</p>`;
         return;
       }
+      // O grupo ("Trainees · Aulas") entra em cada resultado porque a busca é do
+      // site inteiro: sem ele, duas trilhas com aulas de nome parecido se
+      // confundiriam na lista.
       saida.innerHTML = achados
         .map(
           (a, i) => `
@@ -106,6 +113,7 @@
               <b>${a.titulo}</b>
               <small>${a.detalhe}</small>
             </span>
+            <span class="busca-item-grupo">${a.grupo}</span>
           </a>`,
         )
         .join("");

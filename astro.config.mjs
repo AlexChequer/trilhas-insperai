@@ -10,6 +10,10 @@ import rehypeKatex from "rehype-katex";
 // remark-math + rehype-katex → fórmulas LaTeX ($...$ e $$...$$) nos MDX.
 export default defineConfig({
   integrations: [mdx()],
+  // Os endereços antigos (/aulas/… e /guias/…, de quando o site era só o da
+  // trilha de trainees) são páginas de redirecionamento em src/pages/aulas e
+  // src/pages/guias — e não `redirects` daqui, que exige que a origem e o
+  // destino tenham os mesmos parâmetros dinâmicos (o destino ganhou [trilha]).
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],

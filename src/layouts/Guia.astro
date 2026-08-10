@@ -1,19 +1,32 @@
 ---
 // Página de material de consulta (Aula 0, e depois a trilha de setup). Mesma
 // leitura das aulas, sem o prev/next do arco — um guia não tem "próxima aula".
+// O que ele tem é uma saída: a primeira aula da trilha, quando já existe.
 import SiteLayout from "./SiteLayout.astro";
-import type { CollectionEntry } from "astro:content";
+import { getCollection, type CollectionEntry } from "astro:content";
+import { daTrilha, separarId, urlAula, urlTrilha, type Trilha } from "../data/trilhas";
 
 interface Props {
   data: CollectionEntry<"guias">["data"];
+  trilha: Trilha;
   slug: string;
   headings: { depth: number; slug: string; text: string }[];
 }
-const { data, slug, headings } = Astro.props;
+const { data, trilha, slug, headings } = Astro.props;
 const secoes = headings.filter((h) => h.depth === 2);
+
+const primeira = (await getCollection("aulas", daTrilha(trilha.id))).sort(
+  (a, b) => a.data.ordem - b.data.ordem,
+)[0];
 ---
 
-<SiteLayout title={`${data.titulo} — InsperAI`} descricao={data.objetivo} slugAtual={slug} secao="aulas">
+<SiteLayout
+  title={`${data.titulo} — ${trilha.nome}`}
+  descricao={data.objetivo}
+  trilha={trilha}
+  slugAtual={slug}
+  secao="aulas"
+>
   <div class="aula-doc">
     <article class="conteudo-aula">
       <header class="aula-hero">
@@ -27,14 +40,18 @@ const secoes = headings.filter((h) => h.depth === 2);
       </div>
 
       <nav class="aula-nav">
-        <a href="/">
+        <a href={urlTrilha(trilha.id)}>
           <div class="rotulo">Começo</div>
           <div class="nome">← Visão geral do semestre</div>
         </a>
-        <a class="direita" href="/aulas/aula-01">
-          <div class="rotulo">Quando estiver pronto · A1</div>
-          <div class="nome">Intro a ML + Regressão Linear →</div>
-        </a>
+        {
+          primeira && (
+            <a class="direita" href={urlAula(trilha.id, separarId(primeira.id).slug)}>
+              <div class="rotulo">Quando estiver pronto · {primeira.data.n}</div>
+              <div class="nome">{primeira.data.titulo} →</div>
+            </a>
+          )
+        }
       </nav>
     </article>
 

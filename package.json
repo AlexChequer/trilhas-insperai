@@ -1,13 +1,18 @@
 {
-  "name": "trilha-trainees",
+  "name": "trilhas-insperai",
   "type": "module",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "checar-links": "node scripts/checar-links.mjs",
+    "verificar": "npm run check && npm run build && npm run checar-links"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

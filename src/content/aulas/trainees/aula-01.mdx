@@ -5,17 +5,17 @@ ordem: 1
 objetivo: "Um ciclo completo de aprendizado num lugar só: um modelo, uma medida de erro, e o mecanismo que corrige o erro — tudo com uma variável, onde dá pra desenhar tudo."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import ResiduosECusto from "../../components/viz/ResiduosECusto.astro";
-import ErrosMaeMseRmse from "../../components/viz/ErrosMaeMseRmse.astro";
-import SuperficieCusto3D from "../../components/viz/SuperficieCusto3D.astro";
-import LearningRates from "../../components/viz/LearningRates.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Simbolos from "../../components/Simbolos.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import ResiduosECusto from "@/components/viz/trainees/ResiduosECusto.astro";
+import ErrosMaeMseRmse from "@/components/viz/trainees/ErrosMaeMseRmse.astro";
+import SuperficieCusto3D from "@/components/viz/trainees/SuperficieCusto3D.astro";
+import LearningRates from "@/components/viz/trainees/LearningRates.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Machine learning parece complicado de fora, mas o coração dele é um ciclo só, que se repete o curso inteiro: você escolhe um **modelo**, mede o quanto ele **erra**, e ajusta o modelo para errar menos. Esta aula mostra esse ciclo completo no caso mais simples que existe — uma variável só —, onde dá para desenhar tudo num gráfico e enxergar cada peça.
 

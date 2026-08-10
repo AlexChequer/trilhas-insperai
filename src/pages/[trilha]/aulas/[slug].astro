@@ -1,0 +1,45 @@
+---
+import { getCollection, render } from "astro:content";
+import Aula from "@/layouts/Aula.astro";
+import { TRILHAS_NO_AR, daTrilha, separarId } from "@/data/trilhas";
+
+export async function getStaticPaths() {
+  const rotas = [];
+
+  for (const trilha of TRILHAS_NO_AR) {
+    const aulas = (await getCollection("aulas", daTrilha(trilha.id))).sort(
+      (a, b) => a.data.ordem - b.data.ordem,
+    );
+
+    // prev/next andam dentro da trilha: a última aula de uma não emenda na
+    // primeira da outra.
+    rotas.push(
+      ...aulas.map((entry, i) => ({
+        params: { trilha: trilha.id, slug: separarId(entry.id).slug },
+        props: {
+          entry,
+          trilha,
+          prev: aulas[i - 1] ?? null,
+          next: aulas[i + 1] ?? null,
+        },
+      })),
+    );
+  }
+
+  return rotas;
+}
+
+const { entry, trilha, prev, next } = Astro.props;
+const { Content, headings } = await render(entry);
+---
+
+<Aula
+  data={entry.data}
+  trilha={trilha}
+  slug={separarId(entry.id).slug}
+  prev={prev}
+  next={next}
+  headings={headings}
+>
+  <Content />
+</Aula>

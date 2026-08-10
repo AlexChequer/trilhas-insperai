@@ -1,21 +1,24 @@
 ---
 import SiteLayout from "./SiteLayout.astro";
 import type { CollectionEntry } from "astro:content";
+import { separarId, urlAula, urlTrilha, type Trilha } from "../data/trilhas";
 
 interface Props {
   data: CollectionEntry<"aulas">["data"];
+  trilha: Trilha;
   slug: string;
   prev: CollectionEntry<"aulas"> | null;
   next: CollectionEntry<"aulas"> | null;
   headings: { depth: number; slug: string; text: string }[];
 }
-const { data, slug, prev, next, headings } = Astro.props;
+const { data, trilha, slug, prev, next, headings } = Astro.props;
 const secoes = headings.filter((h) => h.depth === 2);
 ---
 
 <SiteLayout
-  title={`Aula ${data.n.slice(1)} · ${data.titulo} — InsperAI`}
+  title={`Aula ${data.n.slice(1)} · ${data.titulo} — ${trilha.nome}`}
   descricao={data.objetivo}
+  trilha={trilha}
   slugAtual={slug}
   secao="aulas"
 >
@@ -34,12 +37,12 @@ const secoes = headings.filter((h) => h.depth === 2);
       <nav class="aula-nav">
         {
           prev ? (
-            <a href={`/aulas/${prev.id}`}>
+            <a href={urlAula(trilha.id, separarId(prev.id).slug)}>
               <div class="rotulo">Anterior · {prev.data.n}</div>
               <div class="nome">← {prev.data.titulo}</div>
             </a>
           ) : (
-            <a href="/">
+            <a href={urlTrilha(trilha.id)}>
               <div class="rotulo">Começo</div>
               <div class="nome">← Visão geral do semestre</div>
             </a>
@@ -47,7 +50,7 @@ const secoes = headings.filter((h) => h.depth === 2);
         }
         {
           next ? (
-            <a class="direita" href={`/aulas/${next.id}`}>
+            <a class="direita" href={urlAula(trilha.id, separarId(next.id).slug)}>
               <div class="rotulo">Próxima · {next.data.n}</div>
               <div class="nome">{next.data.titulo} →</div>
             </a>

@@ -1,19 +1,19 @@
 ---
-import { getCollection, render } from "astro:content";
-import Guia from "../../layouts/Guia.astro";
+// Endereço antigo: /guias/aula-0 → /trainees/guias/aula-0. Ver o irmão em
+// src/pages/aulas/[slug].astro para o porquê.
+import { getCollection } from "astro:content";
+import Redirecionar from "@/components/Redirecionar.astro";
+import { daTrilha, separarId, urlGuia } from "@/data/trilhas";
 
 export async function getStaticPaths() {
-  const guias = await getCollection("guias");
-  return guias.map((entry) => ({
-    params: { slug: entry.id },
-    props: { entry },
-  }));
+  const guias = await getCollection("guias", daTrilha("trainees"));
+  return guias.map((entry) => {
+    const { slug } = separarId(entry.id);
+    return { params: { slug }, props: { para: urlGuia("trainees", slug) } };
+  });
 }
 
-const { entry } = Astro.props;
-const { Content, headings } = await render(entry);
+const { para } = Astro.props;
 ---
 
-<Guia data={entry.data} slug={entry.id} headings={headings}>
-  <Content />
-</Guia>
+<Redirecionar para={para} />

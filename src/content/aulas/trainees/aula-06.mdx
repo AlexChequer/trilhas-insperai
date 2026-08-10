@@ -5,15 +5,15 @@ ordem: 6
 objetivo: "O loop de treino por dentro — epoch, batch e iteração —, os otimizadores que decidem o passo, e o lançamento do desafio do MNIST."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import TreinoLoteOtimizador from "../../components/viz/TreinoLoteOtimizador.astro";
-import DatasetMNIST from "../../components/viz/DatasetMNIST.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Simbolos from "../../components/Simbolos.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import TreinoLoteOtimizador from "@/components/viz/trainees/TreinoLoteOtimizador.astro";
+import DatasetMNIST from "@/components/viz/trainees/DatasetMNIST.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Você já sabe o que a rede calcula (Aula 4), como ela se organiza e como o erro volta por ela (Aula 5). Falta a mecânica de fazer isso rodar milhares de vezes sem que o computador engasgue — e as decisões práticas que aparecem aí. No fim desta aula o desafio do MNIST é lançado.
 

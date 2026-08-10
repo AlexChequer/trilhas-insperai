@@ -1,0 +1,28 @@
+---
+import { getCollection, render } from "astro:content";
+import Guia from "@/layouts/Guia.astro";
+import { TRILHAS_NO_AR, daTrilha, separarId } from "@/data/trilhas";
+
+export async function getStaticPaths() {
+  const rotas = [];
+
+  for (const trilha of TRILHAS_NO_AR) {
+    const guias = await getCollection("guias", daTrilha(trilha.id));
+    rotas.push(
+      ...guias.map((entry) => ({
+        params: { trilha: trilha.id, slug: separarId(entry.id).slug },
+        props: { entry, trilha },
+      })),
+    );
+  }
+
+  return rotas;
+}
+
+const { entry, trilha } = Astro.props;
+const { Content, headings } = await render(entry);
+---
+
+<Guia data={entry.data} trilha={trilha} slug={separarId(entry.id).slug} headings={headings}>
+  <Content />
+</Guia>

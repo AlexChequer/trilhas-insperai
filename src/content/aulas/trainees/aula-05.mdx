@@ -5,16 +5,16 @@ ordem: 5
 objetivo: "Como neurônios viram uma rede, como a camada de saída se adapta ao problema, e como o erro volta pela rede repartindo a culpa entre os pesos."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import CamadasDeSaida from "../../components/viz/CamadasDeSaida.astro";
-import SoftmaxInterativo from "../../components/viz/SoftmaxInterativo.astro";
-import RedeBackprop from "../../components/viz/RedeBackprop.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Simbolos from "../../components/Simbolos.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import CamadasDeSaida from "@/components/viz/trainees/CamadasDeSaida.astro";
+import SoftmaxInterativo from "@/components/viz/trainees/SoftmaxInterativo.astro";
+import RedeBackprop from "@/components/viz/trainees/RedeBackprop.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Na Aula 4 você montou um neurônio e descobriu que, sem ativação, empilhá-los não leva a lugar nenhum. Agora eles viram uma rede de verdade. São três perguntas para responder: que formato dar à rede, como fazer a última camada devolver a resposta no formato certo para o problema, e — a mais difícil — como corrigir pesos que estão lá no começo quando o erro só é conhecido no fim.
 

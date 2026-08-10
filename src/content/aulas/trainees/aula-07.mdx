@@ -5,15 +5,15 @@ ordem: 7
 objetivo: "A aula de diagnóstico: como saber se o modelo está bom, o que está errado quando não está, e o que fazer a respeito."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import ComplexidadeErro from "../../components/viz/ComplexidadeErro.astro";
-import Dropout from "../../components/viz/Dropout.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Simbolos from "../../components/Simbolos.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import ComplexidadeErro from "@/components/viz/trainees/ComplexidadeErro.astro";
+import Dropout from "@/components/viz/trainees/Dropout.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Na Aula 2 apareceu um polinômio de grau 15 que passava exatamente por todos os pontos — e a gente disse que aquela imagem voltaria com nome. É esta aula. Aqui você aprende a olhar para um treino que rodou até o fim e dizer o que aconteceu: se o modelo é simples demais, se decorou, ou se está bom. É a aula mais útil do bloco para o MNIST, porque ela é sobre o que fazer **depois** de o código funcionar.
 

@@ -5,14 +5,14 @@ ordem: 10
 objetivo: "Montar uma arquitetura completa, entender o que a rede aprende em cada profundidade, e usar modelo pré-treinado no próprio problema."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import ArquiteturaCNN from "../../components/viz/ArquiteturaCNN.astro";
-import TransferLearning from "../../components/viz/TransferLearning.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import ArquiteturaCNN from "@/components/viz/trainees/ArquiteturaCNN.astro";
+import TransferLearning from "@/components/viz/trainees/TransferLearning.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Na Aula 9 você viu as peças: convolução, stride, padding, pooling. Agora elas viram uma arquitetura de verdade, e aparece a pergunta que interessa na prática — o que essa rede está de fato aprendendo em cada profundidade, e como aproveitar uma que já foi treinada por outra pessoa em milhões de imagens.
 

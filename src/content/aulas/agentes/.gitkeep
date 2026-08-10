@@ -1,0 +1,4 @@
+# Conteúdo da trilha agentes.
+# Cada aula é um .mdx aqui, com o mesmo frontmatter das outras trilhas
+# (n, titulo, ordem, objetivo) — veja src/content/aulas/trainees/aula-01.mdx.
+# Enquanto não houver arco em src/data/trilhas/agentes.ts, a trilha fica "em breve".

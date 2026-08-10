@@ -1,0 +1,83 @@
+---
+// Home de uma trilha: a página do programa, não um índice de aulas.
+//
+// Antes ela repetia a barra lateral — os mesmos 13 títulos nos mesmos 6 blocos —
+// e o número que ocupava o lugar mais nobre ("25 de 31 visualizações prontas")
+// media o quanto o SITE estava construído, que é informação do professor e não
+// do trainee. Saíram os dois.
+//
+// Todo o texto vem de src/data/trilhas/<trilha>.ts: esta página é a forma, e
+// serve as três trilhas sem um `if` sequer.
+import { getCollection } from "astro:content";
+import SiteLayout from "@/layouts/SiteLayout.astro";
+import Arco from "@/components/Arco.astro";
+import { TRILHAS_NO_AR, daTrilha, separarId, urlAula, urlGuia } from "@/data/trilhas";
+
+export async function getStaticPaths() {
+  return TRILHAS_NO_AR.map((trilha) => ({
+    params: { trilha: trilha.id },
+    props: { trilha },
+  }));
+}
+
+const { trilha } = Astro.props;
+
+// O botão principal aponta para a primeira aula que já tem página — enquanto
+// nenhuma existir, ele some em vez de levar a um 404.
+const aulas = (await getCollection("aulas", daTrilha(trilha.id))).sort(
+  (a, b) => a.data.ordem - b.data.ordem,
+);
+const primeira = aulas[0];
+
+const guias = new Set(
+  (await getCollection("guias", daTrilha(trilha.id))).map((g) => separarId(g.id).slug),
+);
+const secundaria =
+  trilha.acaoSecundaria && guias.has(trilha.acaoSecundaria.guia) ? trilha.acaoSecundaria : null;
+---
+
+<SiteLayout title={`${trilha.nome} — InsperAI`} descricao={trilha.resumo} trilha={trilha} semLateral>
+  <div class="home">
+    <section class="home-hero">
+      <p class="home-eyebrow">InsperAI · {trilha.nome} · 2º semestre de 2026</p>
+      <h1 set:html={trilha.chamada} />
+      <p class="home-sub">{trilha.sub}</p>
+      {
+        (primeira || secundaria) && (
+          <div class="home-acoes">
+            {primeira && (
+              <a class="btn" href={urlAula(trilha.id, separarId(primeira.id).slug)}>
+                Começar pela Aula {primeira.data.n.slice(1)} →
+              </a>
+            )}
+            {secundaria && (
+              <a class="btn btn-secundario" href={urlGuia(trilha.id, secundaria.guia)}>
+                {secundaria.rotulo}
+              </a>
+            )}
+          </div>
+        )
+      }
+    </section>
+
+    {
+      trilha.mecanica.length > 0 && (
+        <section class="home-mecanica">
+          <h2>Como funciona</h2>
+          <div class="mecanica-grade">
+            {trilha.mecanica.map((c) => (
+              <article class="mecanica-card">
+                <p class="mecanica-numero">{c.numero}</p>
+                <p class="mecanica-titulo">{c.titulo}</p>
+                <p class="mecanica-texto">{c.texto}</p>
+              </article>
+            ))}
+          </div>
+          {trilha.nota && <p class="home-rodape-nota" set:html={trilha.nota} />}
+        </section>
+      )
+    }
+
+    <Arco trilha={trilha} />
+  </div>
+</SiteLayout>

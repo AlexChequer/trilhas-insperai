@@ -1,0 +1,4 @@
+# Conteúdo da trilha ml-avancado.
+# Cada aula é um .mdx aqui, com o mesmo frontmatter das outras trilhas
+# (n, titulo, ordem, objetivo) — veja src/content/aulas/trainees/aula-01.mdx.
+# Enquanto não houver arco em src/data/trilhas/ml-avancado.ts, a trilha fica "em breve".
