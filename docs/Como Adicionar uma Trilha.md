@@ -1,7 +1,7 @@
 # Como Adicionar uma Trilha
 
-Uma trilha é um curso da entidade. Hoje são três: **Trainees** (no ar), **Deploy de
-Agentes** e **ML/DL Avançado** (ambas em breve). Todas vivem no mesmo repositório
+Uma trilha é um curso da entidade. Hoje são três: **Trainees** e **Deploy de
+Agentes** (as duas no ar) e **ML/DL Avançado** (em breve). Todas vivem no mesmo repositório
 e no mesmo site — ver [[Log de Decisões]] para o porquê.
 
 ## Regra que governa tudo

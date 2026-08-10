@@ -43,7 +43,7 @@ trilhas/
 │   │   │   ├── tipos.ts          # o que é uma Trilha
 │   │   │   ├── rotas.ts          # urlTrilha / urlAula / urlGuia
 │   │   │   ├── trainees.ts       # o arco + os textos da trilha de trainees
-│   │   │   ├── agentes.ts        # (arco vazio → "em breve")
+│   │   │   ├── agentes.ts        # o arco + os textos da trilha de agentes
 │   │   │   └── ml-avancado.ts    # (arco vazio → "em breve")
 │   │   └── glossario.ts
 │   ├── styles/global.css        # ver [[Sistema de Design]]
