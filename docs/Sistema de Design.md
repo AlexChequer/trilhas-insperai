@@ -54,9 +54,10 @@ repetia o índice dela.
     borrão. O recorte (`background-size: 65px`, `background-position: -9.5px
     -5.5px`, caixa 42×38) foi medido no pixel — o grafo ocupa x 33–153, y 23–126
     do arquivo. O nome vem em texto ao lado.
-- **Barra lateral** (`.sidebar`, 270px): agora é **só o índice da seção onde
-  você está**. Em `/aulas/*` e `/guias/*` mostra "Antes de começar" (a Aula 0)
-  mais os seis blocos. Perdeu o logo, que subiu para a barra do topo.
+- **Barra lateral** (`.sidebar`, 270px): agora é **só o índice da trilha onde
+  você está**. Em `/<trilha>/aulas/*` e `/<trilha>/guias/*` mostra "Antes de
+  começar" (a Aula 0) mais os blocos daquela trilha — e só dela. Perdeu o logo,
+  que subiu para a barra do topo. O hub (`/`) não tem lateral: não tem arco.
 - **Conteúdo** (`.leitura`): texto em medida legível (`max-width: 720px`);
   visualizações levam a classe `larga` e usam a coluna inteira.
 - **Rail "Nesta aula"** (`.rail`): âncoras das seções `##`. Some abaixo de 1120px.

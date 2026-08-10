@@ -131,7 +131,7 @@ Para **projetos**: o prazo, o formato de entrega, o critério de avaliação e o
 funcionamento do leaderboard do MNIST — que é o mesmo item 1 desta lista.
 
 Quando os dados existirem, sugiro `src/data/calendario.ts` como fonte única, no
-mesmo espírito do `data/aulas.ts`.
+mesmo espírito do `data/trilhas/trainees.ts`.
 
 ### 10. As seções Projetos e Recursos não existem
 
