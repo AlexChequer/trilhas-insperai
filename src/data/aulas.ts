@@ -15,12 +15,18 @@ export interface AulaArco {
 
 export interface BlocoArco {
   nome: string;
+  /** Rótulo curto, para o arco da home. */
+  curto: string;
+  /** Uma linha sobre o que o bloco cobre. */
+  resumo: string;
   aulas: AulaArco[];
 }
 
 export const BLOCOS: BlocoArco[] = [
   {
     nome: "Bloco 1 · Fundamentos",
+    curto: "Fundamentos",
+    resumo: "Regressão, custo, gradient descent e classificação.",
     aulas: [
       {
         n: "A1", slug: "aula-01", titulo: "Intro a ML + Regressão Linear",
@@ -41,6 +47,8 @@ export const BLOCOS: BlocoArco[] = [
   },
   {
     nome: "Bloco 2 · Redes Neurais",
+    curto: "Redes Neurais",
+    resumo: "Do neurônio ao MLP, backprop e o treino na prática.",
     aulas: [
       {
         n: "A4", slug: "aula-04", titulo: "Do Neurônio à Rede",
@@ -66,6 +74,8 @@ export const BLOCOS: BlocoArco[] = [
   },
   {
     nome: "Bloco 3 · Ferramentas",
+    curto: "Ferramentas",
+    resumo: "Usar IA para programar — e revisar o que ela produz.",
     aulas: [
       {
         n: "A8", slug: "aula-08", titulo: "Claude Code", pratica: true,
@@ -76,6 +86,8 @@ export const BLOCOS: BlocoArco[] = [
   },
   {
     nome: "Bloco 4 · Visão",
+    curto: "Visão",
+    resumo: "Convolução, CNNs e transfer learning.",
     aulas: [
       {
         n: "A9", slug: "aula-09", titulo: "CNNs pt. 1",
@@ -91,6 +103,8 @@ export const BLOCOS: BlocoArco[] = [
   },
   {
     nome: "Bloco 5 · Linguagem (em aberto)",
+    curto: "Linguagem",
+    resumo: "Embeddings e modelos de linguagem.",
     aulas: [
       {
         n: "A11", slug: "aula-11", titulo: "Embeddings", aberto: true,
@@ -106,6 +120,8 @@ export const BLOCOS: BlocoArco[] = [
   },
   {
     nome: "Bloco 6 · Fronteira",
+    curto: "Fronteira",
+    resumo: "Reinforcement learning e o fechamento do arco.",
     aulas: [
       {
         n: "A13", slug: "aula-13", titulo: "Reinforcement Learning + Fechamento",

@@ -120,15 +120,31 @@ fórmula e a metáfora da bola pesada.
 
 ## 🔵 Encomendado e ainda não feito
 
-### 9. Refazer a home inteira
+### 9. Calendário e Projetos na home
 
-Pedido do Alex em 6/8/2026: **"a página principal (home) quero refazer inteira
-depois"**. Nada foi tocado nela — o arco, os cards de bloco e o contador de
-visualizações continuam como estavam.
+A home foi refeita em 9/8/2026 (ver [[Sistema de Design]]), mas **duas seções que
+o Alex pediu ficaram de fora**, por decisão dele: "deixar as duas seções para
+depois", porque eu não tinha os dados.
 
-Quando for a hora, três coisas já sabidas entram na conversa: se a **Aula 0**
-ganha lugar lá (hoje só na sidebar), a seção de **links úteis e responsáveis**
-que o [[Comparativo com o Site 2026.1]] lista, e o **rodapé**, que não existe.
+Para o **calendário**: as datas das 13 aulas, das provinhas e das entregas.
+Para **projetos**: o prazo, o formato de entrega, o critério de avaliação e o
+funcionamento do leaderboard do MNIST — que é o mesmo item 1 desta lista.
+
+Quando os dados existirem, sugiro `src/data/calendario.ts` como fonte única, no
+mesmo espírito do `data/aulas.ts`.
+
+### 10. As seções Projetos e Recursos não existem
+
+A barra do topo já tem as duas, marcadas **"em breve"** e sem link. Criar as
+páginas é o passo seguinte: Projetos leva o MNIST e o Projeto 2; Recursos leva o
+que hoje está espalhado (TensorFlow Playground, Andrew Ng, Hands-On ML,
+notebooks).
+
+### 11. Rodapé e "quem somos"
+
+Continuam sem existir. Na conversa da home o Alex **não** marcou "quem somos /
+responsáveis" como conteúdo da home — pode ser que o lugar disso seja o rodapé,
+mas não foi decidido.
 
 ---
 
@@ -140,6 +156,14 @@ que o [[Comparativo com o Site 2026.1]] lista, e o **rodapé**, que não existe.
 - **A distinção epoch × iteração** ganhou o contador ao vivo dentro da viz do
   batch size, em vez de uma visualização própria. Decidido pelo Alex na mesma
   conversa.
+- **A navegação virou barra no topo + lateral só da seção atual** (9/8/2026).
+  Ele escolheu esse formato entre três; a lateral estava com 15 itens numa lista
+  só e ia crescer sem fim.
+- **A home fala do programa**, não é índice de aulas. Ordem escolhida por ele:
+  o programa primeiro (o que é, como funciona uma semana), o arco depois. Do que
+  poderia entrar em "falando do trainee", ele marcou **só a mecânica do
+  programa** — não o "o que você sai sabendo", não "quem são os trainees", não a
+  aposta pedagógica.
 - **A Aula 0 é pré-requisito, fora do arco**, e o acesso é pela **sidebar** —
   sem card na home por enquanto. Decidido pelo Alex em 6/8/2026, encerrando a
   dúvida que o [[Comparativo com o Site 2026.1]] ainda listava.

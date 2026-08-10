@@ -1,0 +1,62 @@
+---
+// Barra fixa no topo, em todas as páginas: logo, as seções do site e a busca.
+// A lateral passou a mostrar só o índice da seção onde você está — antes ela
+// carregava tudo e ia crescer sem fim conforme Projetos e Recursos entrassem.
+//
+// Projetos e Recursos ainda não existem: aparecem marcados "em breve" e não são
+// links, para não haver caminho que não leva a lugar nenhum.
+interface Props {
+  /** Qual seção está ativa: destaca o item na barra. */
+  secao?: "aulas" | "projetos" | "recursos";
+  /** A página tem índice lateral? Só então o botão ☰ do celular faz sentido. */
+  temLateral?: boolean;
+}
+const { secao, temLateral = false } = Astro.props;
+
+const SECOES = [
+  { id: "aulas", rotulo: "Aulas", href: "/#o-arco" },
+  { id: "projetos", rotulo: "Projetos", href: null },
+  { id: "recursos", rotulo: "Recursos", href: null },
+] as const;
+---
+
+<header class="barra-topo">
+  {
+    temLateral && (
+      <button class="menu-btn" type="button" aria-label="Abrir índice" data-menu>
+        ☰
+      </button>
+    )
+  }
+
+  <a href="/" class="barra-marca" aria-label="Início — Trilha de Trainees da InsperAI">
+    <span class="barra-marca-simbolo" aria-hidden="true"></span>
+    <span class="barra-marca-texto">
+      <b>InsperAI</b>
+      <em>Trilha de Trainees</em>
+    </span>
+  </a>
+
+  <nav class="barra-secoes" aria-label="Seções do site">
+    {
+      SECOES.map((s) =>
+        s.href ? (
+          <a href={s.href} class={"barra-secao" + (secao === s.id ? " ativa" : "")}>
+            {s.rotulo}
+          </a>
+        ) : (
+          <span class="barra-secao muda">
+            {s.rotulo}
+            <em>em breve</em>
+          </span>
+        ),
+      )
+    }
+  </nav>
+
+  <button class="barra-busca" type="button" data-abrir-busca aria-label="Buscar no site">
+    <span class="barra-busca-lupa" aria-hidden="true">⌕</span>
+    <span class="barra-busca-texto">Buscar</span>
+    <kbd class="barra-busca-tecla">/</kbd>
+  </button>
+</header>

@@ -149,3 +149,45 @@ Antes disso, na mesma conversa, ele reprovou a primeira `CamadasColapsando` da
 Aula 4 por ser abstrata demais. A regra que saiu dali — **toda visualização
 precisa de uma tarefa visível na tela** — está registrada em
 [[Retrofit das Aulas]].
+
+---
+
+## 9 de agosto de 2026 — home e navegação refeitas
+
+O Alex abriu dizendo que não sabia descrever o que queria, então a conversa foi
+por maquetes: eu propunha formas em ASCII e ele reagia. Ficou assim.
+
+**O diagnóstico que destravou:** a home e a barra lateral faziam **o mesmo
+trabalho**. As duas listavam as 13 aulas nos mesmos 6 blocos. Quem chegava via o
+índice duas vezes e não ganhava nada — e a home ainda dava o lugar mais nobre da
+página a "25 de 31 visualizações prontas", que mede o quanto o *site* está
+construído e não interessa ao trainee.
+
+**Decisões dele:**
+
+- **Navegação: barra no topo + lateral só da seção atual.** Escolhida entre três
+  formatos. Resolve a lista lateral, que estava com 15 itens e ia crescer.
+- **A home fala do programa.** Não é índice de aulas. Ordem: o programa primeiro
+  (o que é, como funciona uma semana), o arco depois.
+- **Do "falando do trainee", só a mecânica do programa** — quantas aulas, o que
+  acontece numa semana, as provinhas, os dois desafios. Ele não quis "o que você
+  sai sabendo", nem "quem são os trainees", nem a aposta pedagógica.
+- **Calendário e Projetos ficam para depois**, porque eu não tinha as datas nem a
+  logística do MNIST — e ele preferiu adiar as duas seções a construí-las com
+  marcadores "a definir".
+
+**O que eu decidi no caminho** (e vale ele julgar):
+
+- **A busca foi junto**, porque a maquete que ele escolheu tinha a lupa e uma
+  barra de navegação com busca morta seria pior que nenhuma. É um `busca.json`
+  montado no build, sem dependência nova.
+- **"Aulas" na barra aponta para o arco da home**, em vez de uma página `/aulas`
+  separada — criar uma seria repetir a mesma lista de novo, que é justamente o
+  problema que estávamos resolvendo.
+- **Projetos e Recursos aparecem marcados "em breve" e não são links.** Preferi
+  isso a esconder as seções: mostra para onde o site vai sem criar caminho que
+  não leva a lugar nenhum.
+- **O logo teve de ser recortado por CSS.** O arquivo é um quadrado de 200×200
+  com marca em cima e wordmark embaixo; numa barra horizontal de 60px ele virava
+  um borrão. Medi o grafo no pixel e recortei só ele, com o nome em texto ao
+  lado. Se um dia existir um SVG horizontal da marca, o recorte sai.

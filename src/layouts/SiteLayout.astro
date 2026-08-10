@@ -1,77 +1,78 @@
 ---
 import Base from "./Base.astro";
+import BarraTopo from "../components/BarraTopo.astro";
+import Busca from "../components/Busca.astro";
 import { getCollection } from "astro:content";
 import { BLOCOS } from "../data/aulas";
 
 interface Props {
   title: string;
   descricao?: string;
-  slugAtual?: string; // aula atual, para destacar no índice
+  /** Aula ou guia atual, para destacar no índice. */
+  slugAtual?: string;
+  /** Seção ativa na barra do topo. */
+  secao?: "aulas" | "projetos" | "recursos";
+  /** A home não tem índice lateral: é página inteira. */
+  semLateral?: boolean;
 }
-const { title, descricao, slugAtual } = Astro.props;
+const { title, descricao, slugAtual, secao, semLateral = false } = Astro.props;
+
 const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
-// Material de consulta, fora do arco — aparece numa seção própria acima dos blocos.
+// Material de consulta fora do arco — abre o índice, acima dos blocos.
 const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.data.ordem);
 ---
 
 <Base title={title} descricao={descricao}>
-  <div class="app">
-    <header class="topbar">
-      <button class="menu-btn" type="button" aria-label="Abrir índice" data-menu>☰</button>
-      <a href="/" class="topbar-logo"><img src="/insperai-claro.png" alt="InsperAI" /></a>
-    </header>
+  <div class={"app" + (semLateral ? " sem-lateral" : "")}>
+    <BarraTopo secao={secao} temLateral={!semLateral} />
 
-    <aside class="sidebar" data-sidebar>
-      <a href="/" class="sidebar-logo">
-        <img src="/insperai-claro.png" alt="InsperAI · Trilha de Trainees" />
-      </a>
-      <nav class="sidebar-nav" aria-label="Índice das aulas">
-        {
-          guias.length > 0 && (
-            <div class="nav-bloco">
-              <p class="nav-bloco-titulo">Antes de começar</p>
-              {guias.map((g) => {
-                const ativa = g.id === slugAtual;
-                return (
-                  <a
-                    href={`/guias/${g.id}`}
-                    class={"nav-aula" + (ativa ? " ativa" : "")}
-                    aria-current={ativa ? "page" : undefined}
-                  >
-                    <span class="nav-aula-codigo">{g.data.codigo}</span>
-                    <span class="nav-aula-titulo">{g.data.rotulo}</span>
-                  </a>
-                );
-              })}
-            </div>
-          )
-        }
-        {
-          BLOCOS.map((bloco) => (
-            <div class="nav-bloco">
-              <p class="nav-bloco-titulo">{bloco.nome}</p>
-              {bloco.aulas.map((a) => {
-                const ativa = a.slug === slugAtual;
-                const temPagina = escritas.has(a.slug);
-                const cls =
-                  "nav-aula" + (ativa ? " ativa" : "") + (temPagina ? "" : " muda");
-                return temPagina ? (
-                  <a href={`/aulas/${a.slug}`} class={cls} aria-current={ativa ? "page" : undefined}>
-                    <span class="nav-aula-codigo">{a.n}</span>
-                    <span class="nav-aula-titulo">{a.titulo}</span>
-                  </a>
-                ) : (
-                  <span class={cls}>
-                    <span class="nav-aula-codigo">{a.n}</span>
-                    <span class="nav-aula-titulo">{a.titulo}</span>
-                  </span>
-                );
-              })}
-            </div>
-          ))
-        }
-      </nav>
-    </aside>
+    {
+      !semLateral && (
+        <aside class="sidebar" data-sidebar>
+          <nav class="sidebar-nav" aria-label="Índice das aulas">
+            {guias.length > 0 && (
+              <div class="nav-bloco">
+                <p class="nav-bloco-titulo">Antes de começar</p>
+                {guias.map((g) => {
+                  const ativa = g.id === slugAtual;
+                  return (
+                    <a
+                      href={`/guias/${g.id}`}
+                      class={"nav-aula" + (ativa ? " ativa" : "")}
+                      aria-current={ativa ? "page" : undefined}
+                    >
+                      <span class="nav-aula-codigo">{g.data.codigo}</span>
+                      <span class="nav-aula-titulo">{g.data.rotulo}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+            {BLOCOS.map((bloco) => (
+              <div class="nav-bloco">
+                <p class="nav-bloco-titulo">{bloco.nome}</p>
+                {bloco.aulas.map((a) => {
+                  const ativa = a.slug === slugAtual;
+                  const temPagina = escritas.has(a.slug);
+                  const cls = "nav-aula" + (ativa ? " ativa" : "") + (temPagina ? "" : " muda");
+                  return temPagina ? (
+                    <a href={`/aulas/${a.slug}`} class={cls} aria-current={ativa ? "page" : undefined}>
+                      <span class="nav-aula-codigo">{a.n}</span>
+                      <span class="nav-aula-titulo">{a.titulo}</span>
+                    </a>
+                  ) : (
+                    <span class={cls}>
+                      <span class="nav-aula-codigo">{a.n}</span>
+                      <span class="nav-aula-titulo">{a.titulo}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </aside>
+      )
+    }
 
     <div class="sidebar-backdrop" data-backdrop></div>
 
@@ -79,6 +80,8 @@ const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.dat
       <slot />
     </main>
   </div>
+
+  <Busca />
 
   <script>
     // Bloco de código no padrão GitHub: o <pre> que o Shiki gera é envolvido

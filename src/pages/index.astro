@@ -1,84 +1,81 @@
 ---
+// Home: a página do programa, não um índice de aulas.
+//
+// Antes ela repetia a barra lateral — os mesmos 13 títulos nos mesmos 6 blocos —
+// e o número que ocupava o lugar mais nobre ("25 de 31 visualizações prontas")
+// media o quanto o SITE estava construído, que é informação do professor e não
+// do trainee. Saíram os dois.
+//
+// Ordem decidida com o Alex: o programa primeiro (o que é, como funciona uma
+// semana), o arco depois. Calendário e Projetos entram quando as datas e a
+// logística do MNIST estiverem definidas.
 import SiteLayout from "../layouts/SiteLayout.astro";
-import { getCollection } from "astro:content";
-import { BLOCOS } from "../data/aulas";
+import Arco from "../components/Arco.astro";
 
-const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
-
-let prontas = 0;
-let total = 0;
-for (const bloco of BLOCOS) {
-  for (const a of bloco.aulas) {
-    prontas += a.prontas;
-    total += a.total;
-  }
-}
-const pct = total ? Math.round((prontas / total) * 100) : 0;
-
-// resumo curto de cada bloco (aparece no card)
-const RESUMO: Record<string, string> = {
-  "Bloco 1 · Fundamentos": "Regressão, custo, gradient descent e classificação.",
-  "Bloco 2 · Redes Neurais": "Do neurônio ao MLP, backprop e o treino na prática.",
-  "Bloco 3 · Ferramentas": "Usar IA para programar — e revisar o que ela produz.",
-  "Bloco 4 · Visão": "Convolução, CNNs e transfer learning.",
-  "Bloco 5 · Linguagem (em aberto)": "Embeddings e modelos de linguagem.",
-  "Bloco 6 · Fronteira": "Reinforcement learning e o fechamento do arco.",
-};
+const COMO_FUNCIONA = [
+  {
+    numero: "13",
+    titulo: "aulas, uma por semana",
+    texto:
+      "O semestre é uma sequência só, da regressão linear às redes convolucionais. Cada aula depende da anterior — e a numeração carrega essa ordem.",
+  },
+  {
+    numero: "2h",
+    titulo: "de aula, e um notebook depois",
+    texto:
+      "A teoria vem com visualizações para mexer, não com slides. Depois da aula, um notebook pronto para rodar aplica o que foi dado naquele dia.",
+  },
+  {
+    numero: "1",
+    titulo: "provinha por semana",
+    texto:
+      "É ela, com a apresentação, que mede se você entendeu. Pode usar IA para escrever código — mas a provinha você faz sozinho com o que sabe.",
+  },
+  {
+    numero: "2",
+    titulo: "desafios ao longo do semestre",
+    texto:
+      "O primeiro é o MNIST, lançado na Aula 6, com a restrição de usar só MLP. O segundo fecha o arco, na Aula 13.",
+  },
+];
 ---
 
-<SiteLayout title="Trilha de Trainees — InsperAI">
-  <div class="landing">
-    <section class="landing-hero">
-      <p class="landing-eyebrow">InsperAI · Programa de Trainee · 2º semestre de 2026</p>
+<SiteLayout title="Trilha de Trainees — InsperAI" semLateral>
+  <div class="home">
+    <section class="home-hero">
+      <p class="home-eyebrow">InsperAI · Programa de Trainee · 2º semestre de 2026</p>
       <h1>De uma <em>reta</em> até um <em>agente que aprende</em>.</h1>
-      <p class="landing-sub">
-        Treze aulas, um arco só. Cada visualização deixa você mexer em uma coisa e
-        ver a consequência na hora — que é como esses conceitos entram na cabeça de
-        verdade.
+      <p class="home-sub">
+        Treze aulas que vão da regressão linear às redes neurais e à visão
+        computacional. Cada conceito vira um gráfico que você mexe — porque é assim
+        que eles entram na cabeça de verdade.
       </p>
-      <div class="landing-acoes">
+      <div class="home-acoes">
         <a class="btn" href="/aulas/aula-01/">Começar pela Aula 1 →</a>
-        <div class="landing-progresso">
-          <span>{prontas} de {total} visualizações prontas</span>
-          <div class="landing-barra"><i style={`width:${pct}%`}></i></div>
-        </div>
+        <a class="btn btn-secundario" href="/guias/aula-0/">Nunca programei</a>
       </div>
     </section>
 
-    <section class="blocos">
-      <h2 class="blocos-titulo">O semestre em seis blocos</h2>
-      <div class="blocos-grid">
+    <section class="home-mecanica">
+      <h2>Como funciona</h2>
+      <div class="mecanica-grade">
         {
-          BLOCOS.map((bloco) => {
-            const prontasBloco = bloco.aulas.filter((a) => escritas.has(a.slug)).length;
-            return (
-              <div class="bloco-card">
-                <p class="bloco-card-nome">{bloco.nome}</p>
-                <p class="bloco-card-resumo">{RESUMO[bloco.nome] ?? ""}</p>
-                <div class="bloco-card-aulas">
-                  {bloco.aulas.map((a) => {
-                    const temPagina = escritas.has(a.slug);
-                    return temPagina ? (
-                      <a href={`/aulas/${a.slug}`} class="mini-aula">
-                        <span class="mini-codigo">{a.n}</span>
-                        {a.titulo}
-                      </a>
-                    ) : (
-                      <span class="mini-aula muda">
-                        <span class="mini-codigo">{a.n}</span>
-                        {a.titulo}
-                      </span>
-                    );
-                  })}
-                </div>
-                {prontasBloco > 0 && (
-                  <span class="bloco-card-selo">{prontasBloco} pronta{prontasBloco > 1 ? "s" : ""}</span>
-                )}
-              </div>
-            );
-          })
+          COMO_FUNCIONA.map((c) => (
+            <article class="mecanica-card">
+              <p class="mecanica-numero">{c.numero}</p>
+              <p class="mecanica-titulo">{c.titulo}</p>
+              <p class="mecanica-texto">{c.texto}</p>
+            </article>
+          ))
         }
       </div>
+      <p class="home-rodape-nota">
+        Nunca programou? A <a href="/guias/aula-0/">Aula 0</a> é o pré-requisito: o
+        mínimo de Python, NumPy e matemática, mais o passo a passo para deixar a
+        máquina pronta.
+      </p>
     </section>
+
+    <Arco />
   </div>
 </SiteLayout>

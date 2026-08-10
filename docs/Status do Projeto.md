@@ -12,12 +12,13 @@ sessão deve olhar._
 - **Aula 0 no ar** em `/guias/aula-0`: **pré-requisito, fora do arco**, com o
   **setup de ambiente dentro dela** e 3 visualizações. Acesso pela seção "Antes
   de começar" da sidebar. Ver [[Aula 0 e os Guias]].
-- **A home vai ser refeita inteira** — pedido do Alex em 6/8/2026. Nada foi
-  tocado nela.
+- **Home e navegação refeitas** (9/8/2026): barra no topo com as seções e a
+  busca, lateral só com o índice da seção atual, home falando do programa em vez
+  de repetir o índice. Detalhe em [[Sistema de Design]].
 - **Decisões esperando o Alex:** [[Decisões Pendentes]] — nada bloqueante, mas
   há pontos onde outra escolha mudaria o resultado.
-- **Infra pronta:** Astro + MDX + KaTeX + Plotly, **layout estilo documentação**
-  (barra lateral com índice + logos InsperAI), home rica com cards. Ver [[Sistema de Design]].
+- **Infra pronta:** Astro + MDX + KaTeX + Plotly, layout de documentação com
+  **barra no topo** (seções + busca) e lateral por seção. Ver [[Sistema de Design]].
 - **Deploy:** **no ar na Vercel** (push na `main` = deploy automático).
 
 ## Aulas

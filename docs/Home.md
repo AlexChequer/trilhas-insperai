@@ -44,7 +44,8 @@ nova sessão do Claude) está chegando agora, leia nesta ordem: [[Visão Geral]]
   "em breve" — o Bloco 5 ainda está com o conteúdo em aberto no `roteiro.md`.
 - **Aula 0 no ar** em `/guias/aula-0`: pré-requisito fora do arco, com o setup
   de ambiente dentro dela — ver [[Aula 0 e os Guias]].
-- **A home do site vai ser refeita inteira** (pedido de 6/8/2026, ainda não começado).
+- **Home e navegação refeitas** em 9/8/2026: barra no topo com seções e busca,
+  lateral só da seção atual, home falando do programa — ver [[Sistema de Design]].
 - **Decisões esperando o Alex:** [[Decisões Pendentes]].
 - **Deploy:** no ar na Vercel — push na `main` publica sozinho (ver [[Deploy]]).
 - Detalhes sempre atualizados em [[Status do Projeto]].

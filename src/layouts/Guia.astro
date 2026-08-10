@@ -13,7 +13,7 @@ const { data, slug, headings } = Astro.props;
 const secoes = headings.filter((h) => h.depth === 2);
 ---
 
-<SiteLayout title={`${data.titulo} — InsperAI`} descricao={data.objetivo} slugAtual={slug}>
+<SiteLayout title={`${data.titulo} — InsperAI`} descricao={data.objetivo} slugAtual={slug} secao="aulas">
   <div class="aula-doc">
     <article class="conteudo-aula">
       <header class="aula-hero">

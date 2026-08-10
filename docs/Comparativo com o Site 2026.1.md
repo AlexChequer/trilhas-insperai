@@ -24,7 +24,7 @@ notebooks e ambiente `uv` versionados dentro do próprio repo.
 
 | # | O que eles têm | Nós temos? |
 |---|---|---|
-| A1 | **Busca full-text** em todo o site | ❌ |
+| A1 | **Busca full-text** em todo o site | ⚠️ temos busca por título, objetivo e seção — não o texto corrido |
 | A2 | **Alternância claro/escuro** (palette toggle) | ❌ — tema claro fixo |
 | A3 | **Botão "copiar" nos blocos de código** | ❌ |
 | A4 | **Link para o repositório** no cabeçalho | ❌ |
@@ -83,8 +83,12 @@ Ordenada por **retorno / esforço**. Fases independentes entre si.
 1. **Tema claro/escuro** — tokens CSS já existem em `:root`; criar o bloco
    `[data-theme="dark"]`, botão na topbar, `localStorage` + respeito ao
    `prefers-color-scheme`. Atenção: as vizs Plotly precisam reagir ao tema.
-2. **Busca full-text** — `astro-pagefind`. Indexa no build, roda 100% estático,
-   sem servidor. Caixa de busca no topo da sidebar.
+2. ~~**Busca full-text** com `astro-pagefind`~~ ⚠️ **parcialmente feito**
+   (9/8/2026), sem dependência nova: um `busca.json` montado no build indexa
+   código, título, objetivo e as **seções ##** de cada aula, e a sobreposição
+   abre com `/` ou Cmd+K. Cobre "onde se fala de convolução?" bem, porque as
+   seções são descritivas. **Não** cobre o texto corrido — se isso fizer falta na
+   prática, aí sim vale trazer o Pagefind.
 3. **Rodapé + link do repo** — responsáveis, e-mail de contato, link para o
    GitHub e para a InsperAI.
 4. **Permalinks nos títulos** — `rehype-autolink-headings` + `rehype-slug`.
@@ -120,9 +124,10 @@ Ordenada por **retorno / esforço**. Fases independentes entre si.
     SIGE.
 15. **Coleção `projetos`** — Challenge MNIST (lançado na A6) e Projeto 2
     (lançado na A13): enunciado, entrega, critério, link do Classroom.
-16. **Home** — o Alex quer **refazer a página inteira**, não só acrescentar
-    seções (6/8/2026). Links úteis, referências, responsáveis e o rodapé entram
-    nessa refação. Ver [[Decisões Pendentes]].
+16. ~~**Home**~~ ✅ **refeita** em 9/8/2026: hero + "como funciona" (a mecânica
+    do programa) + o arco desenhado. Saíram os cards que repetiam a lateral e o
+    contador de visualizações prontas. Links úteis, responsáveis e rodapé **não**
+    entraram — ver [[Decisões Pendentes]].
 
 ### Fase 4 — Prática (a parte que hoje não existe no nosso site)
 

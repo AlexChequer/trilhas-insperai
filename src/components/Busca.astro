@@ -1,0 +1,162 @@
+---
+// Busca do site. Abre com o botão da barra, com "/" ou com Cmd/Ctrl+K; fecha com
+// Esc. O índice vem de /busca.json e é baixado só na primeira abertura.
+// Casa por aula (código, título, objetivo) e por seção "##" dentro dela — o que
+// leva direto ao ponto, em vez de só até a página.
+---
+
+<div class="busca" data-busca hidden>
+  <div class="busca-fundo" data-busca-fundo></div>
+  <div class="busca-caixa" role="dialog" aria-modal="true" aria-label="Buscar no site">
+    <div class="busca-campo">
+      <span class="busca-lupa" aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        data-busca-entrada
+        placeholder="Buscar aula, assunto ou seção…"
+        aria-label="Buscar"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <kbd class="busca-esc">esc</kbd>
+    </div>
+    <div class="busca-resultados" data-busca-resultados></div>
+    <p class="busca-rodape">
+      <kbd>↑</kbd><kbd>↓</kbd> navegar · <kbd>enter</kbd> abrir · <kbd>esc</kbd> fechar
+    </p>
+  </div>
+</div>
+
+<script>
+  interface Secao { texto: string; slug: string }
+  interface Item {
+    codigo: string; titulo: string; url: string;
+    objetivo: string; grupo: string; secoes: Secao[];
+  }
+  interface Achado {
+    url: string; codigo: string; titulo: string;
+    detalhe: string; grupo: string; peso: number;
+  }
+
+  const raiz = document.querySelector<HTMLElement>("[data-busca]");
+  const entrada = document.querySelector<HTMLInputElement>("[data-busca-entrada]");
+  const saida = document.querySelector<HTMLElement>("[data-busca-resultados]");
+  const fundo = document.querySelector<HTMLElement>("[data-busca-fundo]");
+
+  if (raiz && entrada && saida && fundo) {
+    let indice: Item[] | null = null;
+    let selecionado = 0;
+    let achados: Achado[] = [];
+
+    // sem acento e sem caixa: "convolucao" acha "Convolução"
+    const limpar = (s: string) =>
+      s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+    async function carregar() {
+      if (indice) return;
+      try {
+        indice = await (await fetch("/busca.json")).json();
+      } catch {
+        indice = [];
+      }
+    }
+
+    function procurar(termo: string): Achado[] {
+      const q = limpar(termo.trim());
+      if (!q || !indice) return [];
+      const palavras = q.split(/\s+/);
+      const casa = (texto: string) => palavras.every((p) => limpar(texto).includes(p));
+      const res: Achado[] = [];
+
+      for (const item of indice) {
+        const cabecalho = `${item.codigo} ${item.titulo}`;
+        if (casa(cabecalho)) {
+          res.push({ url: item.url, codigo: item.codigo, titulo: item.titulo, detalhe: item.objetivo, grupo: item.grupo, peso: 0 });
+        } else if (casa(item.objetivo)) {
+          res.push({ url: item.url, codigo: item.codigo, titulo: item.titulo, detalhe: item.objetivo, grupo: item.grupo, peso: 2 });
+        }
+        for (const s of item.secoes) {
+          if (casa(s.texto)) {
+            res.push({
+              url: `${item.url}#${s.slug}`, codigo: item.codigo,
+              titulo: s.texto, detalhe: `em ${item.titulo}`, grupo: item.grupo, peso: 1,
+            });
+          }
+        }
+      }
+      return res.sort((a, b) => a.peso - b.peso).slice(0, 10);
+    }
+
+    function pintar() {
+      if (!saida) return;
+      if (!entrada!.value.trim()) {
+        saida.innerHTML = `<p class="busca-vazio">Digite para buscar entre as aulas e as seções de cada uma.</p>`;
+        return;
+      }
+      if (achados.length === 0) {
+        saida.innerHTML = `<p class="busca-vazio">Nada encontrado para “${entrada!.value}”.</p>`;
+        return;
+      }
+      saida.innerHTML = achados
+        .map(
+          (a, i) => `
+          <a class="busca-item${i === selecionado ? " ativo" : ""}" href="${a.url}" data-i="${i}">
+            <span class="busca-item-codigo">${a.codigo}</span>
+            <span class="busca-item-texto">
+              <b>${a.titulo}</b>
+              <small>${a.detalhe}</small>
+            </span>
+          </a>`,
+        )
+        .join("");
+      saida.querySelector(".busca-item.ativo")?.scrollIntoView({ block: "nearest" });
+    }
+
+    async function abrir() {
+      raiz!.hidden = false;
+      document.body.style.overflow = "hidden";
+      entrada!.value = "";
+      achados = [];
+      selecionado = 0;
+      pintar();
+      entrada!.focus();
+      await carregar();
+    }
+    function fechar() {
+      raiz!.hidden = true;
+      document.body.style.overflow = "";
+    }
+
+    entrada.addEventListener("input", () => {
+      achados = procurar(entrada.value);
+      selecionado = 0;
+      pintar();
+    });
+
+    raiz.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { fechar(); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (achados.length === 0) return;
+        selecionado = (selecionado + (e.key === "ArrowDown" ? 1 : -1) + achados.length) % achados.length;
+        pintar();
+      }
+      if (e.key === "Enter" && achados[selecionado]) {
+        e.preventDefault();
+        window.location.href = achados[selecionado].url;
+      }
+    });
+
+    fundo.addEventListener("click", fechar);
+    document.querySelectorAll("[data-abrir-busca]").forEach((b) => b.addEventListener("click", abrir));
+
+    document.addEventListener("keydown", (e) => {
+      const alvo = e.target as HTMLElement | null;
+      const digitando = alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName);
+      if ((e.key === "/" && !digitando) || (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        raiz.hidden ? abrir() : fechar();
+      }
+    });
+  }
+</script>
