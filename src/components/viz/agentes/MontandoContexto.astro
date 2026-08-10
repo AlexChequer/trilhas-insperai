@@ -1,0 +1,266 @@
+---
+// Agentes · Aula 2 · As três camadas que transformam um previsor de texto em
+// assistente, ligáveis uma a uma: formato de diálogo, system prompt e stop
+// sequence. Em cima fica o texto EXATO que o modelo recebe; embaixo, o que ele
+// devolve.
+//
+// A tarefa: desligar tudo e ver o modelo responder com uma lista de exercícios;
+// ligar o diálogo e ver a resposta aparecer; ligar o system prompt e ver a
+// forma da resposta obedecer; ligar a stop sequence e ver a conversa inventada
+// ser cortada. O ponto da aula é que NADA disso mexeu no modelo — mexeu no
+// texto em volta da pergunta.
+---
+
+<div class="viz-ctx" data-viz="montando-contexto">
+  <div class="stat">
+    <p class="stat-rotulo">O que a gente acrescenta em volta da pergunta</p>
+    <div class="ctx-toggles">
+      <button class="ctx-toggle" type="button" data-chave="dialogo" aria-pressed="false">
+        <b>Formato de diálogo</b>
+        <span>Humano: … / Assistente:</span>
+      </button>
+      <button class="ctx-toggle" type="button" data-chave="system" aria-pressed="false">
+        <b>System prompt</b>
+        <span>quem o assistente é</span>
+      </button>
+      <button class="ctx-toggle" type="button" data-chave="stop" aria-pressed="false">
+        <b>Stop sequence</b>
+        <span>parar em “Humano:”</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="ctx-grade">
+    <article class="stat">
+      <p class="stat-rotulo">1 · O texto que o modelo recebe</p>
+      <pre class="ctx-bloco" data-entrada></pre>
+    </article>
+
+    <article class="stat">
+      <p class="stat-rotulo">2 · O texto que o modelo devolve</p>
+      <pre class="ctx-bloco" data-saida></pre>
+    </article>
+  </div>
+
+  <p class="stat-caminho ctx-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-ctx {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .ctx-toggles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .ctx-toggle {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px;
+    min-height: 56px;
+    border-radius: 10px;
+    border: 2px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto-suave);
+  }
+  .ctx-toggle b {
+    font-size: 0.95rem;
+    color: var(--texto);
+  }
+  .ctx-toggle span {
+    font-family: var(--fonte-dados);
+    font-size: 0.76rem;
+  }
+  .ctx-toggle:hover {
+    border-color: var(--insper-azul);
+  }
+  .ctx-toggle[aria-pressed="true"] {
+    border-color: var(--insper-roxo);
+    background: #f6f1ff;
+  }
+  .ctx-toggle[aria-pressed="true"] b {
+    color: var(--insper-roxo);
+  }
+  .ctx-toggle[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .ctx-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .ctx-grade > * {
+    min-width: 0;
+  }
+  .ctx-bloco {
+    margin: 12px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.84rem;
+    line-height: 1.75;
+    color: var(--texto);
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 11em;
+  }
+  /* As partes coloridas nascem em JS: precisam de :global() para o CSS pegar. */
+  .ctx-bloco :global(.ctx-system) {
+    color: var(--insper-roxo);
+  }
+  .ctx-bloco :global(.ctx-user) {
+    color: var(--insper-azul);
+  }
+  .ctx-bloco :global(.ctx-marca) {
+    background: #eef2f8;
+    border-radius: 4px;
+    padding: 1px 3px;
+    font-weight: 700;
+  }
+  .ctx-bloco :global(.ctx-gerado) {
+    color: var(--verde);
+    font-weight: 600;
+  }
+  .ctx-bloco :global(.ctx-cortado) {
+    color: #b6bfcc;
+    text-decoration: line-through;
+  }
+  .ctx-bloco :global(.ctx-etiqueta) {
+    display: block;
+    margin-top: 8px;
+    font-family: var(--fonte);
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+    text-decoration: none;
+  }
+  .ctx-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 760px) {
+    .ctx-toggles,
+    .ctx-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="montando-contexto"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const toggles = [...raiz.querySelectorAll<HTMLButtonElement>(".ctx-toggle")];
+
+    const PERGUNTA = "Qual é a capital do Brasil?";
+    const SYSTEM =
+      "Você é um assistente da Insper AI. Responda em português, " +
+      "em no máximo uma frase. Se não souber, diga que não sabe.";
+
+    const ligado: Record<string, boolean> = { dialogo: false, system: false, stop: false };
+
+    /** As continuações que o modelo produziria em cada configuração. */
+    function continuacao(): { resposta: string; inventado: string } {
+      if (!ligado.dialogo) {
+        // Sem formato de diálogo o modelo continua o documento — e um documento
+        // que começa com uma pergunta costuma ser uma lista de exercícios.
+        return {
+          resposta:
+            "\nQual é a capital da Argentina?\n" +
+            "Qual é a capital do Chile?\n" +
+            "Qual é a capital do Peru?\n\n" +
+            "Respostas na página 42.",
+          inventado: "",
+        };
+      }
+      if (!ligado.system) {
+        // Já responde, mas sem controle nenhum de língua, tamanho ou tom.
+        return {
+          resposta:
+            " The capital of Brazil is Brasília, a planned city inaugurated in 1960 " +
+            "and designed by Lúcio Costa and Oscar Niemeyer. Before that, the capital " +
+            "was Rio de Janeiro.",
+          inventado: "\nHumano: E a da Argentina?\nAssistente: Buenos Aires.",
+        };
+      }
+      return {
+        resposta: " Brasília, capital desde 1960.",
+        inventado: "\nHumano: E a da Argentina?\nAssistente: Buenos Aires.",
+      };
+    }
+
+    function trecho(texto: string, classe?: string) {
+      const s = document.createElement("span");
+      if (classe) s.className = classe;
+      s.textContent = texto;
+      return s;
+    }
+
+    function desenhar() {
+      // A stop sequence só existe se houver um marcador para procurar.
+      const toggleStop = toggles.find((t) => t.dataset.chave === "stop")!;
+      toggleStop.disabled = !ligado.dialogo;
+      if (!ligado.dialogo) ligado.stop = false;
+      toggles.forEach((t) =>
+        t.setAttribute("aria-pressed", String(ligado[t.dataset.chave ?? ""])),
+      );
+
+      // --- 1. a entrada ---
+      const entrada = el("entrada");
+      entrada.replaceChildren();
+      if (ligado.system) {
+        entrada.append(trecho("Sistema: " + SYSTEM + "\n\n", "ctx-system"));
+      }
+      if (ligado.dialogo) {
+        entrada.append(trecho("Humano: " + PERGUNTA + "\n", "ctx-user"));
+        entrada.append(trecho("Assistente:", "ctx-marca"));
+      } else {
+        entrada.append(trecho(PERGUNTA, "ctx-user"));
+      }
+
+      // --- 2. a saída ---
+      const { resposta, inventado } = continuacao();
+      const saida = el("saida");
+      saida.replaceChildren();
+      saida.append(trecho(resposta, "ctx-gerado"));
+      if (inventado) {
+        if (ligado.stop) {
+          saida.append(trecho(inventado, "ctx-cortado"));
+          saida.append(trecho("↑ cortado pela stop sequence “Humano:”", "ctx-etiqueta"));
+        } else {
+          saida.append(trecho(inventado, "ctx-gerado"));
+          saida.append(
+            trecho("↑ o modelo seguiu em frente e inventou a próxima pergunta", "ctx-etiqueta"),
+          );
+        }
+      }
+
+      // --- a leitura ---
+      el("nota").innerHTML = !ligado.dialogo
+        ? "Sem nada em volta, o modelo <strong>continua o documento</strong>: uma pergunta solta parece começo de lista de exercícios, então ele escreve mais exercícios. Ele não recusou — fez o que sabe fazer. <strong>Ligue o formato de diálogo.</strong>"
+        : !ligado.system
+          ? "Agora ele responde. O texto <code>Humano: … / Assistente:</code> faz a continuação mais provável ser a fala do assistente. Só que a resposta veio em inglês e comprida: ninguém disse a ele como responder. <strong>Ligue o system prompt.</strong>"
+          : !ligado.stop
+            ? "Com o system prompt, a resposta virou curta e em português — a forma passou a obedecer. Mas repare no fim: o modelo <strong>não sabe que terminou</strong> e continua inventando a conversa, porque continuar é tudo o que ele faz. <strong>Ligue a stop sequence.</strong>"
+            : "Pronto: as três camadas. E vale insistir no que <strong>não</strong> mudou — o modelo. É o mesmo previsor de próximo token da Aula 1, recebendo um texto diferente. “Ser um assistente” não é um estado do modelo: é um formato de texto que torna a resposta a continuação mais provável.";
+    }
+
+    toggles.forEach((t) =>
+      t.addEventListener("click", () => {
+        const chave = t.dataset.chave ?? "";
+        ligado[chave] = !ligado[chave];
+        desenhar();
+      }),
+    );
+
+    desenhar();
+  });
+</script>

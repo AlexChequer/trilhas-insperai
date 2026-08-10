@@ -284,4 +284,124 @@ export const GLOSSARIO: Record<string, string> = {
 
   "campo-receptivo":
     "O pedaço da imagem original que influencia um neurônio. Na primeira camada convolucional é só 3×3 pixels; a cada camada ele cresce, e é por isso que a hierarquia vai de borda a objeto.",
+
+  // ======================================================================
+  // Trilha de Agentes
+  // ======================================================================
+
+  // --- Agentes · Aula 1 ---
+
+  token:
+    "O pedaço de texto que o modelo trata como unidade: às vezes uma palavra inteira, às vezes um pedaço dela, às vezes só o espaço. Não é a mesma coisa que palavra, e a diferença aparece na conta da fatura.",
+
+  tokenizacao:
+    "O processo de quebrar um texto na sequência de tokens do vocabulário do modelo. Palavra comum costuma virar um token só; palavra rara é fatiada em pedaços que existem no vocabulário.",
+
+  vocabulario:
+    "A lista fechada de tokens que um modelo conhece — algo entre 30 mil e 250 mil, dependendo do modelo. Qualquer texto possível tem que ser escrito combinando só esses pedaços.",
+
+  embedding:
+    "O vetor de números que representa um token. A posição dele no espaço é o que carrega o significado: tokens usados em contextos parecidos ficam apontando para direções parecidas.",
+
+  "similaridade-cosseno":
+    "A medida de quão parecidos são dois vetores, olhando só a direção deles e ignorando o tamanho. Vale de −1 a 1: perto de 1 é mesma direção, perto de 0 é sem relação.",
+
+  transformer:
+    "A arquitetura por trás dos LLMs de hoje (2017). O que ela tem de diferente é processar todos os tokens da sequência ao mesmo tempo, deixando cada um olhar para os outros em vez de ler palavra por palavra.",
+
+  atencao:
+    "O mecanismo pelo qual cada token decide de quais tokens anteriores ele precisa para se entender. É o que permite ligar “ele” a “gato” dez palavras atrás.",
+
+  autorregressivo:
+    "Gerar a saída um pedaço de cada vez, usando o que já foi gerado como entrada do passo seguinte. É assim que um GPT escreve: prevê um token, cola no fim, prevê de novo.",
+
+  temperature:
+    "O botão que controla o quanto a escolha do próximo token é arriscada. Perto de zero o modelo sempre pega o mais provável; alto, ele dá chance a tokens improváveis — mais criativo e mais errático.",
+
+  "top-k":
+    "Um corte que limita a escolha aos k tokens mais prováveis, jogando o resto fora antes de sortear. Serve para a temperature alta não pescar um token absurdo da cauda da distribuição.",
+
+  "modelo-base":
+    "O modelo recém-saído do pré-treino, que só sabe continuar texto. Ele não foi ensinado a obedecer nem a responder — para isso existe uma etapa posterior de ajuste.",
+
+  "modelo-instruido":
+    "O modelo base depois de uma etapa extra de treino com exemplos de instrução e resposta. É o que faz um assistente obedecer sem precisar de truque de formatação no prompt.",
+
+  // --- Agentes · Aula 2 ---
+
+  "system-prompt":
+    "O bloco de instruções colocado antes de tudo no contexto, definindo quem o assistente é e o que ele pode fazer. É texto comum: o modelo não o trata como lei, só como o começo do documento.",
+
+  "stop-sequence":
+    "Um trecho de texto que, ao ser gerado, faz a geração parar. É o que impede o modelo de continuar sozinho e inventar a próxima fala do usuário.",
+
+  guardrail:
+    "Qualquer limite imposto ao que o assistente pode responder — no system prompt, num filtro de entrada ou num filtro de saída. Sozinho no prompt é a proteção mais fraca das três.",
+
+  "prompt-injection":
+    "Texto do usuário escrito para o modelo tratar como instrução e passar por cima do system prompt. Como instrução e dado chegam no mesmo lugar, o modelo não tem como separar um do outro com certeza.",
+
+  // --- Agentes · Aula 3 ---
+
+  agente:
+    "Um sistema em que o modelo não só responde: ele decide chamar ferramentas, recebe os resultados e continua até terminar a tarefa. A diferença para um chatbot é poder agir, não só falar.",
+
+  "tool-call":
+    "Um trecho de texto, num formato combinado, que o modelo gera para pedir a execução de uma função. Quem executa não é o modelo — é o código que detecta esse trecho.",
+
+  ferramenta:
+    "Uma função de verdade que o agente pode mandar executar: uma calculadora, uma consulta ao banco, uma chamada de API. Para o modelo ela é só um nome e uma descrição no contexto.",
+
+  parser:
+    "O código que lê o texto gerado, detecta o pedido de ferramenta e extrai dele o nome e os argumentos. É a peça que liga a geração de texto à execução de código.",
+
+  "few-shot":
+    "Colocar no prompt alguns exemplos completos do que se espera, em vez de só descrever. É a forma mais barata de fixar um formato de saída.",
+
+  "loop-de-agente":
+    "O ciclo gerar → detectar pedido de ferramenta → executar → devolver o resultado → gerar de novo, repetido até a resposta final. É esse laço que transforma previsão de texto em ação.",
+
+  // --- Agentes · Aula 4 ---
+
+  rag: "Retrieval-Augmented Generation: buscar, na hora da pergunta, os trechos relevantes de uma base e colar só eles no contexto. Serve para dar ao modelo conhecimento que não cabe — e não estava — no treino.",
+
+  chunk:
+    "Cada pedaço em que um documento é picado para ser indexado e buscado. É a unidade que a busca devolve e que acaba colada no contexto.",
+
+  overlap:
+    "A sobreposição entre um chunk e o seguinte: repetir o fim de um no começo do outro. Existe para que uma ideia cortada na fronteira ainda apareça inteira em algum pedaço.",
+
+  indexacao:
+    "A etapa feita uma vez, antes de qualquer pergunta: picar os documentos, gerar o embedding de cada chunk e guardar. Buscar depois é só comparar vetores.",
+
+  "busca-semantica":
+    "Procurar por significado em vez de por palavra igual. Como a comparação é entre embeddings, “como entro na entidade” acha o texto sobre processo seletivo mesmo sem repetir nenhuma palavra dele.",
+
+  "sliding-window":
+    "Manter no histórico apenas os N turnos mais recentes e descartar os antigos. É a poda mais simples que existe — e a que esquece sem avisar.",
+
+  "token-budget":
+    "Um teto de tokens para o histórico: enquanto passar do teto, a mensagem mais antiga sai. Dá controle exato de custo, ao preço de o corte cair em lugar imprevisível.",
+
+  "lost-in-the-middle":
+    "A tendência de o modelo aproveitar bem o começo e o fim do contexto e prestar menos atenção no meio. Contexto grande não é o mesmo que contexto bem usado.",
+
+  alucinacao:
+    "Quando o modelo responde com convicção algo que ele não tem como saber. Não é mentira nem defeito pontual: é o previsor de texto fazendo o que sempre faz, na falta de informação no contexto.",
+
+  // --- Agentes · Aula 5 ---
+
+  mcp: "Model Context Protocol: um protocolo aberto que padroniza como um modelo descobre e chama ferramentas externas. A analogia de sempre é o USB-C — um conector só, em vez de um por fabricante.",
+
+  "servidor-mcp":
+    "O processo que expõe as ferramentas e os dados de um domínio pelo protocolo. Ele não sabe qual modelo está do outro lado, e é justamente isso que o torna reaproveitável.",
+
+  "cliente-mcp":
+    "O lado que se conecta ao servidor, pergunta quais ferramentas existem e as executa quando o modelo pede. Claude Desktop é um cliente; o agente que você escreve é outro.",
+
+  resource:
+    "No MCP, um dado que o cliente pode ler e colocar no contexto — um arquivo, um registro, uma configuração. É a contraparte passiva da ferramenta: ferramenta faz, resource informa.",
+
+  "descoberta-de-ferramentas":
+    "O cliente perguntar ao servidor, na conexão, quais ferramentas existem e qual o formato de cada uma. É o que faz uma ferramenta nova aparecer sem ninguém editar o prompt.",
 };

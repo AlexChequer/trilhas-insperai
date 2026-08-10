@@ -1,0 +1,358 @@
+---
+// Agentes · Aula 4 · A busca do RAG, com as duas colunas que contam a história:
+// quantas PALAVRAS o chunk tem em comum com a pergunta, e qual a SIMILARIDADE
+// entre os embeddings.
+//
+// As perguntas foram escritas de propósito para que o chunk certo tenha zero
+// palavra em comum com elas. Uma busca por palavra-chave erraria todas; a busca
+// por embedding acerta. É esse contraste que justifica o RAG existir, e ele fica
+// óbvio quando as duas colunas estão lado a lado.
+//
+// A contagem de palavras em comum é real, calculada sobre o texto. Os vetores
+// são de brinquedo (6 dimensões temáticas, escritas à mão) fazendo o papel do
+// que um modelo de embedding produziria — mas o cosseno em cima deles é o de
+// verdade, e é ele que ordena a lista.
+---
+
+<div class="viz-busca" data-viz="busca-semantica">
+  <div class="busca-topo">
+    <article class="stat">
+      <p class="stat-rotulo">A pergunta do usuário</p>
+      <div class="bsc-chips" data-chips></div>
+    </article>
+    <article class="stat">
+      <div class="slider-campo">
+        <label>Chunks colados no contexto <span class="valor" data-k-val>—</span></label>
+        <input type="range" data-k min="1" max="4" step="1" value="2" />
+      </div>
+      <p class="stat-caminho">Os k mais parecidos entram; o resto fica no índice.</p>
+    </article>
+  </div>
+
+  <article class="stat">
+    <p class="stat-rotulo">A base, ordenada pela similaridade com a pergunta</p>
+    <table class="bsc-tabela">
+      <thead>
+        <tr>
+          <th>chunk</th>
+          <th class="num">palavras<br />em comum</th>
+          <th class="num">similaridade</th>
+        </tr>
+      </thead>
+      <tbody data-linhas></tbody>
+    </table>
+  </article>
+
+  <article class="stat">
+    <p class="stat-rotulo">O que o modelo vai receber <span data-tokens></span></p>
+    <pre class="bsc-prompt" data-prompt></pre>
+  </article>
+
+  <p class="stat-caminho bsc-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-busca {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .busca-topo {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .busca-topo > * {
+    min-width: 0;
+  }
+  .bsc-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .bsc-chips :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+    text-align: left;
+  }
+  .bsc-chips :global(button.ativo) {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+
+  .bsc-tabela {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 0.86rem;
+  }
+  .bsc-tabela th {
+    text-align: left;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+    font-weight: 600;
+    padding: 0 8px 8px;
+    border-bottom: 1px solid var(--borda);
+  }
+  .bsc-tabela th.num,
+  .bsc-tabela :global(td.num) {
+    text-align: right;
+    font-family: var(--fonte-dados);
+    white-space: nowrap;
+  }
+  .bsc-tabela :global(td) {
+    padding: 9px 8px;
+    border-bottom: 1px solid var(--borda);
+    color: var(--texto-suave);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .bsc-tabela :global(tr.entrou td) {
+    color: var(--texto);
+    background: #eef7ee;
+  }
+  .bsc-tabela :global(tr.entrou td:first-child) {
+    border-left: 3px solid var(--verde);
+  }
+  .bsc-tabela :global(.bsc-titulo) {
+    display: block;
+    font-weight: 700;
+    color: var(--insper-azul-aco);
+  }
+  .bsc-tabela :global(.bsc-sim) {
+    font-weight: 700;
+    color: var(--insper-azul-aco);
+  }
+  .bsc-tabela :global(.bsc-zero) {
+    color: var(--vermelho);
+    font-weight: 700;
+  }
+
+  .bsc-prompt {
+    margin: 12px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.79rem;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--texto);
+  }
+  .bsc-prompt :global(.bsc-fonte) {
+    color: var(--insper-roxo);
+  }
+  .bsc-prompt :global(.bsc-pergunta) {
+    color: var(--insper-azul);
+    font-weight: 700;
+  }
+  .bsc-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 700px) {
+    .busca-topo {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="busca-semantica"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const sliderK = raiz.querySelector<HTMLInputElement>("[data-k]")!;
+
+    // Dimensões dos vetores: organização · seleção · projetos · ensino · tecnologia · agentes
+    interface Chunk {
+      titulo: string;
+      texto: string;
+      vetor: number[];
+    }
+
+    const CHUNKS: Chunk[] = [
+      {
+        titulo: "Sobre a entidade",
+        texto: "A Insper AI é a entidade de inteligência artificial do Insper, fundada em 2025.",
+        vetor: [0.9, 0.1, 0.1, 0.1, 0.0, 0.0],
+      },
+      {
+        titulo: "Estrutura",
+        texto: "A organização tem quatro núcleos: Acadêmico, Projetos, Gestão de Pessoas e Institucional.",
+        vetor: [0.95, 0.15, 0.3, 0.3, 0.0, 0.0],
+      },
+      {
+        titulo: "Processo seletivo",
+        texto:
+          "Novos trainees entram por um processo seletivo no início de cada semestre. Para efetivar é preciso média 7,5 e 75% de presença.",
+        vetor: [0.25, 0.95, 0.0, 0.2, 0.0, 0.0],
+      },
+      {
+        titulo: "Trilhas de formação",
+        texto:
+          "O Núcleo Acadêmico oferece a Trilha Básica, obrigatória para trainees, e as Trilhas Extras para membros efetivados.",
+        vetor: [0.2, 0.25, 0.05, 0.95, 0.05, 0.1],
+      },
+      {
+        titulo: "Projetos",
+        texto:
+          "Projetos internos são propostos pelos próprios membros; os externos são parcerias com empresas.",
+        vetor: [0.25, 0.0, 0.95, 0.05, 0.15, 0.0],
+      },
+      {
+        titulo: "Tecnologias",
+        texto:
+          "Os membros trabalham com Python, PyTorch e Hugging Face. Para agentes, usam MCP e N8N.",
+        vetor: [0.1, 0.0, 0.2, 0.05, 0.95, 0.6],
+      },
+    ];
+
+    // Cada pergunta foi escrita para NÃO repetir as palavras do chunk certo.
+    const PERGUNTAS: { texto: string; vetor: number[] }[] = [
+      { texto: "Como faço para entrar na entidade?", vetor: [0.35, 0.92, 0.0, 0.15, 0.0, 0.0] },
+      { texto: "Que linguagens o pessoal usa?", vetor: [0.05, 0.0, 0.15, 0.05, 0.95, 0.35] },
+      { texto: "Quem cuida das aulas?", vetor: [0.3, 0.2, 0.0, 0.9, 0.05, 0.05] },
+      { texto: "Posso propor um trabalho com uma empresa?", vetor: [0.2, 0.0, 0.93, 0.0, 0.1, 0.0] },
+    ];
+
+    let escolhida = 0;
+
+    const cosseno = (a: number[], b: number[]) => {
+      const dot = a.reduce((s, v, i) => s + v * b[i], 0);
+      const na = Math.hypot(...a);
+      const nb = Math.hypot(...b);
+      return na && nb ? dot / (na * nb) : 0;
+    };
+
+    const VAZIAS = new Set([
+      "a", "o", "as", "os", "de", "do", "da", "dos", "das", "e", "é", "em", "no", "na",
+      "nos", "nas", "um", "uma", "uns", "umas", "para", "por", "com", "que", "quem",
+      "como", "qual", "quais", "se", "ao", "aos", "à", "às", "ou", "the",
+    ]);
+
+    /** Palavras de conteúdo em comum — a busca por palavra-chave, para comparar. */
+    function palavrasEmComum(a: string, b: string): number {
+      const limpa = (t: string) =>
+        new Set(
+          t
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .split(/\s+/)
+            .filter((p) => p.length > 1 && !VAZIAS.has(p)),
+        );
+      const sa = limpa(a);
+      const sb = limpa(b);
+      return [...sa].filter((p) => sb.has(p)).length;
+    }
+
+    const tokens = (t: string) => Math.ceil(t.length / 3.4);
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+
+    // --- chips ---
+    const chips = el("chips");
+    PERGUNTAS.forEach((p, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p.texto;
+      b.addEventListener("click", () => {
+        escolhida = i;
+        desenhar();
+      });
+      chips.append(b);
+    });
+
+    function desenhar() {
+      const pergunta = PERGUNTAS[escolhida];
+      const k = parseInt(sliderK.value, 10);
+
+      const ranking = CHUNKS.map((c) => ({
+        c,
+        sim: cosseno(c.vetor, pergunta.vetor),
+        comum: palavrasEmComum(pergunta.texto, c.texto),
+      })).sort((a, b) => b.sim - a.sim);
+
+      [...chips.querySelectorAll("button")].forEach((b, i) =>
+        b.classList.toggle("ativo", i === escolhida),
+      );
+      el("k-val").textContent = String(k);
+
+      // --- a tabela ---
+      const corpo = el("linhas");
+      corpo.replaceChildren();
+      ranking.forEach((r, i) => {
+        const tr = document.createElement("tr");
+        if (i < k) tr.className = "entrou";
+
+        const td1 = document.createElement("td");
+        const t = document.createElement("span");
+        t.className = "bsc-titulo";
+        t.textContent = r.c.titulo;
+        td1.append(t, document.createTextNode(r.c.texto));
+
+        const td2 = document.createElement("td");
+        td2.className = "num";
+        const span = document.createElement("span");
+        if (r.comum === 0) span.className = "bsc-zero";
+        span.textContent = String(r.comum);
+        td2.append(span);
+
+        const td3 = document.createElement("td");
+        td3.className = "num";
+        const s = document.createElement("span");
+        s.className = "bsc-sim";
+        s.textContent = num(r.sim, 2);
+        td3.append(s);
+
+        tr.append(td1, td2, td3);
+        corpo.append(tr);
+      });
+
+      // --- o prompt montado ---
+      const escolhidos = ranking.slice(0, k);
+      const alvo = el("prompt");
+      alvo.replaceChildren();
+      alvo.append(document.createTextNode("Use o contexto abaixo para responder.\n\n"));
+      escolhidos.forEach((r) => {
+        const f = document.createElement("span");
+        f.className = "bsc-fonte";
+        f.textContent = `[fonte: ${r.c.titulo}]\n`;
+        alvo.append(f, document.createTextNode(r.c.texto + "\n\n"));
+      });
+      const q = document.createElement("span");
+      q.className = "bsc-pergunta";
+      q.textContent = "Pergunta: " + pergunta.texto;
+      alvo.append(q);
+
+      const custo =
+        tokens("Use o contexto abaixo para responder.") +
+        escolhidos.reduce((s, r) => s + tokens(r.c.texto) + 6, 0) +
+        tokens(pergunta.texto);
+      el("tokens").textContent = `· ${custo} tokens`;
+
+      const topo = ranking[0];
+      const maisPalavras = [...ranking].sort((a, b) => b.comum - a.comum)[0];
+      const enganaria = maisPalavras.c.titulo !== topo.c.titulo && maisPalavras.comum > topo.comum;
+
+      el("nota").innerHTML =
+        topo.comum === 0
+          ? `O chunk mais bem colocado é <strong>“${topo.c.titulo}”</strong>, com similaridade <strong>${num(topo.sim, 2)}</strong> e <strong>zero palavra em comum</strong> com a pergunta. ${enganaria ? `Uma busca por palavra-chave teria devolvido “${maisPalavras.c.titulo}”, que repete ${maisPalavras.comum} palavra${maisPalavras.comum > 1 ? "s" : ""} e não responde nada. ` : ""}É esse o motivo de o RAG usar embeddings: a pessoa pergunta com as palavras dela, não com as palavras do documento.`
+          : `“${topo.c.titulo}” ficou em primeiro. Repare que a coluna do meio quase não ajuda a ordenar — quem ordena é a similaridade entre os vetores. <strong>Troque de pergunta</strong> e olhe as duas colunas juntas.`;
+    }
+
+    sliderK.addEventListener("input", desenhar);
+    desenhar();
+  });
+</script>

@@ -1,0 +1,320 @@
+---
+n: "A1"
+titulo: "Embeddings, Transformers e GPTs"
+ordem: 1
+objetivo: "Abrir o LLM por dentro: como texto vira número, como o modelo decide o que é relevante na frase, e por que gerar texto é só prever o próximo token — muitas vezes seguidas."
+---
+
+import VizEmbed from "@/components/VizEmbed.astro";
+import Tokenizacao from "@/components/viz/agentes/Tokenizacao.astro";
+import EspacoEmbeddings from "@/components/viz/agentes/EspacoEmbeddings.astro";
+import AtencaoFrase from "@/components/viz/agentes/AtencaoFrase.astro";
+import ProximoToken from "@/components/viz/agentes/ProximoToken.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
+
+Um LLM parece mágico de fora: você escreve uma pergunta, ele escreve uma resposta. Por dentro não tem nada disso. Tem um programa que recebe uma sequência de pedaços de texto e devolve **uma tabela de probabilidades**: para cada pedaço possível, o quanto ele é provável de vir a seguir. Só isso. Toda a trilha — o chatbot, as ferramentas, o agente que executa ações — é construída em cima dessa única operação, e esta aula é a que abre a caixa para mostrar como ela funciona.
+
+<Caixa tipo="dica" titulo="Como ler esta página">
+Palavras com sublinhado pontilhado — como <Termo id="vocabulario">vocabulário</Termo> — abrem uma definição curta no clique. Os gráficos são para mexer, não só olhar: em cada um há uma coisa para arrastar, clicar ou digitar, e é aí que o conceito entra.
+</Caixa>
+
+## O modelo não lê texto: lê tokens
+
+Computador não processa letra, processa número. Então a primeira coisa que acontece com qualquer texto que você manda a um LLM é ser picado em pedaços chamados **tokens**, e cada token ser trocado pelo número que o identifica. Esse processo é a **tokenização**.
+
+Um token **não é** uma palavra. É a unidade que aquele modelo específico decidiu tratar como indivisível, e essa decisão foi tomada durante o treino, olhando estatística de texto: sequências de caracteres que aparecem muito viram um token só; sequências raras têm que ser montadas juntando pedaços menores. O conjunto fechado desses pedaços é o vocabulário do modelo — algo entre 30 mil e 250 mil entradas, dependendo do modelo.
+
+A consequência prática é direta e cara: **a mesma frase custa números diferentes de tokens em línguas diferentes.** Como quase todo modelo é treinado majoritariamente em inglês, o inglês é a língua em que os pedaços rendem mais.
+
+No gráfico abaixo, **digite uma frase** (ou escolha uma das prontas) e olhe o número de caracteres por token. Verde é palavra que coube inteira num token; laranja é pedaço de palavra.
+
+<VizEmbed titulo="digite e veja o texto se quebrar">
+  <Tokenizacao />
+</VizEmbed>
+
+<Caixa tipo="erro">
+"Token" não é "palavra", e a diferença aparece na fatura. As APIs cobram por token, não por palavra nem por caractere. Um texto em português custa tipicamente **quase o dobro** de tokens do mesmo texto em inglês — o que significa que um agente que conversa em português tem, na prática, metade da memória e o dobro do custo de um que conversa em inglês.
+</Caixa>
+
+Repare também que **o espaço faz parte do token**. `" Paris"` (com espaço na frente) e `"Paris"` (sem) são dois tokens diferentes, com dois números diferentes. Isso parece um detalhe bobo, mas explica um monte de comportamento estranho de LLM — inclusive por que um prompt que termina com espaço às vezes produz resultado pior do que o mesmo prompt sem o espaço.
+
+## Do número ao significado: embeddings
+
+Até aqui cada token virou um número de identificação, e só. O ID 4907 não diz nada sobre o que aquele token significa — é uma etiqueta, como número de matrícula. Se o modelo trabalhasse com esses IDs direto, "gato" e "cachorro" seriam tão parecidos entre si quanto "gato" e "hipoteca".
+
+A solução é trocar cada ID por um **vetor**: uma lista de números. Não um número, uma lista longa — 2048 números no Gemma 2B, mais de 12 mil nos modelos grandes. Esse vetor é o **embedding** do token, e ele é aprendido durante o treino, junto com o resto dos pesos do modelo.
+
+O que o treino descobre é uma arrumação: tokens que aparecem em contextos parecidos acabam com vetores apontando para direções parecidas. Ninguém programou "gato é parecido com cachorro" — isso emergiu de ver as duas palavras cercadas das mesmas outras palavras, milhões de vezes.
+
+E se significado virou direção no espaço, "quão parecidas são duas palavras" vira uma conta de geometria: o cosseno do ângulo entre os dois vetores.
+
+$$
+\text{sim}(a, b) = \frac{a \cdot b}{\lVert a \rVert \, \lVert b \rVert}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$a, b$", significado: "os embeddings das duas palavras que você quer comparar — cada um uma lista de milhares de números" },
+    { simbolo: "$a \\cdot b$", significado: "o produto escalar: multiplica os números na mesma posição e soma tudo" },
+    { simbolo: "$\\lVert a \\rVert$", significado: "o comprimento do vetor. Dividir por ele é o que faz a medida ignorar o tamanho e olhar só a direção" },
+    { simbolo: "$\\text{sim}$", significado: "o resultado, entre −1 e 1: perto de 1 é mesma direção, perto de 0 é sem relação, negativo é direção oposta" },
+  ]}
+/>
+
+Dividir pelos comprimentos é a parte que importa entender. Sem essa divisão, um vetor comprido pareceria "mais parecido" com todo mundo só por ser comprido. Com ela, o que sobra é o ângulo — e é o ângulo que carrega o significado.
+
+**Clique nas palavras** abaixo e veja a lista de similaridades se reordenar. Comece por "Python".
+
+<VizEmbed titulo="escolha uma palavra e veja quem está perto">
+  <EspacoEmbeddings />
+</VizEmbed>
+
+<Pergunta pergunta="No gráfico, “rei” tem um vetor bem mais comprido que “príncipe”, e mesmo assim a similaridade entre os dois é altíssima. Por quê?">
+Porque a <Termo id="similaridade-cosseno">similaridade do cosseno</Termo> mede **direção**, não comprimento — é exatamente o efeito da divisão pelos $\lVert a \rVert$ e $\lVert b \rVert$ na fórmula. O comprimento do embedding tem a ver com outras coisas (grosso modo, o quanto o token é frequente e o quão fortemente ele influencia a conta), não com o assunto de que a palavra trata. Duas palavras do mesmo assunto apontam para o mesmo lado, uma podendo ser bem maior que a outra.
+</Pergunta>
+
+Só que aqui aparece um limite sério, e é ele que motiva a próxima seção. O embedding que acabamos de descrever é uma **tabela fixa**: cada token tem um vetor, e é sempre o mesmo vetor. Mas "Python" na frase _"escrevi o código em Python"_ e "Python" na frase _"a Python engoliu o rato"_ não querem dizer a mesma coisa. Um vetor por token não tem como representar as duas.
+
+## A atenção: o significado depende da frase
+
+A resposta a esse problema é a arquitetura que domina a IA desde 2017: o <Termo id="transformer">Transformer</Termo>. A ideia central dele chama-se **atenção**, e dá para descrever em uma frase: **cada token olha para os tokens anteriores e monta uma nova versão de si mesmo, misturando informação de quem for relevante.**
+
+O vetor de "Python" entra na primeira camada igual sempre. Mas ao passar pela atenção, ele puxa informação de "código" ou de "engoliu", e o vetor que sai do outro lado já é diferente nos dois casos. Depois de algumas dezenas de camadas fazendo isso, o vetor de cada posição carrega não a palavra isolada, mas a palavra **naquela frase**.
+
+Duas propriedades valem destacar, porque as duas têm consequência prática:
+
+- **Cada token reparte 100% de atenção** entre os tokens que ele pode olhar. Atenção é um recurso disputado: prestar mais atenção num lugar significa prestar menos em outro.
+- **Só se olha para trás.** Um token nunca enxerga o que vem depois dele. Isso se chama máscara causal, e existe porque, na hora de gerar, o que vem depois ainda não foi escrito — se o modelo treinasse podendo espiar o futuro, ele aprenderia a colar.
+
+Abaixo está o exemplo clássico. **Clique em "ele"** e veja para onde a atenção vai. Depois **aperte o botão** que troca a última palavra da frase, e olhe de novo.
+
+<VizEmbed titulo="clique em “ele” — e depois troque o fim da frase">
+  <AtencaoFrase />
+</VizEmbed>
+
+A frase é a mesma até a penúltima palavra. Mudando só o fim, o "ele" troca de dono: em _"porque **ele** estava cansado"_, quem cansa é o gato; em _"porque **ele** estava sujo"_, quem suja é o tapete. Nenhuma tabela de embeddings resolveria isso, porque o token "ele" é o mesmo nos dois casos. Quem resolve é olhar o resto da frase — e é isso, e só isso, que a atenção faz.
+
+<Caixa tipo="erro">
+Atenção não é o modelo "se concentrando" nem "entendendo o que é importante" no sentido humano. É uma conta: cada token gera uma consulta, todos os outros geram uma chave, o produto entre elas vira um peso, e os pesos somam 1. O nome é uma metáfora útil e enganosa em partes iguais — ele descreve bem o efeito, e nada do mecanismo.
+</Caixa>
+
+<Quiz
+  id="ag-a1-mascara-causal"
+  pergunta="Numa frase de dez tokens, você olha a atenção do sétimo token. Ele distribui peso entre quais tokens?"
+  alternativas={[
+    {
+      texto: "Entre os tokens 1 a 7 — ele mesmo e todos os anteriores.",
+      certa: true,
+      porque: "Isso. A máscara causal impede olhar para a frente, e o próprio token entra na conta. Na hora de gerar, os tokens 8, 9 e 10 nem existem ainda — não haveria para onde olhar.",
+    },
+    {
+      texto: "Entre todos os dez, porque o Transformer processa a sequência inteira de uma vez.",
+      porque: "Processar em paralelo e poder olhar para a frente são coisas diferentes. O Transformer de fato calcula todas as posições ao mesmo tempo — mas com a máscara causal aplicada, que zera o peso de tudo o que vem depois.",
+    },
+    {
+      texto: "Entre os tokens 1 a 6, porque um token não olha para si mesmo.",
+      porque: "Olha, sim — e costuma ser um dos pesos mais altos. Quase toda a informação que uma posição tem sobre si mesma vem dela própria.",
+    },
+    {
+      texto: "Entre os tokens 8 a 10, porque a atenção serve para prever o que vem a seguir.",
+      porque: "O objetivo é prever o que vem a seguir, mas a informação para isso só pode vir do que já foi escrito. Se ele pudesse ler o token 8, prever o token 8 seria trivial — e o modelo não aprenderia nada.",
+    },
+  ]}
+/>
+
+## Gerar texto é prever o próximo token
+
+Agora dá para juntar tudo. Os tokens entram, viram embeddings, atravessam as camadas de atenção, e no fim o modelo produz, para a **última** posição, um número para cada token do vocabulário. Esses números crus se chamam <Termo id="logit">logits</Termo>, e viram probabilidades passando pela softmax:
+
+$$
+P(\text{token}_i) = \frac{e^{z_i / T}}{\sum_j e^{z_j / T}}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$z_i$", significado: "o logit do token i — o número cru que o modelo produziu para ele, podendo ser qualquer valor real" },
+    { simbolo: "$T$", significado: "a temperature. Divide todos os logits antes da exponencial, e é isso que estica ou achata a distribuição" },
+    { simbolo: "$e^{z_i/T}$", significado: "a exponencial, que deixa tudo positivo — sem ela, logit negativo viraria “probabilidade” negativa" },
+    { simbolo: "$\\sum_j$", significado: "a soma sobre o vocabulário inteiro, que é o que faz o resultado somar 1" },
+  ]}
+/>
+
+Com a distribuição na mão, o modelo **sorteia** um token, cola no fim da sequência, e roda tudo de novo — agora com um token a mais na entrada. Repete até bater um limite ou sair um token especial de fim. Isso se chama geração <Termo id="autorregressivo">autorregressiva</Termo>, e é literalmente todo o mecanismo: não existe planejamento da frase, não existe rascunho, não existe revisão. Um token de cada vez, sempre para a frente.
+
+O $T$ da fórmula é o botão mais famoso de qualquer API de LLM:
+
+- **$T$ perto de 0**: dividir por um número pequeno infla as diferenças entre os logits, e o líder come tudo. O modelo vira determinístico — e repetitivo, porque, colocado duas vezes no mesmo estado, ele toma exatamente a mesma decisão.
+- **$T$ perto de 1**: a distribuição fica como o modelo a produziu.
+- **$T$ acima de 1**: as diferenças encolhem, a distribuição achata, e tokens improváveis passam a ter chance real. Mais variado — e mais propenso a desandar.
+
+Abaixo há um previsor de próximo token de verdade, minúsculo: ele foi montado contando pares de palavras num punhado de frases. **Arraste a temperature** e olhe as barras antes de gerar; depois aperte **Gerar 12** com valores diferentes.
+
+<VizEmbed titulo="arraste a temperature e gere">
+  <ProximoToken />
+</VizEmbed>
+
+Repare no que acontece com temperature baixa: o texto entra em **laço**, repetindo o mesmo trecho. Não é bug — é a consequência exata de sempre escolher o candidato mais provável. Chegando de novo à mesma palavra, a decisão é a mesma, e o texto passa a girar. É por isso que ninguém usa temperature 0 para escrever texto livre.
+
+<Caixa tipo="erro">
+Temperature **não** é um botão de qualidade, nem de "criatividade" no sentido de ter boas ideias. Ela só muda o formato da distribuição que o modelo já produziu. Temperature 0 não deixa o modelo mais correto — deixa mais previsível, o que é ótimo para extrair um JSON e péssimo para escrever um texto. E temperature alta não gera ideias novas: gera escolhas menos prováveis, que às vezes soam originais e às vezes são só erradas.
+</Caixa>
+
+Existe um segundo botão que costuma andar junto, o <Termo id="top-k">top-k</Termo>: antes de sortear, jogue fora tudo que não esteja entre os $k$ tokens mais prováveis. Ele serve de rede de segurança para a temperature alta — sem ele, a cauda da distribuição tem dezenas de milhares de tokens absurdos, e com a distribuição achatada a chance de pescar um deles deixa de ser desprezível.
+
+<Quiz
+  id="ag-a1-temperatura-zero"
+  pergunta="Você está montando um agente que precisa devolver um JSON com um nome de ferramenta e argumentos, num formato exato. Que temperature faz sentido, e por quê?"
+  alternativas={[
+    {
+      texto: "Baixa, perto de 0 — o formato é fixo, e você quer que o modelo tome sempre a decisão mais provável em vez de variar.",
+      certa: true,
+      porque: "Isso. Aqui a repetitividade é a virtude: só há um jeito certo de escrever aquele JSON, e variedade só aumenta a chance de sair chave errada ou aspa faltando. É esse o ajuste padrão para tool calling, e volta na Aula 3.",
+    },
+    {
+      texto: "Alta, acima de 1 — assim o modelo considera mais opções de formato e acerta mais.",
+      porque: "Considerar mais opções é exatamente o que não se quer quando existe uma resposta certa só. Distribuição achatada aumenta a chance de o modelo escolher um token de formatação improvável e quebrar o JSON.",
+    },
+    {
+      texto: "Perto de 1, porque é o valor em que o modelo está calibrado e portanto o mais confiável.",
+      porque: "É verdade que $T = 1$ entrega a distribuição como o modelo a produziu, e isso é o padrão sensato para texto livre. Mas para saída de formato fixo você não quer amostrar da distribuição — quer o topo dela, sempre.",
+    },
+    {
+      texto: "Tanto faz: a temperature só afeta textos longos, e um JSON é curto.",
+      porque: "A temperature age em cada token, um por um. Num JSON curto ela age poucas vezes, mas basta uma escolha ruim — uma vírgula no lugar de fechar chave — para o parser rejeitar a resposta inteira.",
+    },
+  ]}
+/>
+
+## O modelo base não responde perguntas
+
+Agora a parte que costuma surpreender, e que é a ponte para a próxima aula.
+
+Um modelo recém-saído do pré-treino — o que se chama de **modelo base** — foi treinado numa tarefa só: dado um pedaço de texto da internet, prever o próximo token. Ele nunca foi ensinado a obedecer, a ser útil, ou a responder. Ele aprendeu a **continuar documentos**.
+
+Então quando você escreve para um modelo base:
+
+```text
+What is the capital of France?
+```
+
+ele não entende isso como uma pergunta dirigida a ele. Ele entende como o começo de um documento que contém essa frase — e a continuação estatisticamente mais provável de um documento que começa com uma pergunta muitas vezes é... **mais perguntas**. É comum o modelo base devolver uma lista de exercícios de geografia, ou o cabeçalho de um fórum, ou repetir a pergunta em outras palavras. Ele não está falhando: está fazendo exatamente o que sabe fazer.
+
+<Pergunta pergunta="Se o modelo só sabe continuar texto, que texto você poderia escrever para que a continuação mais provável fosse uma resposta útil à sua pergunta?">
+Um texto que **pareça um diálogo já em andamento**. Se a entrada for algo como `Humano: qual é a capital da França?` seguido de `Assistente:`, então o documento mais provável que continua daí é a fala do assistente — ou seja, a resposta. Não se mudou nada no modelo: mudou-se o texto ao redor da pergunta, de modo que a continuação natural passasse a ser o que a gente queria. É essa a ideia inteira da Aula 2.
+</Pergunta>
+
+Vale saber que os modelos que você usa no dia a dia — Claude, GPT, Gemini — não são modelos base. Eles passaram por uma etapa extra de treino, com exemplos de instrução e resposta e com feedback humano, que produz um <Termo id="modelo-instruido">modelo instruído</Termo>. É essa etapa que faz o assistente obedecer sem precisar de truque de formatação. Mas por baixo continua sendo o mesmo previsor de próximo token desta aula: a etapa extra mudou **quais** continuações ele acha prováveis, não o que ele é.
+
+<p class="nota">
+  E é isso. Texto vira token, token vira vetor, a atenção mistura os vetores conforme
+  a frase, e o resultado é uma distribuição sobre o próximo token — sorteada, colada,
+  e recalculada. Tudo o que vem nas próximas seis aulas é construído em volta dessa
+  operação, sem nunca mudá-la.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="ag-a1-token-nao-e-palavra"
+  pergunta="Um colega mede o custo do agente dele contando as palavras das mensagens e multiplicando pelo preço por token da API. Onde esse cálculo escorrega?"
+  alternativas={[
+    {
+      texto: "Token e palavra não são a mesma unidade. Palavra rara ou acentuada vira vários tokens, e o espaço também conta — em português a conta por palavra subestima bastante o custo real.",
+      certa: true,
+      porque: "Exato. Em textos em português a razão fica perto de 2,5 caracteres por token, contra uns 5 em inglês: a mesma ideia custa quase o dobro. Contar palavras dá um número otimista demais.",
+    },
+    {
+      texto: "Não escorrega em nada: token e palavra são sinônimos na prática, e a diferença é de arredondamento.",
+      porque: "A diferença não é de arredondamento. Basta olhar o gráfico da tokenização: “Inteligência” sozinha vira meia dúzia de tokens, e nomes próprios se estilhaçam quase sempre.",
+    },
+    {
+      texto: "O erro é multiplicar em vez de somar: o preço da API é por requisição, não por token.",
+      porque: "As APIs cobram por token mesmo, e separadamente por token de entrada e de saída. O problema do cálculo é a unidade contada, não a operação aritmética.",
+    },
+    {
+      texto: "O erro é contar as mensagens do usuário: só a resposta do modelo é cobrada.",
+      porque: "Cobra-se pelos dois lados, e o de entrada costuma ser o maior, porque o histórico inteiro é reenviado a cada turno — assunto da Aula 4.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a1-embedding-ambiguo"
+  pergunta="Na tabela de embeddings, o token “banco” tem um vetor só. Como o modelo distingue “sentei no banco da praça” de “fui ao banco sacar dinheiro”?"
+  alternativas={[
+    {
+      texto: "A camada de atenção reescreve o vetor de “banco” misturando informação dos outros tokens da frase — “praça” puxa para um lado, “sacar” para o outro.",
+      certa: true,
+      porque: "Isso. O vetor da tabela é o ponto de partida, igual nos dois casos; o que sai depois das camadas de atenção é diferente, porque incorporou o contexto. É a razão de o Transformer existir.",
+    },
+    {
+      texto: "A tabela guarda um vetor para cada sentido da palavra, e o modelo escolhe o certo pelo assunto do texto.",
+      porque: "A tabela é indexada por token, não por sentido — nem existe uma lista de sentidos em lugar nenhum. O desempate acontece depois, no processamento, não na consulta à tabela.",
+    },
+    {
+      texto: "O tokenizador quebra “banco” de formas diferentes conforme a frase.",
+      porque: "A tokenização é puramente mecânica: casa o pedaço mais longo do vocabulário, da esquerda para a direita. Ela não olha o sentido, e produz o mesmo token nos dois casos.",
+    },
+    {
+      texto: "Ele não distingue — é por isso que LLMs erram tanto em frases ambíguas.",
+      porque: "Distinguir contexto é justamente o que esses modelos fazem bem. Foi essa a virada de 2017: antes dos Transformers, representação por palavra fixa era de fato o padrão, e a ambiguidade era um problema aberto.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a1-laco-temperatura"
+  pergunta="Você põe um modelo para gerar um texto com temperature 0 e ele começa a repetir a mesma frase sem parar. Qual é a explicação?"
+  alternativas={[
+    {
+      texto: "Com temperature 0 ele sempre escolhe o token mais provável. Voltando a um estado pelo qual já passou, ele toma a mesma decisão de novo — e o texto entra em ciclo.",
+      certa: true,
+      porque: "Isso mesmo. Geração determinística mais estado repetido dá ciclo, necessariamente. A aleatoriedade do sorteio é o que normalmente empurra o texto para fora do laço.",
+    },
+    {
+      texto: "O modelo ficou sem contexto e passou a repetir o começo por falta de espaço.",
+      porque: "Estouro de contexto tem outros sintomas — em geral o modelo esquece o começo, não repete. E o laço aparece já nas primeiras dezenas de tokens, muito antes de qualquer limite.",
+    },
+    {
+      texto: "Temperature 0 é um valor inválido: divide por zero na fórmula da softmax.",
+      porque: "Dividir por zero é um problema real na fórmula, e por isso as implementações tratam $T = 0$ como um caso à parte, pegando direto o de maior logit. O efeito prático é o descrito na alternativa certa.",
+    },
+    {
+      texto: "É um defeito de modelos pequenos; modelos grandes não entram em laço.",
+      porque: "Modelo grande demora mais para cair no ciclo porque a distribuição dele é mais rica, mas a mecânica é a mesma. Geração gulosa em qualquer tamanho tende à repetição, e é por isso que a prática padrão é amostrar.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a1-base-vs-instruido"
+  pergunta="Você carrega um modelo base do Hugging Face, escreve “Explique o que é uma rede neural” e recebe de volta mais três perguntas parecidas, sem nenhuma explicação. O que está acontecendo?"
+  alternativas={[
+    {
+      texto: "O modelo está continuando o documento, que é a única coisa que ele sabe fazer. Um texto que começa com uma pergunta costuma ser seguido de outras perguntas — uma lista de exercícios, por exemplo.",
+      certa: true,
+      porque: "Exato. Ele não recusou nem falhou: produziu a continuação estatisticamente plausível. Responder só vira a continuação provável quando o texto ao redor faz parecer que ali é a vez de um assistente falar.",
+    },
+    {
+      texto: "O modelo está com a temperature alta demais e por isso perdeu o foco da pergunta.",
+      porque: "Abaixando a temperature ele continua não respondendo — só continua o documento de forma mais previsível. O problema não é o sorteio, é o que ele considera provável.",
+    },
+    {
+      texto: "O download veio corrompido: um modelo funcionando responde perguntas.",
+      porque: "Modelo base funcionando perfeitamente se comporta assim. Responder pergunta é resultado de uma etapa de treino posterior, que o modelo base, por definição, não teve.",
+    },
+    {
+      texto: "Falta traduzir o prompt para inglês — modelos base só respondem em inglês.",
+      porque: "Em inglês ele geraria mais perguntas em inglês. A língua muda o custo em tokens e a qualidade, não o fato de o modelo estar continuando um documento em vez de responder.",
+    },
+  ]}
+/>
+
+</QuizBloco>

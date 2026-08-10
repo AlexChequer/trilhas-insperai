@@ -1,0 +1,355 @@
+---
+// Agentes · Aula 1 · Gerar texto é sortear o próximo token, colar no fim e
+// repetir. Aqui isso acontece de verdade: o modelo é um bigrama montado na hora
+// a partir do corpusinho abaixo — minúsculo, mas um previsor de próximo token
+// legítimo, com distribuição de verdade e temperature aplicada em cima dela.
+//
+// A tarefa: arrastar a temperature e olhar as barras. Perto de 0 elas viram uma
+// só (sempre o mesmo texto, repetitivo); acima de 1 elas se achatam e o texto
+// desanda. O aluno vê o trade-off em vez de ouvir falar dele.
+//
+// E o modelo ser ruim é parte da aula: ele só olha UMA palavra para trás. É o
+// contraste com o Transformer, que olha a sequência inteira — o gancho para a
+// viz da atenção.
+---
+
+<div class="viz-prox" data-viz="proximo-token">
+  <div class="stat">
+    <p class="stat-rotulo">Texto gerado</p>
+    <p class="prox-texto" data-texto></p>
+    <div class="viz-controles">
+      <button class="btn" type="button" data-passo>1 token</button>
+      <button class="btn" type="button" data-varios>Gerar 12</button>
+      <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="prox-grade">
+    <article class="stat">
+      <p class="stat-rotulo">
+        Candidatos a próximo token depois de <b data-atual>—</b>
+      </p>
+      <ul class="prox-lista" data-lista></ul>
+    </article>
+
+    <div class="prox-controles">
+      <article class="stat">
+        <div class="slider-campo">
+          <label>Temperature <span class="valor" data-temp-val>—</span></label>
+          <input type="range" data-temp min="0.1" max="2" step="0.05" value="0.8" />
+        </div>
+        <p class="stat-caminho" data-regime>—</p>
+      </article>
+
+      <article class="stat">
+        <p class="stat-rotulo">Começar de</p>
+        <div class="prox-sementes" data-sementes></div>
+      </article>
+    </div>
+  </div>
+
+  <p class="stat-caminho prox-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-prox {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .prox-texto {
+    margin: 12px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: clamp(0.98rem, 2vw, 1.14rem);
+    line-height: 1.9;
+    color: var(--texto);
+    min-height: 3.4em;
+  }
+  .prox-texto :global(.semente) {
+    color: var(--texto-suave);
+  }
+  .prox-texto :global(.ultimo) {
+    background: #ede4fd;
+    border-radius: 5px;
+    padding: 1px 4px;
+    font-weight: 700;
+    color: var(--insper-roxo);
+  }
+
+  .prox-grade {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .prox-grade > * {
+    min-width: 0;
+  }
+  .prox-controles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .prox-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .prox-lista :global(li) {
+    display: grid;
+    grid-template-columns: 6.4em 1fr 3.4em;
+    align-items: center;
+    gap: 8px;
+  }
+  .prox-lista :global(.prox-nome) {
+    font-family: var(--fonte-dados);
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prox-lista :global(li.lider .prox-nome) {
+    color: var(--insper-roxo);
+    font-weight: 700;
+  }
+  .prox-lista :global(.prox-trilho) {
+    height: 12px;
+    border-radius: 999px;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+  .prox-lista :global(.prox-fill) {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--insper-gradiente);
+  }
+  .prox-lista :global(li.lider .prox-fill) {
+    background: var(--insper-roxo);
+  }
+  .prox-lista :global(.prox-val) {
+    font-family: var(--fonte-dados);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: right;
+    color: var(--insper-azul-aco);
+  }
+
+  .prox-sementes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .prox-sementes :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: var(--fonte-dados);
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 9px 13px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .prox-sementes :global(button.ativo) {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+  .prox-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 760px) {
+    .prox-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="proximo-token"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-temp]")!;
+
+    // O corpus do "modelo", como frases e quantas vezes cada uma aparece. A
+    // repetição é o ponto: se toda continuação aparecesse uma vez só, todas
+    // teriam a mesma probabilidade e a temperature não teria o que reformar —
+    // foi exatamente o que aconteceu na primeira versão desta viz. É a
+    // frequência desigual que dá à distribuição um formato para achatar.
+    const FRASES: [string, number][] = [
+      ["o modelo prevê o próximo token .", 4],
+      ["o modelo não sabe o que é uma pergunta .", 2],
+      ["o modelo continua o texto que recebeu .", 1],
+      ["o modelo gera um token de cada vez .", 1],
+      ["o agente usa uma ferramenta quando precisa .", 3],
+      ["o agente chama uma ferramenta e lê o resultado .", 2],
+      ["o agente não executa nada sozinho .", 1],
+      ["a atenção olha para os tokens anteriores .", 3],
+      ["a atenção decide o que importa na frase .", 2],
+      ["a atenção resolve a ambiguidade do token .", 1],
+      ["o contexto é tudo o que o modelo enxerga .", 2],
+      ["o contexto tem um limite de tokens .", 1],
+      ["uma ferramenta é uma função de verdade .", 1],
+    ];
+
+    const CORPO = FRASES.flatMap(([frase, vezes]) =>
+      Array.from({ length: vezes }, () => frase.split(" ")).flat(),
+    );
+    // Bigrama com volta ao início: assim nenhum token fica sem continuação e a
+    // geração nunca trava no meio.
+    const TABELA = new Map<string, Map<string, number>>();
+    CORPO.forEach((t, i) => {
+      const seguinte = CORPO[(i + 1) % CORPO.length];
+      if (!TABELA.has(t)) TABELA.set(t, new Map());
+      const m = TABELA.get(t)!;
+      m.set(seguinte, (m.get(seguinte) ?? 0) + 1);
+    });
+
+    const SEMENTES = ["o modelo", "o agente", "a atenção"];
+    let semente = SEMENTES[0];
+    let texto: string[] = semente.split(" ");
+
+    const pct = (v: number) => (v * 100).toFixed(0) + "%";
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+
+    /**
+     * Distribuição do próximo token com temperature. A contagem vira logit pelo
+     * log; dividir o logit por T e passar pela softmax é o mesmo que elevar a
+     * contagem a 1/T — que é a forma curta escrita aqui.
+     */
+    function distribuicao(atual: string, T: number) {
+      const m = TABELA.get(atual);
+      if (!m) return [] as { token: string; p: number }[];
+      const itens = [...m.entries()].map(([token, c]) => ({ token, peso: Math.pow(c, 1 / T) }));
+      const soma = itens.reduce((s, x) => s + x.peso, 0) || 1;
+      return itens
+        .map(({ token, peso }) => ({ token, p: peso / soma }))
+        .sort((a, b) => b.p - a.p);
+    }
+
+    function sortear(dist: { token: string; p: number }[]) {
+      let r = Math.random();
+      for (const d of dist) {
+        r -= d.p;
+        if (r <= 0) return d.token;
+      }
+      return dist[dist.length - 1]?.token ?? ".";
+    }
+
+    function darPasso() {
+      const T = parseFloat(slider.value);
+      const dist = distribuicao(texto[texto.length - 1], T);
+      if (dist.length === 0) return;
+      texto = [...texto, sortear(dist)];
+    }
+
+    function desenhar() {
+      const T = parseFloat(slider.value);
+      const atual = texto[texto.length - 1];
+      const dist = distribuicao(atual, T);
+
+      // --- o texto, com a semente apagada e o último token em destaque ---
+      const alvo = el("texto");
+      alvo.replaceChildren();
+      const tamanhoSemente = semente.split(" ").length;
+      texto.forEach((t, i) => {
+        const span = document.createElement("span");
+        span.textContent = t;
+        if (i < tamanhoSemente) span.className = "semente";
+        if (i === texto.length - 1 && texto.length > tamanhoSemente) span.className = "ultimo";
+        alvo.append(span, document.createTextNode(" "));
+      });
+
+      el("atual").textContent = `“${atual}”`;
+      el("temp-val").textContent = num(T, 2);
+
+      // --- as barras de candidatos ---
+      const lista = el("lista");
+      lista.replaceChildren();
+      const maximo = dist[0]?.p ?? 1;
+      dist.slice(0, 8).forEach(({ token, p }, i) => {
+        const li = document.createElement("li");
+        if (i === 0) li.className = "lider";
+
+        const nome = document.createElement("span");
+        nome.className = "prox-nome";
+        nome.textContent = token;
+
+        const trilho = document.createElement("span");
+        trilho.className = "prox-trilho";
+        const fill = document.createElement("span");
+        fill.className = "prox-fill";
+        fill.style.width = pct(p / maximo);
+        trilho.append(fill);
+
+        const val = document.createElement("span");
+        val.className = "prox-val";
+        val.textContent = pct(p);
+
+        li.append(nome, trilho, val);
+        lista.append(li);
+      });
+
+      // --- o regime da temperature ---
+      const topo = dist[0]?.p ?? 0;
+      el("regime").innerHTML =
+        T <= 0.35
+          ? `Quase determinístico: o líder leva <b>${pct(topo)}</b>. Rodando de novo sai quase sempre o mesmo texto.`
+          : T >= 1.3
+            ? `Distribuição achatada: até o candidato improvável tem chance real. Criativo — e caótico.`
+            : `Equilíbrio: o líder tem <b>${pct(topo)}</b>, mas os outros ainda aparecem.`;
+
+      [...el("sementes").querySelectorAll("button")].forEach((b) =>
+        b.classList.toggle("ativo", b.textContent === semente),
+      );
+
+      const opcoes = dist.length;
+      el("nota").innerHTML =
+        texto.length <= semente.split(" ").length
+          ? `Depois de <strong>“${atual}”</strong> existem <strong>${opcoes}</strong> continuações possíveis neste corpus. Aperte <strong>1 token</strong> e acompanhe: sortear, colar no fim, recalcular. Gerar texto é só isso, repetido.`
+          : T <= 0.35
+            ? "Com temperature baixa o texto <strong>engasga em laço</strong>: como a escolha é sempre o candidato mais provável, ele volta ao mesmo trecho. É o modo previsível — e é por isso que ninguém usa 0 para escrever."
+            : T >= 1.3
+              ? "Com temperature alta o texto se solta e vira quase incoerente: tokens de cauda entram na conta e a frase perde o fio."
+              : "Repare que a frase até começa bem e depois desanda. Este modelo olha <strong>uma palavra</strong> para trás — nada mais. Um Transformer olha a sequência inteira, e é essa diferença que separa isto de um texto que se sustenta.";
+    }
+
+    // --- sementes ---
+    const sementes = el("sementes");
+    SEMENTES.forEach((s) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = s;
+      b.addEventListener("click", () => {
+        semente = s;
+        texto = s.split(" ");
+        desenhar();
+      });
+      sementes.append(b);
+    });
+
+    raiz.querySelector<HTMLButtonElement>("[data-passo]")!.addEventListener("click", () => {
+      darPasso();
+      desenhar();
+    });
+    raiz.querySelector<HTMLButtonElement>("[data-varios]")!.addEventListener("click", () => {
+      for (let i = 0; i < 12; i++) darPasso();
+      desenhar();
+    });
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", () => {
+      texto = semente.split(" ");
+      desenhar();
+    });
+    slider.addEventListener("input", desenhar);
+
+    desenhar();
+  });
+</script>

@@ -1,0 +1,297 @@
+---
+n: "A4"
+titulo: "Contexto e RAG"
+ordem: 4
+objetivo: "Resolver os dois limites que sobraram: a janela de contexto, que é finita e cara, e o conhecimento que o agente não tem — buscando só o pedaço que importa, na hora que importa."
+---
+
+import VizEmbed from "@/components/VizEmbed.astro";
+import JanelaDeContexto from "@/components/viz/agentes/JanelaDeContexto.astro";
+import PodaDoHistorico from "@/components/viz/agentes/PodaDoHistorico.astro";
+import Chunking from "@/components/viz/agentes/Chunking.astro";
+import BuscaSemantica from "@/components/viz/agentes/BuscaSemantica.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
+
+O agente da Aula 3 já age, e ainda tem dois limites — os dois pelo mesmo motivo de fundo: **tudo o que o modelo sabe numa conversa tem que estar escrito no contexto daquela chamada.**
+
+O primeiro limite é que o contexto acaba. Ele tem um teto de tokens, é reenviado inteiro a cada turno, e cresce sozinho conforme a conversa anda. O segundo é que o conhecimento da sua organização — as atas, a documentação, o regimento — não estava no treino e não cabe no prompt.
+
+Esta aula resolve os dois. A primeira metade é sobre **gastar bem** o contexto que existe; a segunda, sobre **buscar** o que não cabe nele.
+
+## O contexto é um orçamento
+
+Vale começar tratando a janela de contexto como aquilo que ela é: um orçamento fixo, disputado por partes que não param de crescer. Numa chamada de agente ele se reparte assim:
+
+$$
+\text{livre} \;=\; L \;-\; (S + F + H + R)
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$L$", significado: "o limite do modelo, em tokens: 8 mil no Gemma 2B, 200 mil no Claude" },
+    { simbolo: "$S$", significado: "o system prompt — custo fixo, pago em todo turno" },
+    { simbolo: "$F$", significado: "a descrição das ferramentas, também fixa e também paga em todo turno" },
+    { simbolo: "$H$", significado: "o histórico da conversa. É o único que cresce sem parar" },
+    { simbolo: "$R$", significado: "os resultados de ferramenta já devolvidos, que ficam no contexto junto com o resto" },
+    { simbolo: "$\\text{livre}$", significado: "o que sobra — e é ele que a resposta precisa caber. Contexto cheio até a borda é contexto inútil" },
+  ]}
+/>
+
+**Arraste o número de turnos** e veja quem ocupa o quê. Depois troque de modelo.
+
+<VizEmbed titulo="arraste os turnos até a barra estourar">
+  <JanelaDeContexto />
+</VizEmbed>
+
+Três coisas ficam visíveis aí, e vale nomear cada uma:
+
+- **Com poucos turnos, o custo fixo domina.** System prompt e descrição de ferramentas ocupam quase tudo. É por isso que enxugá-los rende tanto no começo — e por isso que registrar cinquenta ferramentas "por precaução" sai caro antes mesmo de a conversa começar.
+- **Só o histórico cresce.** Cedo ou tarde ele come o orçamento inteiro. Não existe configuração que evite isso; existe decidir o que jogar fora.
+- **Estourar não degrada, quebra.** Passou do limite, a chamada falha com erro. Não é que o modelo responda pior — é que ele não responde.
+
+<Caixa tipo="erro">
+Janela grande **não é** o mesmo que janela bem usada. Modelos têm dificuldade documentada de aproveitar informação enterrada no meio de um contexto longo — o efeito é conhecido como <Termo id="lost-in-the-middle">lost in the middle</Termo>: o começo e o fim são bem aproveitados, e o miolo se dilui. Encher 200 mil tokens não deixa o agente mais informado; deixa mais caro, mais lento, e com o dado relevante mais difícil de achar no meio do resto.
+</Caixa>
+
+## Podar o histórico
+
+Se o histórico tem que encolher, a pergunta é **o que jogar fora**. As duas estratégias mais usadas são simples de escrever e diferentes no que erram.
+
+A <Termo id="sliding-window">janela deslizante</Termo> guarda os $N$ turnos mais recentes e descarta o resto. É a mais fácil de implementar, e ignora tamanho: um turno com um resultado de ferramenta gigante conta igual a um "ok, obrigado".
+
+O <Termo id="token-budget">orçamento de tokens</Termo> define um teto e vai enchendo do turno mais recente para trás, até bater o teto. O custo fica previsível — que é exatamente o que se quer para estimar conta —, ao preço de o corte cair em lugar imprevisível.
+
+**Escolha uma estratégia** e aperte o parâmetro. Depois olhe a pergunta pendente no canto inferior direito.
+
+<VizEmbed titulo="pode o histórico e veja o que o agente esquece">
+  <PodaDoHistorico />
+</VizEmbed>
+
+O ponto da visualização não é a economia — é o que acontece quando o turno 1 sai. O agente **não diz que não sabe**: ele responde com uma frase plausível montada a partir do que sobrou. É a mesma alucinação da Aula 3, agora causada por uma decisão de engenharia nossa.
+
+<Caixa tipo="atencao">
+Toda poda é uma **aposta** sobre o que não vai ser preciso depois, e quando a aposta erra, ela erra em silêncio. Por isso o padrão em agente sério é não podar às cegas: informação durável — quem é o usuário, qual a tarefa, o que já foi decidido — sai do histórico e vai para um bloco fixo, preservado sempre. Poda-se a conversa, não os fatos.
+</Caixa>
+
+Existe uma terceira estratégia que aparece muito: **resumir** os turnos antigos com uma chamada extra ao modelo, e substituir vinte turnos por um parágrafo. Ela preserva bem mais contexto por token do que jogar fora, e tem dois preços: uma chamada a mais e um resumo que pode omitir justamente o que faria falta.
+
+<Pergunta pergunta="Por que enxugar o system prompt costuma render mais que enxugar as mensagens da conversa?">
+Porque o system prompt é reenviado **em todos os turnos**, enquanto uma mensagem específica é enviada só a partir do turno em que apareceu. Cortar 200 tokens do system prompt numa conversa de 30 turnos economiza 6.000 tokens; cortar 200 tokens de uma mensagem no meio da conversa economiza, na melhor das hipóteses, algumas centenas. O que se repete é onde vale otimizar — vale para prompt como vale para código dentro de laço.
+</Pergunta>
+
+<Quiz
+  id="ag-a4-poda"
+  pergunta="Seu agente de suporte usa janela deslizante de 5 turnos. Um usuário abre o chat, dá o número do pedido, conversa por 8 turnos e pergunta “então, quando chega o meu pedido?”. O que acontece?"
+  alternativas={[
+    {
+      texto: "O número do pedido já saiu do contexto. O agente não tem como saber de que pedido se trata — e o risco é ele responder algo plausível em vez de perguntar de novo.",
+      certa: true,
+      porque: "Isso, e o segundo efeito é o mais perigoso. Ficar sem a informação é o problema esperado; responder com uma data inventada é o problema que ninguém percebe até o cliente reclamar.",
+    },
+    {
+      texto: "O agente busca o número do pedido no histórico completo, que fica salvo no servidor.",
+      porque: "Pode existir um histórico salvo em banco — mas o que o modelo enxerga é só o que foi montado naquela chamada. Se a poda tirou, para o modelo aquilo não existe.",
+    },
+    {
+      texto: "Nada de mais: a janela deslizante mantém automaticamente as mensagens importantes.",
+      porque: "Ela não tem noção de importância nenhuma. Guarda os N mais recentes, e recente não é sinônimo de relevante — é justamente a fraqueza da estratégia.",
+    },
+    {
+      texto: "A chamada falha com erro de contexto insuficiente.",
+      porque: "Não há erro: o contexto está pequeno, e pequeno é válido. A falha é silenciosa, o que é bem pior do que uma exceção.",
+    },
+  ]}
+/>
+
+## RAG: buscar em vez de carregar
+
+A segunda metade da aula ataca o outro limite. Seu agente precisa responder sobre o regimento da entidade, que tem 40 páginas. Colar as 40 páginas no system prompt é inviável — não cabe, e mesmo cabendo seria pago em todo turno.
+
+A saída é inverter a ordem: em vez de carregar tudo e esperar que o modelo ache o que importa, **ache o que importa e carregue só isso.** É essa a ideia do <Termo id="rag">RAG</Termo>, e ela tem três etapas.
+
+A primeira acontece **uma vez**, antes de qualquer pergunta — é a <Termo id="indexacao">indexação</Termo>:
+
+```text
+documentos → picar em chunks → gerar o embedding de cada chunk → guardar
+```
+
+As outras duas acontecem **a cada pergunta**:
+
+```text
+pergunta → gerar o embedding da pergunta → achar os chunks mais parecidos
+chunks achados + pergunta → o modelo responde com base neles
+```
+
+Repare que a peça central é a similaridade entre embeddings — exatamente o que a Aula 1 apresentou. A diferença é que agora ela não compara palavras soltas, e sim uma pergunta inteira com trechos inteiros de documento.
+
+## Picar o documento: chunking
+
+Antes de buscar é preciso decidir a unidade de busca. Documento inteiro não serve: você acabaria colando 40 páginas no contexto de novo. Por isso o texto é picado em pedaços — os **chunks** —, e o tamanho deles é uma decisão com consequência dos dois lados.
+
+**Chunk grande** preserva o contexto em volta de cada frase, e traz junto muito texto irrelevante. **Chunk pequeno** é preciso e corta ideias ao meio: se a pergunta é "o que preciso para efetivar?" e o requisito está numa frase que ficou separada do assunto a que ela se refere, a busca devolve metade da resposta — e o modelo completa a outra metade sozinho.
+
+É contra esse corte que existe a <Termo id="overlap">sobreposição</Termo>: repetir o fim de um chunk no começo do seguinte, para que uma ideia partida na fronteira ainda apareça inteira em algum pedaço.
+
+**Diminua o tamanho do chunk** até o par de frases destacado se separar. Depois **suba a sobreposição**.
+
+<VizEmbed titulo="aperte o tamanho até quebrar o par de frases">
+  <Chunking />
+</VizEmbed>
+
+<Caixa tipo="erro">
+Sobreposição não é de graça: o texto repetido é armazenado, transformado em embedding e comparado a cada busca. Subir a sobreposição para 50% quase dobra o índice e faz a mesma passagem aparecer duas vezes entre os resultados — ocupando duas das $k$ vagas do contexto com o mesmo conteúdo. A faixa usual é 10% a 20% do tamanho do chunk, e vale conferir olhando os pedaços, não chutando.
+</Caixa>
+
+## A busca, e por que ela não é Ctrl+F
+
+Com os chunks indexados, buscar é gerar o embedding da pergunta e ordenar os chunks pela <Termo id="similaridade-cosseno">similaridade do cosseno</Termo>. Os $k$ primeiros são colados no contexto junto com a pergunta.
+
+A tabela abaixo mostra, lado a lado, duas colunas: quantas **palavras** o chunk tem em comum com a pergunta, e a **similaridade** entre os vetores. **Escolha uma pergunta** e compare as duas.
+
+<VizEmbed titulo="compare as duas colunas em cada pergunta">
+  <BuscaSemantica />
+</VizEmbed>
+
+Repare no que acontece com "Como faço para entrar na entidade?". O chunk certo — o do processo seletivo — tem **zero palavra em comum** com a pergunta. Uma busca por palavra-chave devolveria o chunk "Sobre a entidade", que repete a palavra "entidade" e não responde nada.
+
+É esse o motivo de a <Termo id="busca-semantica">busca semântica</Termo> existir. O usuário pergunta com as palavras dele; o documento foi escrito com as palavras de quem o redigiu. Casar as duas coisas por texto literal falha justamente nos casos em que mais se precisa de ajuda.
+
+<Pergunta pergunta="Se a base não tiver nada que responda à pergunta, o que a busca devolve?">
+Os $k$ chunks **menos ruins** — porque ela sempre devolve alguma coisa. Ordenar por similaridade não tem noção de "nenhum serve": o primeiro colocado pode ter similaridade 0,12 e ainda assim ser o primeiro. Daí duas práticas que valem sempre: estabelecer um **piso de similaridade**, abaixo do qual o resultado é descartado, e instruir o modelo a dizer que não encontrou quando o contexto não sustentar a resposta. Sem isso, o agente recebe trechos irrelevantes e responde em cima deles com a fluência de sempre.
+</Pergunta>
+
+## RAG é uma ferramenta como as outras
+
+Falta juntar com a Aula 3, e o encaixe é limpo: **a busca vira mais uma ferramenta no registro.**
+
+```python
+def buscar_conhecimento(query: str) -> str:
+    """Busca informação na base de conhecimento da Insper AI.
+    Use para qualquer pergunta sobre a organização, seus membros,
+    projetos ou trilhas — não responda essas de memória."""
+    trechos = base.buscar(query, top_k=2)
+    return "\n\n".join(f"[fonte: {t.titulo}]\n{t.texto}" for t in trechos)
+```
+
+Nada de novo na mecânica: o modelo gera uma tool call, o parser extrai, o executor roda, o resultado volta como `<tool_result>`. A diferença é que o resultado agora traz **conhecimento**, e o laço da Aula 3 já sabe lidar com isso.
+
+Repare em dois detalhes desse código, porque os dois são decisões:
+
+- A descrição **diz quando usar**, e diz explicitamente para não responder de memória. Sem isso o modelo prefere responder de cabeça, que é mais barato para ele — o problema que a última visualização da Aula 3 mostrou.
+- O resultado vem **com a fonte**. Isso permite ao modelo citar de onde tirou, e permite a você conferir. Agente que responde sem fonte é agente que não dá para auditar.
+
+E é isso: o agente está completo. Modelo que gera, contexto que o transforma em assistente, ferramentas que o deixam agir, memória gerenciada e conhecimento que ele pode consultar. Tudo escrito à mão, peça por peça.
+
+<p class="nota">
+  A partir daqui a trilha inverte o movimento. As Aulas 1 a 4 mostraram <em>o que</em>
+  acontece por dentro, construindo cada peça na unha. A Aula 5 joga a maior parte
+  desse código fora e reconstrói o mesmo agente sobre um protocolo padronizado — e
+  entender o que está sendo jogado fora é o que faz a troca valer a pena.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="ag-a4-janela-grande"
+  pergunta="Seu agente estoura o contexto em conversas longas. Um colega sugere trocar para um modelo com janela de 200 mil tokens e não mexer em mais nada. O que essa troca resolve, e o que não resolve?"
+  alternativas={[
+    {
+      texto: "Resolve o estouro por bem mais tempo, e não resolve o custo: o histórico continua sendo reenviado inteiro a cada turno, agora com muito mais tokens a pagar por chamada.",
+      certa: true,
+      porque: "Isso. Janela maior adia o problema em vez de removê-lo — e piora o desperdício, porque a conta cresce junto. Vale como parte da solução, não como a solução inteira.",
+    },
+    {
+      texto: "Resolve tudo: com 200 mil tokens não há conversa real que estoure.",
+      porque: "Há, sim — agente com ferramenta que devolve texto longo enche 200 mil rápido. E antes disso já apareceu o problema do meio do contexto, em que o modelo aproveita mal o que está enterrado.",
+    },
+    {
+      texto: "Não resolve nada, porque o limite de contexto é do tokenizador e não do modelo.",
+      porque: "O limite é da arquitetura e do treino do modelo, não do tokenizador. Trocar de modelo muda o limite de verdade — a ressalva é sobre custo e aproveitamento, não sobre o limite não mudar.",
+    },
+    {
+      texto: "Resolve o custo, porque modelos com janela maior cobram menos por token.",
+      porque: "Costuma ser o contrário: modelo maior tende a custar mais por token. E mesmo com o mesmo preço, enviar mais tokens custa mais.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a4-chunk-pequeno"
+  pergunta="Você indexa o regimento com chunks bem pequenos, sem sobreposição, achando que assim a busca fica mais precisa. Qual é o efeito colateral mais provável?"
+  alternativas={[
+    {
+      texto: "Ideias que ocupam mais de uma frase são cortadas na fronteira, e a busca devolve metade do que seria preciso — sem sinal nenhum de que faltou pedaço.",
+      certa: true,
+      porque: "Isso. Precisão de recuperação sobe e completude cai, e a queda é silenciosa: o modelo recebe meia informação e completa a outra metade sozinho. É o que a sobreposição existe para atenuar.",
+    },
+    {
+      texto: "A busca fica mais lenta, porque há mais chunks para comparar.",
+      porque: "Há mais comparações mesmo, mas cada uma é um produto escalar — e bases sérias usam índices aproximados. Latência raramente é o que dói aqui; o corte de sentido é.",
+    },
+    {
+      texto: "Os embeddings ficam menos precisos porque textos curtos não têm significado suficiente.",
+      porque: "Trecho muito curto realmente produz vetor mais instável, e isso é um efeito real. Ainda assim, o problema dominante é o corte de ideias que só se sustentam juntas.",
+    },
+    {
+      texto: "O contexto final fica maior, porque são necessários mais chunks para responder.",
+      porque: "Pode acontecer se você aumentar o k para compensar — mas com o k fixo o contexto fica menor, e é justamente aí que a informação falta.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a4-busca-semantica"
+  pergunta="Por que a busca do RAG usa embeddings em vez de procurar as palavras da pergunta nos documentos?"
+  alternativas={[
+    {
+      texto: "Porque a pergunta é escrita com as palavras do usuário e o documento com as de quem o redigiu. Comparar significado acha o trecho certo mesmo sem nenhuma palavra repetida.",
+      certa: true,
+      porque: "Isso, e foi o que a tabela mostrou: “como faço para entrar na entidade?” recupera o trecho sobre processo seletivo com zero palavra em comum. Busca literal erraria exatamente aí.",
+    },
+    {
+      texto: "Porque busca por palavra-chave é lenta demais para bases grandes.",
+      porque: "Índice invertido é rapidíssimo — busca literal é, na prática, mais barata que busca vetorial. A troca é por qualidade de recuperação, não por velocidade.",
+    },
+    {
+      texto: "Porque embeddings garantem que o trecho recuperado responda à pergunta.",
+      porque: "Não garantem nada: a busca sempre devolve os k mais parecidos, ainda que todos sejam ruins. Por isso se usa piso de similaridade e se instrui o modelo a admitir quando não encontrou.",
+    },
+    {
+      texto: "Porque o modelo só consegue ler texto que veio de um embedding.",
+      porque: "O modelo lê texto comum — o que entra no contexto é o texto do chunk, não o vetor. O embedding serve só para escolher qual chunk colar.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a4-rag-ferramenta"
+  pergunta="Integrando o RAG ao agente da Aula 3, por que a busca vira uma ferramenta em vez de ser executada sempre, antes de toda pergunta?"
+  alternativas={[
+    {
+      texto: "Porque nem toda pergunta precisa da base. Como ferramenta, é o modelo que decide quando buscar — e não buscar economiza tokens e evita colar trecho irrelevante no contexto.",
+      certa: true,
+      porque: "Isso. “Quanto é 2+2?” não tem por que carregar dois chunks do regimento. E há um segundo ganho: como ferramenta, o modelo pode buscar de novo com outras palavras se o primeiro resultado não servir.",
+    },
+    {
+      texto: "Porque buscar sempre deixaria o agente lento demais para uso interativo.",
+      porque: "A busca vetorial é rápida e raramente domina a latência — a chamada ao modelo custa muito mais. O motivo é o que entra no contexto, não o relógio.",
+    },
+    {
+      texto: "Porque o protocolo de tool calling exige que toda fonte externa de dados seja registrada como ferramenta.",
+      porque: "Não há exigência dessas. Buscar sempre e colar o resultado no prompt é um padrão legítimo e usado; o que se ganha ao deixar como ferramenta é a decisão de quando usar.",
+    },
+    {
+      texto: "Porque assim o resultado da busca não ocupa espaço no contexto.",
+      porque: "Ocupa igual: o resultado volta como tool_result e fica no contexto, inclusive nos turnos seguintes. A economia é só nos turnos em que o modelo decide não buscar.",
+    },
+  ]}
+/>
+
+</QuizBloco>
