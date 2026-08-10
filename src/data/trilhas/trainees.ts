@@ -1,28 +1,10 @@
-// O arco do semestre — fonte única para a home.
-// `slug` casa com o arquivo em src/content/aulas/<slug>.mdx quando a página existir;
-// enquanto não existir, a estação aparece muda ("em breve").
+// Trilha de Trainees — o arco do semestre.
+// `slug` casa com o arquivo em src/content/aulas/trainees/<slug>.mdx quando a
+// página existir; enquanto não existir, a estação aparece muda ("em breve").
+import type { BlocoArco, MecanicaItem, Trilha } from "./tipos";
+import { urlGuia } from "./rotas";
 
-export interface AulaArco {
-  n: string;
-  titulo: string;
-  desc: string;
-  slug: string;
-  prontas: number;
-  total: number;
-  aberto?: boolean;
-  pratica?: boolean;
-}
-
-export interface BlocoArco {
-  nome: string;
-  /** Rótulo curto, para o arco da home. */
-  curto: string;
-  /** Uma linha sobre o que o bloco cobre. */
-  resumo: string;
-  aulas: AulaArco[];
-}
-
-export const BLOCOS: BlocoArco[] = [
+const BLOCOS: BlocoArco[] = [
   {
     nome: "Bloco 1 · Fundamentos",
     curto: "Fundamentos",
@@ -131,3 +113,55 @@ export const BLOCOS: BlocoArco[] = [
     ],
   },
 ];
+
+// Ordem decidida com o Alex: o programa primeiro (o que é, como funciona uma
+// semana), o arco depois. Calendário e Projetos entram quando as datas e a
+// logística do MNIST estiverem definidas.
+const MECANICA: MecanicaItem[] = [
+  {
+    numero: "13",
+    titulo: "aulas, uma por semana",
+    texto:
+      "O semestre é uma sequência só, da regressão linear às redes convolucionais. Cada aula depende da anterior — e a numeração carrega essa ordem.",
+  },
+  {
+    numero: "2h",
+    titulo: "de aula, e um notebook depois",
+    texto:
+      "A teoria vem com visualizações para mexer, não com slides. Depois da aula, um notebook pronto para rodar aplica o que foi dado naquele dia.",
+  },
+  {
+    numero: "1",
+    titulo: "provinha por semana",
+    texto:
+      "É ela, com a apresentação, que mede se você entendeu. Pode usar IA para escrever código — mas a provinha você faz sozinho com o que sabe.",
+  },
+  {
+    numero: "2",
+    titulo: "desafios ao longo do semestre",
+    texto:
+      "O primeiro é o MNIST, lançado na Aula 6, com a restrição de usar só MLP. O segundo fecha o arco, na Aula 13.",
+  },
+];
+
+export const TRAINEES: Trilha = {
+  id: "trainees",
+  nome: "Trilha de Trainees",
+  curto: "Trainees",
+  chamada: "De uma <em>reta</em> até um <em>agente que aprende</em>.",
+  sub:
+    "Treze aulas que vão da regressão linear às redes neurais e à visão " +
+    "computacional. Cada conceito vira um gráfico que você mexe — porque é assim " +
+    "que eles entram na cabeça de verdade.",
+  resumo:
+    "Treze aulas que vão da regressão linear às redes neurais e à visão computacional, com um gráfico para mexer em cada conceito.",
+  publico: "Quem está entrando na entidade. Não pressupõe ML — só disposição para mexer nos gráficos.",
+  ritmo: "13 aulas · uma por semana",
+  mecanica: MECANICA,
+  acaoSecundaria: { rotulo: "Nunca programei", guia: "aula-0" },
+  nota:
+    `Nunca programou? A <a href="${urlGuia("trainees", "aula-0")}">Aula 0</a> é o ` +
+    "pré-requisito: o mínimo de Python, NumPy e matemática, mais o passo a passo " +
+    "para deixar a máquina pronta.",
+  blocos: BLOCOS,
+};

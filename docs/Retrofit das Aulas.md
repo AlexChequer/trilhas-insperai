@@ -37,7 +37,7 @@ não adianta deixar quatro pela metade.
 
 ## A receita, aula por aula
 
-Segue-se sempre a mesma sequência. A Aula 1 (`src/content/aulas/aula-01.mdx`) é a
+Segue-se sempre a mesma sequência. A Aula 1 (`src/content/aulas/trainees/aula-01.mdx`) é a
 referência viva; consulte [[Componentes de Conteúdo]] para a API de cada bloco.
 
 1. **Importar** os componentes usados no topo do `.mdx`.

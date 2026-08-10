@@ -5,16 +5,16 @@ ordem: 3
 objetivo: "O segundo tipo de problema supervisionado — e como se mede acerto quando a saída é uma classe, não um número."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import RetaVsSigmoid from "../../components/viz/RetaVsSigmoid.astro";
-import FronteiraDecisao from "../../components/viz/FronteiraDecisao.astro";
-import MatrizConfusao from "../../components/viz/MatrizConfusao.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Simbolos from "../../components/Simbolos.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import RetaVsSigmoid from "@/components/viz/trainees/RetaVsSigmoid.astro";
+import FronteiraDecisao from "@/components/viz/trainees/FronteiraDecisao.astro";
+import MatrizConfusao from "@/components/viz/trainees/MatrizConfusao.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Até agora a resposta era um número: um preço, uma nota. Isso é **regressão**. Mas muitos problemas pedem outra coisa: o e-mail é spam ou não? a transação é fraude ou não? o tumor é benigno ou maligno? Aqui a resposta é uma **classe**, não um número — e a maneira de modelar e de medir acerto muda. Isso é **classificação**, o segundo grande tipo de problema supervisionado, e o assunto desta aula. Vamos ficar no caso binário: duas classes, que a gente chama de 0 e 1.
 

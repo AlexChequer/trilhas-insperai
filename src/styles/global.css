@@ -423,11 +423,19 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   padding: 2px 8px;
 }
-.barra-secoes {
+.barra-secoes,
+.barra-trilhas {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-left: clamp(4px, 2vw, 20px);
+}
+/* As trilhas vêm antes das seções e ganham um traço separando: são dois níveis
+   de navegação (em qual curso você está × onde dentro dele), não uma lista só. */
+.barra-secoes {
+  margin-left: clamp(4px, 1.4vw, 14px);
+  padding-left: clamp(6px, 1.4vw, 16px);
+  border-left: 1px solid var(--borda);
 }
 .barra-secao {
   display: inline-flex;
@@ -467,9 +475,16 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 999px;
   padding: 1px 6px;
 }
+/* Na navegação de trilhas o selo "em breve" sai: item apagado e sem link já diz
+   isso, o hub explica, e os dois selos custavam 120px numa barra que não sobra. */
+.barra-trilhas .barra-secao em {
+  display: none;
+}
 
 .barra-busca {
   margin-left: auto;
+  /* nunca encolhe: é o último elemento da barra e sumiria primeiro */
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -612,6 +627,17 @@ input[type="range"]::-moz-range-thumb {
   color: var(--texto-suave);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* De qual trilha veio o resultado: a busca é do site inteiro. */
+.busca-item-grupo {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--fonte-dados);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-suave);
   white-space: nowrap;
 }
 .busca-rodape {
@@ -835,6 +861,98 @@ input[type="range"]::-moz-range-thumb {
 .home-rodape-nota a {
   color: var(--insper-azul);
   font-weight: 600;
+}
+
+/* ---------- O hub: os cards das trilhas ---------- */
+
+.hub {
+  margin-top: clamp(40px, 6vw, 72px);
+}
+.hub-grade {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 16px;
+}
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+a.hub-card:hover {
+  border-color: var(--insper-azul);
+  box-shadow: var(--sombra-forte);
+  transform: translateY(-2px);
+}
+a.hub-card:focus-visible {
+  outline: 3px solid var(--insper-azul);
+  outline-offset: 2px;
+}
+/* trilha ainda sem arco: presente na página, mas visivelmente fora do ar */
+.hub-card.muda {
+  border-style: dashed;
+  background: none;
+}
+.hub-card.muda .hub-card-titulo,
+.hub-card.muda .hub-card-nome {
+  color: var(--texto-suave);
+}
+.hub-card-nome {
+  margin: 0;
+  font-family: var(--fonte-dados);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--insper-roxo);
+}
+.hub-card-titulo {
+  margin: 10px 0 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--insper-azul-aco);
+}
+.hub-card-resumo {
+  margin: 10px 0 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--texto-suave);
+}
+.hub-card-publico {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--borda);
+  font-size: 0.87rem;
+  line-height: 1.55;
+  color: var(--texto-suave);
+}
+/* empurrado para o fim do card: os cards da linha terminam alinhados */
+.hub-card-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: auto 0 0;
+  padding-top: 16px;
+  font-family: var(--fonte-dados);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-suave);
+}
+.hub-card-progresso {
+  margin-left: auto;
+  color: var(--insper-azul);
 }
 
 /* ---------- O arco: a trilha das 13 estações ---------- */
@@ -1827,6 +1945,15 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+/* Duas navegações mais a busca pedem ~1085px (medido). Abaixo disso sai a de
+   dentro da trilha (Projetos e Recursos nem existem ainda) e fica a de trilhas,
+   que é a que leva a algum lugar — e a busca, que nunca pode ser espremida. */
+@media (max-width: 1100px) {
+  .barra-secoes {
+    display: none;
+  }
+}
+
 /* celular/tablet: a lateral vira drawer e a barra do topo enxuga */
 @media (max-width: 1000px) {
   .app,
@@ -1867,9 +1994,10 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
-/* telas estreitas: só o essencial na barra do topo */
+/* telas estreitas: só o essencial na barra do topo. Sem o seletor de trilhas,
+   o caminho para trocar é a marca — que leva ao hub, onde estão as três. */
 @media (max-width: 620px) {
-  .barra-secoes {
+  .barra-trilhas {
     display: none;
   }
   .arco-trilha {

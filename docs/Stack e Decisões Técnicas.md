@@ -28,7 +28,7 @@ O site é **90% conteúdo com interativos no meio**. Astro é o especialista nis
 ## Por que Vercel (e não GitHub Pages)
 
 Vercel serve na **raiz (`/`)** → sem `base path` (o footgun do Pages de projeto,
-que serviria em `/trilha-trainees` e exigiria reescrever links). Integração Git =
+que serviria em `/trilhas-insperai` e exigiria reescrever links). Integração Git =
 CI/CD de graça, com preview por PR. Detalhes e passo a passo em [[Deploy]].
 
 ## Convenções que caíram fora na migração

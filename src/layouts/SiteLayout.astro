@@ -3,11 +3,13 @@ import Base from "./Base.astro";
 import BarraTopo from "../components/BarraTopo.astro";
 import Busca from "../components/Busca.astro";
 import { getCollection } from "astro:content";
-import { BLOCOS } from "../data/aulas";
+import { daTrilha, separarId, urlAula, urlGuia, type Trilha } from "../data/trilhas";
 
 interface Props {
   title: string;
   descricao?: string;
+  /** A trilha da página. Sem ela (o hub) não há índice lateral: não há arco. */
+  trilha?: Trilha;
   /** Aula ou guia atual, para destacar no índice. */
   slugAtual?: string;
   /** Seção ativa na barra do topo. */
@@ -15,29 +17,37 @@ interface Props {
   /** A home não tem índice lateral: é página inteira. */
   semLateral?: boolean;
 }
-const { title, descricao, slugAtual, secao, semLateral = false } = Astro.props;
+const { title, descricao, trilha, slugAtual, secao, semLateral = false } = Astro.props;
 
-const escritas = new Set((await getCollection("aulas")).map((e) => e.id));
+// O índice lateral é o arco de UMA trilha. O hub não tem trilha, logo não tem índice.
+const comLateral = !semLateral && trilha !== undefined;
+
+const escritas = trilha
+  ? new Set((await getCollection("aulas", daTrilha(trilha.id))).map((e) => separarId(e.id).slug))
+  : new Set<string>();
 // Material de consulta fora do arco — abre o índice, acima dos blocos.
-const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.data.ordem);
+const guias = trilha
+  ? (await getCollection("guias", daTrilha(trilha.id))).sort((a, b) => a.data.ordem - b.data.ordem)
+  : [];
 ---
 
 <Base title={title} descricao={descricao}>
-  <div class={"app" + (semLateral ? " sem-lateral" : "")}>
-    <BarraTopo secao={secao} temLateral={!semLateral} />
+  <div class={"app" + (comLateral ? "" : " sem-lateral")}>
+    <BarraTopo trilha={trilha} secao={secao} temLateral={comLateral} />
 
     {
-      !semLateral && (
+      comLateral && trilha && (
         <aside class="sidebar" data-sidebar>
-          <nav class="sidebar-nav" aria-label="Índice das aulas">
+          <nav class="sidebar-nav" aria-label={`Índice — ${trilha.nome}`}>
             {guias.length > 0 && (
               <div class="nav-bloco">
                 <p class="nav-bloco-titulo">Antes de começar</p>
                 {guias.map((g) => {
-                  const ativa = g.id === slugAtual;
+                  const slug = separarId(g.id).slug;
+                  const ativa = slug === slugAtual;
                   return (
                     <a
-                      href={`/guias/${g.id}`}
+                      href={urlGuia(trilha.id, slug)}
                       class={"nav-aula" + (ativa ? " ativa" : "")}
                       aria-current={ativa ? "page" : undefined}
                     >
@@ -48,7 +58,7 @@ const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.dat
                 })}
               </div>
             )}
-            {BLOCOS.map((bloco) => (
+            {trilha.blocos.map((bloco) => (
               <div class="nav-bloco">
                 <p class="nav-bloco-titulo">{bloco.nome}</p>
                 {bloco.aulas.map((a) => {
@@ -56,7 +66,11 @@ const guias = (await getCollection("guias")).sort((a, b) => a.data.ordem - b.dat
                   const temPagina = escritas.has(a.slug);
                   const cls = "nav-aula" + (ativa ? " ativa" : "") + (temPagina ? "" : " muda");
                   return temPagina ? (
-                    <a href={`/aulas/${a.slug}`} class={cls} aria-current={ativa ? "page" : undefined}>
+                    <a
+                      href={urlAula(trilha.id, a.slug)}
+                      class={cls}
+                      aria-current={ativa ? "page" : undefined}
+                    >
                       <span class="nav-aula-codigo">{a.n}</span>
                       <span class="nav-aula-titulo">{a.titulo}</span>
                     </a>

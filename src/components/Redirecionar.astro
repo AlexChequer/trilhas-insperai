@@ -1,0 +1,33 @@
+---
+// Página mínima de redirecionamento, para os endereços antigos continuarem
+// funcionando. É HTML puro e completo de propósito: não carrega a barra, o CSS
+// nem a busca do site — ninguém deve ficar aqui tempo suficiente para ver.
+//
+// Três camadas, da mais confiável para a menos: o meta refresh (funciona sem
+// JavaScript), o replace no histórico (não deixa a página antiga no "voltar") e
+// o link visível (funciona mesmo se as duas primeiras falharem).
+interface Props {
+  /** Para onde a página se mudou. */
+  para: string;
+}
+const { para } = Astro.props;
+---
+
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content={`0; url=${para}`} />
+    <link rel="canonical" href={para} />
+    <meta name="robots" content="noindex" />
+    <title>Esta página mudou de endereço</title>
+  </head>
+  <body>
+    <p>
+      Esta página agora fica em <a href={para}>{para}</a>.
+    </p>
+    <script is:inline define:vars={{ para }}>
+      window.location.replace(para);
+    </script>
+  </body>
+</html>

@@ -5,16 +5,16 @@ ordem: 9
 objetivo: "Por que a MLP não serve para imagem, o que a convolução calcula, e como stride, padding e pooling mudam o tamanho da saída."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import ParametrosMlpCnn from "../../components/viz/ParametrosMlpCnn.astro";
-import ConvolucaoPasso from "../../components/viz/ConvolucaoPasso.astro";
-import FiltrosImagem from "../../components/viz/FiltrosImagem.astro";
-import Termo from "../../components/Termo.astro";
-import Caixa from "../../components/Caixa.astro";
-import Pergunta from "../../components/Pergunta.astro";
-import Simbolos from "../../components/Simbolos.astro";
-import Quiz from "../../components/Quiz.astro";
-import QuizBloco from "../../components/QuizBloco.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import ParametrosMlpCnn from "@/components/viz/trainees/ParametrosMlpCnn.astro";
+import ConvolucaoPasso from "@/components/viz/trainees/ConvolucaoPasso.astro";
+import FiltrosImagem from "@/components/viz/trainees/FiltrosImagem.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
 
 Vocês fizeram o MNIST com MLP, e a restrição era intencional. Agora dá para falar dos limites dela com conhecimento de causa: você esticou uma imagem de 28×28 num vetor de 784 números e mandou para uma rede densa. Esta aula é sobre os três problemas que esse gesto cria, e sobre a operação que resolve os três de uma vez.
 

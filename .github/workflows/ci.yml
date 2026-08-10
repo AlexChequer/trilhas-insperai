@@ -1,0 +1,44 @@
+name: CI
+
+# A Vercel publica sozinha a cada push na main. Este workflow existe para que um
+# build quebrado seja pego ANTES do merge, e não depois de estar no ar: marque-o
+# como required status check em Settings → Branches → Branch protection.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Um push novo cancela o build anterior da mesma branch, que já não interessa.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Tipos, build e links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Mesma faixa do engines.node do package.json, que é o que a Vercel lê.
+          node-version: 22
+          cache: npm
+
+      # ci (e não install): respeita o package-lock.json à risca.
+      - run: npm ci
+
+      - name: Checagem de tipos
+        run: npm run check
+
+      - name: Build estático
+        run: npm run build
+
+      # O Astro não reclama de href para página inexistente — isso viraria 404
+      # silencioso em produção. Ver scripts/checar-links.mjs.
+      - name: Links internos
+        run: npm run checar-links

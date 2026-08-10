@@ -191,3 +191,56 @@ construído e não interessa ao trainee.
   com marca em cima e wordmark embaixo; numa barra horizontal de 60px ele virava
   um borrão. Medi o grafo no pixel e recortei só ele, com o nome em texto ao
   lado. Se um dia existir um SVG horizontal da marca, o recorte sai.
+
+---
+
+## 9 de agosto de 2026 — o site vira o das três trilhas
+
+O Alex vai ter **três trilhas** (Trainees, Deploy de Agentes, ML/DL Avançado) e
+quer **uma página acadêmica única** por onde todo membro da entidade entra. A
+pergunta que ele trouxe: repositórios separados amarrados por **submódulos git**?
+
+**Decisão: um repositório, um site Astro, trilhas como pastas de conteúdo.**
+Submódulos foram descartados por quatro motivos:
+
+- **Contradizem "uma página só".** Um site = um build. Como submódulo, cada
+  trilha seria conteúdo puro, incapaz de buildar sozinha — e aí o submódulo não
+  compra nada. Como site inteiro, viram três deploys, que é o oposto do pedido.
+- **Ponteiro por SHA.** Toda edição numa trilha exigiria um segundo commit no
+  repo pai para mover o ponteiro. Esquecer = o site no ar não muda, calado.
+- **Atrito com o Vercel.** Submódulo privado pede deploy key, e preview de PR não
+  enxerga branch de submódulo não mergeada — piora justamente a ferramenta de
+  revisão.
+- **Quem contribui é trainee.** `git submodule update --init --recursive`,
+  detached HEAD, trabalho perdido. Custo alto para quem está aqui para aprender
+  ML, não plumbing de git.
+
+O que se queria com submódulo — **editar cada trilha em separado** — sai de graça
+no monorepo: pastas distintas (conflito é quase impossível), branches, preview
+por PR e `CODEOWNERS` por caminho.
+
+**O que pesou a favor de juntar:** o design system *é* o produto. `global.css`, o
+`VizEmbed` e a sidebar são o que faz três trilhas parecerem uma entidade só. E a
+trilha de ML/DL Avançado herda as **25 visualizações** de trainees por import, em
+vez de cópia ou pacote npm.
+
+**Mudaria a resposta se** a trilha de Agentes precisasse de backend (playground
+de deploy, sandbox rodando agente). Aí seria uma aplicação, não uma coleção de
+conteúdo, e mereceria repo próprio. O Alex confirmou: **conteúdo estático**.
+
+**O que eu decidi no caminho** (e vale ele julgar):
+
+- **A trilha sai da pasta, não do frontmatter.** Um campo `trilha` no MDX poderia
+  divergir da pasta, e não haveria como saber qual dos dois manda.
+- **Sem flag `ativa`:** a trilha está no ar quando tem arco. Um booleano a mais é
+  um booleano para esquecer de virar.
+- **As duas trilhas novas entraram como rascunho**, com nome, resumo e público
+  preenchidos por mim e marcados `TODO` no código — para ele reescrever antes de
+  anunciar.
+- **Os endereços antigos viraram redirecionamento**, pelos links já salvos.
+- **A barra do topo ficou com duas navegações** (trilhas × seções da trilha). Não
+  cabiam: a busca era empurrada para fora entre 1000 e 1290px. Medi a largura
+  necessária no navegador, tirei o selo "em breve" da nav de trilhas (item
+  apagado e sem link já diz isso) e o limite caiu para ~1085px, com as seções
+  sumindo abaixo disso. As trilhas sobrevivem mais que os placeholders de
+  Projetos e Recursos, de propósito.

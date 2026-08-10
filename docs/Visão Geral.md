@@ -2,10 +2,23 @@
 
 ## O que é
 
-Material didático do **programa de trainee da InsperAI** (entidade de IA do
-Insper). São **13 aulas de 90 minutos**, ao vivo, no 2º semestre de 2026, para
-alunos de graduação que **na maioria não sabem programar** e estão vendo
-**machine learning pela primeira vez**.
+O site acadêmico da **InsperAI**, a entidade de IA do Insper: a porta única por
+onde todo membro entra, com **três trilhas** de estudo dentro.
+
+| Trilha | Estado |
+| --- | --- |
+| **Trainees** | no ar — 13 aulas, o conteúdo descrito abaixo |
+| **Deploy de Agentes** | em breve — arco a definir |
+| **ML/DL Avançado** | em breve — arco a definir |
+
+Ver [[Como Adicionar uma Trilha]] e, no [[Log de Decisões]], por que as três
+moram no mesmo repositório.
+
+## A trilha de trainees
+
+Material didático do **programa de trainee**. São **13 aulas de 90 minutos**, ao
+vivo, no 2º semestre de 2026, para alunos de graduação que **na maioria não sabem
+programar** e estão vendo **machine learning pela primeira vez**.
 
 O produto é um **site** hospedado na web: cada aula é uma página de leitura curta
 com **visualizações interativas embutidas no meio do texto**. Dois usos:

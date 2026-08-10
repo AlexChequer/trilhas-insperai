@@ -1,5 +1,14 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    // Alias para o conteúdo não depender da profundidade da pasta: um MDX em
+    // src/content/aulas/<trilha>/ importa "@/components/…" e continua válido se
+    // a trilha ganhar subpastas depois.
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
 }

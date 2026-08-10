@@ -1,11 +1,15 @@
-# 🏠 Trilha de Trainees — InsperAI · Vault do Projeto
+# 🏠 Trilhas — InsperAI · Vault do Projeto
 
-Documentação viva de como o site das aulas é montado. Se você (pessoa ou uma
+Documentação viva de como o site das trilhas é montado. Se você (pessoa ou uma
 nova sessão do Claude) está chegando agora, leia nesta ordem: [[Visão Geral]] →
 [[Status do Projeto]] → [[Estrutura do Repositório]].
 
 > Este vault existe porque o Alex limpa as conversas com frequência. Aqui mora o
 > contexto que não pode se perder entre uma conversa e outra.
+
+> **`CLAUDE.md` na raiz** é o resumo operacional (invariantes, comandos, tom) que
+> o Claude Code lê sozinho em toda sessão. Este vault é o **porquê** por trás
+> dele. Mudou uma regra? Atualize os dois.
 
 ## Mapa
 
@@ -21,6 +25,7 @@ nova sessão do Claude) está chegando agora, leia nesta ordem: [[Visão Geral]]
 - [[Deploy]] — publicar na Vercel
 
 **Fazer**
+- [[Como Adicionar uma Trilha]] — as três trilhas da entidade e como nasce uma nova
 - [[Como Adicionar uma Aula]]
 - [[Como Adicionar uma Visualização]]
 - [[Componentes de Conteúdo]] — quiz, caixa, pergunta, termo, símbolos
@@ -42,10 +47,14 @@ nova sessão do Claude) está chegando agora, leia nesta ordem: [[Visão Geral]]
 
 - **Aulas 1 a 10: completas** (25 visualizações). Aulas 11–13: só no arco da home,
   "em breve" — o Bloco 5 ainda está com o conteúdo em aberto no `roteiro.md`.
-- **Aula 0 no ar** em `/guias/aula-0`: pré-requisito fora do arco, com o setup
-  de ambiente dentro dela — ver [[Aula 0 e os Guias]].
+- **Aula 0 no ar** em `/trainees/guias/aula-0`: pré-requisito fora do arco, com o
+  setup de ambiente dentro dela — ver [[Aula 0 e os Guias]].
 - **Home e navegação refeitas** em 9/8/2026: barra no topo com seções e busca,
   lateral só da seção atual, home falando do programa — ver [[Sistema de Design]].
+- **O site virou o das três trilhas** em 9/8/2026: hub na raiz, trainees em
+  `/trainees`, Agentes e ML/DL Avançado registradas e marcadas "em breve" —
+  ver [[Como Adicionar uma Trilha]] e o [[Log de Decisões]]. **Os textos das duas
+  trilhas novas são rascunho meu e esperam o julgamento do Alex.**
 - **Decisões esperando o Alex:** [[Decisões Pendentes]].
 - **Deploy:** no ar na Vercel — push na `main` publica sozinho (ver [[Deploy]]).
 - Detalhes sempre atualizados em [[Status do Projeto]].

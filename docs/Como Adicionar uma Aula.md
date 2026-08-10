@@ -2,7 +2,8 @@
 
 ## Passo a passo
 
-1. **Criar o conteúdo** em `src/content/aulas/aula-XX.mdx`:
+1. **Criar o conteúdo** em `src/content/aulas/<trilha>/aula-XX.mdx` — a pasta da
+   trilha é o que diz a qual curso a aula pertence (ver [[Como Adicionar uma Trilha]]):
 
 ```mdx
 ---
@@ -12,8 +13,8 @@ ordem: 2
 objetivo: "Sair do brinquedo de uma variável e chegar em algo que se parece com o mundo real."
 ---
 
-import VizEmbed from "../../components/VizEmbed.astro";
-import AlgumaViz from "../../components/viz/AlgumaViz.astro";
+import VizEmbed from "@/components/VizEmbed.astro";
+import AlgumaViz from "@/components/viz/trainees/AlgumaViz.astro";
 
 Texto curto em Markdown, com fórmulas via $w \cdot x + b$.
 
@@ -26,11 +27,17 @@ Mais texto...
 </VizEmbed>
 ```
 
-2. **Ativar no arco da home**: em `src/data/aulas.ts`, a aula já está listada
-   (todas as 13 estão). Ajuste `prontas` conforme as visualizações forem ficando
-   prontas. Assim que o `.mdx` existir, a estação vira **link** automaticamente.
+2. **Ativar no arco da home**: em `src/data/trilhas/<trilha>.ts`, a aula já está
+   listada (as 13 de trainees estão). Ajuste `prontas` conforme as visualizações
+   forem ficando prontas. Assim que o `.mdx` existir, a estação vira **link**
+   automaticamente.
 
-3. Conferir: `npm run dev`, abrir `/aulas/aula-XX/`, testar no desktop e no celular.
+3. Conferir: `npm run dev`, abrir `/<trilha>/aulas/aula-XX/`, testar no desktop e
+   no celular.
+
+> **Imports usam o alias `@/`** (`@/components/…`), não caminho relativo. Assim o
+> MDX não depende de quantas pastas fundo ele está — e continua válido se a
+> trilha ganhar subpastas depois. O alias está em `tsconfig.json`.
 
 ## Convenções de conteúdo
 

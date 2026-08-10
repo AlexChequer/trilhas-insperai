@@ -1,25 +1,21 @@
 ---
-import { getCollection, render } from "astro:content";
-import Aula from "../../layouts/Aula.astro";
+// Endereço antigo: /aulas/aula-01 → /trainees/aulas/aula-01.
+// Quando o site era só o da trilha de trainees, as aulas moravam na raiz. Estes
+// redirecionamentos existem pelos links que os trainees já têm salvos — só para
+// as aulas daquela trilha, que são as únicas que já estiveram aqui.
+import { getCollection } from "astro:content";
+import Redirecionar from "@/components/Redirecionar.astro";
+import { daTrilha, separarId, urlAula } from "@/data/trilhas";
 
 export async function getStaticPaths() {
-  const aulas = (await getCollection("aulas")).sort(
-    (a, b) => a.data.ordem - b.data.ordem,
-  );
-  return aulas.map((entry, i) => ({
-    params: { slug: entry.id },
-    props: {
-      entry,
-      prev: aulas[i - 1] ?? null,
-      next: aulas[i + 1] ?? null,
-    },
-  }));
+  const aulas = await getCollection("aulas", daTrilha("trainees"));
+  return aulas.map((entry) => {
+    const { slug } = separarId(entry.id);
+    return { params: { slug }, props: { para: urlAula("trainees", slug) } };
+  });
 }
 
-const { entry, prev, next } = Astro.props;
-const { Content, headings } = await render(entry);
+const { para } = Astro.props;
 ---
 
-<Aula data={entry.data} slug={entry.id} prev={prev} next={next} headings={headings}>
-  <Content />
-</Aula>
+<Redirecionar para={para} />

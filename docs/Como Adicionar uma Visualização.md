@@ -1,7 +1,9 @@
 # Como Adicionar uma Visualização
 
-Cada viz é um componente Astro em `src/components/viz/NomeDaViz.astro`, usado no
-MDX dentro de um `<VizEmbed>`.
+Cada viz é um componente Astro em `src/components/viz/<trilha>/NomeDaViz.astro`,
+usado no MDX dentro de um `<VizEmbed>`. As de hoje estão em `viz/trainees/` — quando
+uma passar a servir duas trilhas, promova para `viz/comum/`
+(ver [[Como Adicionar uma Trilha]]).
 
 ## Anatomia (padrão dos componentes de A1)
 
@@ -37,6 +39,9 @@ MDX dentro de um `<VizEmbed>`.
 ## Usar no MDX
 
 ```mdx
+import VizEmbed from "@/components/VizEmbed.astro";
+import NomeDaViz from "@/components/viz/trainees/NomeDaViz.astro";
+
 <VizEmbed titulo="frase curta de instrução">
   <NomeDaViz />
 </VizEmbed>
