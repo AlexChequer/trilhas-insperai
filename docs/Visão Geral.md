@@ -8,7 +8,7 @@ onde todo membro entra, com **três trilhas** de estudo dentro.
 | Trilha | Estado |
 | --- | --- |
 | **Trainees** | no ar — 13 aulas, o conteúdo descrito abaixo |
-| **Deploy de Agentes** | em breve — arco a definir |
+| **Deploy de Agentes** | no ar — 7 aulas, as 5 primeiras escritas |
 | **ML/DL Avançado** | em breve — arco a definir |
 
 Ver [[Como Adicionar uma Trilha]] e, no [[Log de Decisões]], por que as três

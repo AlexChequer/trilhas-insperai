@@ -1,0 +1,226 @@
+---
+// Agentes · Aula 4 · O documento picado em chunks, com os dois botões que
+// importam: tamanho e sobreposição.
+//
+// O algoritmo é o do notebook: quebra em frases, junta frases até estourar o
+// teto, e recomeça o próximo chunk repetindo as últimas frases que couberem na
+// sobreposição. Roda de verdade sobre o texto ao lado.
+//
+// A tarefa: apertar o tamanho até separar duas frases que só fazem sentido
+// juntas — os requisitos de efetivação estão numa, o processo seletivo na
+// outra. Aí subir a sobreposição e ver as duas voltarem a aparecer no mesmo
+// pedaço, ao custo de texto duplicado no índice.
+---
+
+<div class="viz-chunk" data-viz="chunking">
+  <div class="chunk-topo">
+    <article class="stat">
+      <div class="slider-campo">
+        <label>Tamanho do chunk <span class="valor" data-tam-val>—</span></label>
+        <input type="range" data-tam min="12" max="90" step="2" value="40" />
+      </div>
+    </article>
+    <article class="stat">
+      <div class="slider-campo">
+        <label>Sobreposição <span class="valor" data-over-val>—</span></label>
+        <input type="range" data-over min="0" max="40" step="2" value="0" />
+      </div>
+    </article>
+  </div>
+
+  <article class="stat">
+    <p class="stat-rotulo">O documento, picado</p>
+    <ol class="chunk-lista" data-lista></ol>
+  </article>
+
+  <div class="chunk-numeros">
+    <article class="stat">
+      <p class="stat-rotulo">Chunks</p>
+      <p class="stat-valor" data-n>—</p>
+    </article>
+    <article class="stat">
+      <p class="stat-rotulo">Tokens no índice</p>
+      <p class="stat-valor" data-guardado>—</p>
+      <p class="stat-caminho" data-inflacao>—</p>
+    </article>
+  </div>
+
+  <p class="stat-caminho chunk-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-chunk {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .chunk-topo,
+  .chunk-numeros {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .chunk-topo > *,
+  .chunk-numeros > * {
+    min-width: 0;
+  }
+  .chunk-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chunk-lista :global(li) {
+    padding: 10px 12px;
+    border-radius: 9px;
+    border-left: 3px solid var(--insper-azul);
+    background: var(--fundo);
+    font-size: 0.86rem;
+    line-height: 1.65;
+    color: var(--texto);
+  }
+  .chunk-lista :global(.chunk-cab) {
+    display: block;
+    font-family: var(--fonte-dados);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+    margin-bottom: 4px;
+  }
+  .chunk-lista :global(.chunk-over) {
+    background: #ede4fd;
+    border-radius: 4px;
+    padding: 1px 2px;
+    color: var(--insper-roxo);
+  }
+  .chunk-lista :global(li.separou) {
+    border-left-color: var(--ambar);
+  }
+  .chunk-numeros .stat-valor {
+    font-size: clamp(1.3rem, 2.8vw, 1.9rem);
+  }
+  .chunk-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 700px) {
+    .chunk-topo,
+    .chunk-numeros {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="chunking"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const sTam = raiz.querySelector<HTMLInputElement>("[data-tam]")!;
+    const sOver = raiz.querySelector<HTMLInputElement>("[data-over]")!;
+
+    const DOC =
+      "A Insper AI é a entidade de inteligência artificial do Insper, fundada em 2025. " +
+      "A organização se divide em quatro núcleos: Acadêmico, Projetos, Gestão de Pessoas e Institucional. " +
+      "O Núcleo Acadêmico cuida das trilhas de formação dos membros. " +
+      "O processo seletivo de novos trainees acontece no começo de cada semestre. " +
+      "Para efetivar, o trainee precisa de média mínima 7,5 e 75% de presença. " +
+      "Os projetos podem ser internos, propostos pelos próprios membros, ou externos, em parceria com empresas. " +
+      "Todo projeto exige uma proposta escrita, relatórios de andamento e uma apresentação final.";
+
+    // As duas frases que só fazem sentido juntas: o par que a poda separa.
+    const PAR = [3, 4];
+
+    const FRASES = DOC.split(/(?<=\.)\s+/).filter((s) => s.trim().length > 0);
+    const tokens = (t: string) => Math.ceil(t.length / 3.6);
+
+    /** Chunking por frase, com sobreposição — o mesmo do notebook. */
+    function picar(maxTokens: number, overlap: number): number[][] {
+      const chunks: number[][] = [];
+      let atual: number[] = [];
+      let usado = 0;
+
+      FRASES.forEach((frase, i) => {
+        const custo = tokens(frase);
+        if (usado + custo > maxTokens && atual.length > 0) {
+          chunks.push(atual);
+          // recomeça repetindo as últimas frases que couberem na sobreposição
+          const repetidas: number[] = [];
+          let acumulado = 0;
+          for (let k = atual.length - 1; k >= 0; k--) {
+            const c = tokens(FRASES[atual[k]]);
+            if (acumulado + c > overlap) break;
+            acumulado += c;
+            repetidas.unshift(atual[k]);
+          }
+          atual = repetidas;
+          usado = acumulado;
+        }
+        atual = [...atual, i];
+        usado += custo;
+      });
+      if (atual.length > 0) chunks.push(atual);
+      return chunks;
+    }
+
+    function desenhar() {
+      const maxTokens = parseInt(sTam.value, 10);
+      const overlap = Math.min(parseInt(sOver.value, 10), maxTokens - 6);
+      const chunks = picar(maxTokens, overlap);
+
+      el("tam-val").textContent = `${maxTokens} tokens`;
+      el("over-val").textContent = overlap === 0 ? "nenhuma" : `${overlap} tokens`;
+
+      // O par crítico está junto em algum chunk?
+      const parJunto = chunks.some((c) => c.includes(PAR[0]) && c.includes(PAR[1]));
+
+      const lista = el("lista");
+      lista.replaceChildren();
+      chunks.forEach((c, ci) => {
+        const anterior = ci > 0 ? chunks[ci - 1] : [];
+        const li = document.createElement("li");
+        const temPar = c.includes(PAR[0]) || c.includes(PAR[1]);
+        if (!parJunto && temPar) li.className = "separou";
+
+        const cab = document.createElement("span");
+        cab.className = "chunk-cab";
+        const custo = c.reduce((s, i) => s + tokens(FRASES[i]), 0);
+        cab.textContent = `chunk ${ci + 1} · ${custo} tokens`;
+        li.append(cab);
+
+        c.forEach((i) => {
+          const repetida = anterior.includes(i);
+          const span = document.createElement("span");
+          if (repetida) span.className = "chunk-over";
+          span.textContent = FRASES[i] + " ";
+          li.append(span);
+        });
+
+        lista.append(li);
+      });
+
+      const guardado = chunks.reduce((s, c) => s + c.reduce((x, i) => x + tokens(FRASES[i]), 0), 0);
+      const original = FRASES.reduce((s, f) => s + tokens(f), 0);
+      el("n").textContent = String(chunks.length);
+      el("guardado").textContent = String(guardado);
+      el("inflacao").textContent =
+        guardado > original
+          ? `${Math.round((guardado / original - 1) * 100)}% a mais que o documento (${original}), por causa da sobreposição`
+          : `o documento inteiro tem ${original}`;
+
+      el("nota").innerHTML = !parJunto
+        ? `<strong>Repare nos chunks em laranja.</strong> “O processo seletivo acontece no começo de cada semestre” ficou num pedaço, e “para efetivar precisa de média 7,5 e 75% de presença” ficou em outro. Quem perguntar <em>“o que preciso para virar membro?”</em> vai receber metade da resposta — e o modelo completa a outra metade sozinho. <strong>Suba a sobreposição</strong> e veja as duas voltarem a andar juntas.`
+        : overlap > 0
+          ? `As duas frases do par voltaram a aparecer no mesmo chunk, graças à sobreposição (em roxo). O preço está no número ao lado: o índice guarda <strong>${Math.round((guardado / original - 1) * 100)}% mais texto</strong> do que o documento tem, porque trecho repetido é armazenado e buscado duas vezes.`
+          : chunks.length === 1
+            ? "Com o teto alto, o documento inteiro virou um chunk só. Nada se perde — mas a busca também deixa de servir para alguma coisa: recuperar “o pedaço relevante” devolve o documento todo, e volta a lotar o contexto. <strong>Diminua o tamanho.</strong>"
+            : "Chunks grandes preservam o contexto em volta de cada frase, e trazem junto muito texto irrelevante. Chunks pequenos são precisos e cortam ideias ao meio. <strong>Diminua mais</strong> e veja onde este documento quebra.";
+    }
+
+    sTam.addEventListener("input", desenhar);
+    sOver.addEventListener("input", desenhar);
+    desenhar();
+  });
+</script>

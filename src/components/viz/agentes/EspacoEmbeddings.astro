@@ -1,0 +1,389 @@
+---
+// Agentes · Aula 1 · O espaço dos embeddings, espremido em duas dimensões para
+// caber na tela. Escolha uma palavra e o painel ordena todas as outras pela
+// similaridade do cosseno.
+//
+// A tarefa visível: clicar em "Python" e ver que ele fica perto de "Java" E de
+// "cobra" — a ambiguidade que só o contexto resolve, que é justamente o gancho
+// para a atenção, na viz seguinte.
+//
+// Os vetores são inventados (2 dimensões, não 2048), mas a conta é a de verdade:
+// cosseno entre os dois vetores. Como o cosseno olha só a direção, palavras na
+// mesma direção e com tamanhos diferentes dão similaridade 1 — e isso aparece
+// na tela, que é o jeito de a pessoa entender por que a medida ignora o módulo.
+---
+
+<div class="viz-corpo viz-emb" data-viz="espaco-embeddings">
+  <div class="emb-esquerda">
+    <div class="viz-grafico-caixa">
+      <canvas class="viz-canvas"></canvas>
+    </div>
+    <div class="emb-chips" data-chips></div>
+  </div>
+
+  <aside class="viz-painel">
+    <article class="stat stat-destaque">
+      <p class="stat-rotulo">Palavra escolhida</p>
+      <p class="stat-valor" data-escolhida>—</p>
+      <p class="stat-unidade" data-vetor>—</p>
+    </article>
+
+    <article class="stat">
+      <p class="stat-rotulo">Similaridade do cosseno</p>
+      <ul class="emb-lista" data-lista></ul>
+    </article>
+  </aside>
+
+  <p class="viz-dica viz-dica-larga" data-nota></p>
+</div>
+
+<style>
+  .emb-esquerda {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+  .emb-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .emb-chips :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 10px 14px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .emb-chips :global(button:hover) {
+    border-color: var(--insper-azul);
+  }
+  .emb-chips :global(button.ativo) {
+    background: var(--insper-gradiente);
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .emb-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .emb-lista :global(li) {
+    display: grid;
+    grid-template-columns: 5.6em 1fr 3.4em;
+    align-items: center;
+    gap: 8px;
+  }
+  .emb-lista :global(.emb-nome) {
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .emb-lista :global(.emb-trilho) {
+    position: relative;
+    height: 12px;
+    border-radius: 999px;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+  /* A barra cresce do meio: à direita quando o cosseno é positivo, à esquerda
+     quando é negativo. Sem isso, similaridade −0,8 e +0,8 desenhariam igual. */
+  .emb-lista :global(.emb-fill) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--verde);
+  }
+  .emb-lista :global(.emb-fill.negativo) {
+    background: var(--coral);
+  }
+  .emb-lista :global(.emb-meio) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: #cfd8e6;
+  }
+  .emb-lista :global(.emb-val) {
+    font-family: var(--fonte-dados);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: right;
+    color: var(--insper-azul-aco);
+  }
+  .stat-destaque .stat-unidade {
+    display: block;
+    margin-top: 6px;
+    font-family: var(--fonte-dados);
+  }
+  .viz-emb .viz-dica {
+    margin: 0;
+  }
+</style>
+
+<script>
+  interface Palavra {
+    nome: string;
+    /** Ângulo em graus: é ele que decide a similaridade. */
+    ang: number;
+    /** Tamanho do vetor. Não entra na conta do cosseno — e é esse o ponto. */
+    mag: number;
+    grupo: string;
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-viz="espaco-embeddings"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    // "Python" fica entre "Java" e "cobra" de propósito: é a ambiguidade que a
+    // atenção resolve depois, olhando o resto da frase.
+    // Os tamanhos variam bastante de propósito, por dois motivos: reforçam que o
+    // cosseno ignora o módulo, e afastam as pontas das setas de um mesmo grupo,
+    // que sem isso empilham os rótulos umas em cima das outras.
+    const PALAVRAS: Palavra[] = [
+      { nome: "rei", ang: 25, mag: 1.0, grupo: "realeza" },
+      { nome: "rainha", ang: 33, mag: 0.7, grupo: "realeza" },
+      { nome: "príncipe", ang: 16, mag: 0.42, grupo: "realeza" },
+      { nome: "cachorro", ang: 108, mag: 1.0, grupo: "animais" },
+      { nome: "gato", ang: 100, mag: 0.68, grupo: "animais" },
+      { nome: "pássaro", ang: 90, mag: 0.4, grupo: "animais" },
+      { nome: "Python", ang: 200, mag: 1.0, grupo: "linguagens" },
+      { nome: "Java", ang: 208, mag: 0.68, grupo: "linguagens" },
+      { nome: "código", ang: 192, mag: 0.42, grupo: "linguagens" },
+      { nome: "cobra", ang: 236, mag: 0.8, grupo: "animais" },
+      { nome: "economia", ang: 312, mag: 0.95, grupo: "dinheiro" },
+      { nome: "inflação", ang: 300, mag: 0.55, grupo: "dinheiro" },
+    ];
+
+    const COR: Record<string, string> = {
+      realeza: "#7c3aed",
+      animais: "#0ea5e9",
+      linguagens: "#16a34a",
+      dinheiro: "#d97706",
+    };
+
+    const rad = (g: number) => (g * Math.PI) / 180;
+    const vetor = (p: Palavra) => [p.mag * Math.cos(rad(p.ang)), p.mag * Math.sin(rad(p.ang))];
+    /** Cosseno entre dois vetores: só a direção conta, o tamanho se cancela. */
+    const cosseno = (a: Palavra, b: Palavra) => Math.cos(rad(a.ang - b.ang));
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+
+    const porNome = (n: string) => PALAVRAS.find((p) => p.nome === n)!;
+    let escolhida = porNome("Python"); // o caso interessante já de saída
+    let W = 0, H = 0, ultimaLargura = -1;
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+
+    // --- os chips de seleção ---
+    const chips = el("chips");
+    PALAVRAS.forEach((p) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p.nome;
+      b.addEventListener("click", () => {
+        escolhida = p;
+        atualizar();
+      });
+      chips.append(b);
+    });
+
+    function pontoDe(p: Palavra) {
+      const [x, y] = vetor(p);
+      const escala = Math.min(W, H) / 2 - 58;
+      return { x: W / 2 + x * escala, y: H / 2 - y * escala };
+    }
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2;
+
+      // eixos — o embedding é um vetor a partir da origem, e isso precisa ficar visível
+      ctx.strokeStyle = "#e2e8f2";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(20, cy); ctx.lineTo(W - 20, cy);
+      ctx.moveTo(cx, 16); ctx.lineTo(cx, H - 16);
+      ctx.stroke();
+
+      // as setas, da menos parecida para a mais parecida (a escolhida por cima)
+      const ordem = [...PALAVRAS].sort((a, b) => cosseno(a, escolhida) - cosseno(b, escolhida));
+      const rotulos: { p: Palavra; x: number; y: number; dir: number; forte: boolean }[] = [];
+
+      ordem.forEach((p) => {
+        const eEscolhida = p.nome === escolhida.nome;
+        const sim = cosseno(p, escolhida);
+        const { x, y } = pontoDe(p);
+
+        ctx.strokeStyle = COR[p.grupo] ?? "#5b6472";
+        ctx.globalAlpha = eEscolhida ? 1 : 0.28 + Math.max(0, sim) * 0.62;
+        ctx.lineWidth = eEscolhida ? 4 : 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        ctx.fillStyle = COR[p.grupo] ?? "#5b6472";
+        ctx.beginPath();
+        ctx.arc(x, y, eEscolhida ? 7 : 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // o rótulo sai da ponta para fora, na direção da seta
+        const dx = x - cx, dy = y - cy;
+        const norma = Math.hypot(dx, dy) || 1;
+        rotulos.push({
+          p,
+          x: x + (dx / norma) * 11,
+          y: y + (dy / norma) * 11,
+          dir: dx,
+          forte: eEscolhida,
+        });
+      });
+
+      // Empurra para baixo os rótulos que se sobrepõem. Palavras do mesmo grupo
+      // ficam em ângulos próximos de propósito — e sem esta passada os nomes
+      // delas se imprimem uns por cima dos outros.
+      const ALTURA = 15;
+      rotulos
+        .slice()
+        .sort((a, b) => a.y - b.y)
+        .forEach((r, i, lista) => {
+          for (let k = 0; k < i; k++) {
+            const outro = lista[k];
+            const mesmoLado = r.dir > 0 === outro.dir > 0;
+            if (mesmoLado && Math.abs(r.y - outro.y) < ALTURA) {
+              r.y = outro.y + ALTURA;
+            }
+          }
+        });
+
+      rotulos.forEach(({ p, x, y, dir, forte }) => {
+        ctx.font = (forte ? "700 " : "600 ") + (forte ? 15 : 12.5) + "px " + fonte();
+        ctx.fillStyle = forte ? "#294a6b" : "#5b6472";
+        const alinha = dir > 6 ? "left" : dir < -6 ? "right" : "center";
+        ctx.textAlign = alinha;
+        ctx.textBaseline = "middle";
+        // Segura o rótulo dentro do canvas: a seta mais comprida joga o nome
+        // dela para fora da borda, e o texto sai cortado pela metade.
+        const larg = ctx.measureText(p.nome).width;
+        const min = alinha === "right" ? larg + 4 : alinha === "center" ? larg / 2 + 4 : 4;
+        const max = alinha === "left" ? W - larg - 4 : alinha === "center" ? W - larg / 2 - 4 : W - 4;
+        ctx.fillText(p.nome, Math.max(min, Math.min(max, x)), Math.max(10, Math.min(H - 8, y)));
+      });
+
+      ctx.fillStyle = "#8b95a5";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function atualizar() {
+      const [x, y] = vetor(escolhida);
+      el("escolhida").textContent = escolhida.nome;
+      el("vetor").textContent = `vetor: [${num(x, 2)}, ${num(y, 2)}]`;
+
+      [...chips.querySelectorAll("button")].forEach((b) =>
+        b.classList.toggle("ativo", b.textContent === escolhida.nome),
+      );
+
+      const ordenadas = PALAVRAS.filter((p) => p.nome !== escolhida.nome)
+        .map((p) => ({ p, sim: cosseno(p, escolhida) }))
+        .sort((a, b) => b.sim - a.sim);
+
+      const lista = el("lista");
+      lista.replaceChildren();
+      ordenadas.forEach(({ p, sim }) => {
+        const li = document.createElement("li");
+
+        const nome = document.createElement("span");
+        nome.className = "emb-nome";
+        nome.textContent = p.nome;
+
+        const trilho = document.createElement("span");
+        trilho.className = "emb-trilho";
+        const fill = document.createElement("span");
+        fill.className = "emb-fill" + (sim < 0 ? " negativo" : "");
+        const largura = (Math.abs(sim) * 50).toFixed(1) + "%";
+        fill.style.width = largura;
+        if (sim >= 0) fill.style.left = "50%";
+        else fill.style.right = "50%";
+        const meio = document.createElement("span");
+        meio.className = "emb-meio";
+        trilho.append(fill, meio);
+
+        const val = document.createElement("span");
+        val.className = "emb-val";
+        val.textContent = num(sim, 2);
+
+        li.append(nome, trilho, val);
+        lista.append(li);
+      });
+
+      const vizinha = ordenadas[0];
+      const maisLonge = ordenadas[ordenadas.length - 1];
+      const mesmoGrupo = vizinha.p.grupo === escolhida.grupo;
+      el("nota").innerHTML =
+        escolhida.nome === "Python"
+          ? `<strong>“Python” tem dois vizinhos de mundos diferentes:</strong> “Java” (${num(cosseno(porNome("Java"), escolhida), 2)}) e “cobra” (${num(cosseno(porNome("cobra"), escolhida), 2)}). O embedding sozinho não decide qual dos dois vale — ele é o mesmo vetor em qualquer frase. Quem desempata é o <strong>resto da frase</strong>, e é exatamente esse o trabalho da atenção.`
+          : `Mais parecida com <strong>${escolhida.nome}</strong>: <strong>${vizinha.p.nome}</strong> (${num(vizinha.sim, 2)})${mesmoGrupo ? " — mesmo assunto, mesma direção" : ""}. Mais distante: <strong>${maisLonge.p.nome}</strong> (${num(maisLonge.sim, 2)}), apontando quase para o lado oposto. Repare que setas de <strong>tamanhos diferentes</strong> podem ter similaridade quase 1: o cosseno mede a direção, não o comprimento.`;
+
+      desenhar();
+    }
+
+    // clicar direto na seta também seleciona — no projetor é mais direto que o chip
+    canvas.addEventListener("click", (ev) => {
+      const r = canvas.getBoundingClientRect();
+      const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+      let melhor: Palavra | null = null;
+      let menor = 26;
+      PALAVRAS.forEach((p) => {
+        const { x, y } = pontoDe(p);
+        const d = Math.hypot(mx - x, my - y);
+        if (d < menor) { menor = d; melhor = p; }
+      });
+      if (melhor) { escolhida = melhor; atualizar(); }
+    });
+
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia ? Math.min(window.innerHeight - 180, 560) : Math.round(Math.min(Math.max(W * 0.86, 290), 420));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+    document.addEventListener("fullscreenchange", () => { ultimaLargura = -1; ajustar(); });
+
+    ajustar();
+    atualizar();
+  });
+</script>

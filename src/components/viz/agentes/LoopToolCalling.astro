@@ -1,0 +1,255 @@
+---
+// Agentes · Aula 3 · O laço de tool calling, passo a passo, com o contexto
+// crescendo à esquerda e o crachá de "quem está agindo" à direita.
+//
+// A tarefa: apertar "próximo passo" seis vezes e olhar o crachá alternar entre
+// MODELO e NOSSO CÓDIGO. É a viz que existe para matar a ideia de que o modelo
+// "executa" a ferramenta: ele escreve um pedido em texto, e quem executa somos
+// nós. Os dois passos em que ele age são os dois em que ele só gera texto.
+---
+
+<div class="viz-loop" data-viz="loop-tool-calling">
+  <div class="loop-grade">
+    <article class="stat loop-caixa">
+      <p class="stat-rotulo">O contexto, como ele está agora</p>
+      <div class="loop-contexto" data-contexto></div>
+    </article>
+
+    <div class="loop-painel">
+      <article class="stat loop-ator" data-ator-caixa>
+        <p class="stat-rotulo">Passo <span data-passo-n>0</span> de 6 · quem age</p>
+        <p class="loop-ator-nome" data-ator>—</p>
+        <p class="loop-ator-txt" data-explica>—</p>
+      </article>
+
+      <div class="viz-controles">
+        <button class="btn" type="button" data-proximo>Próximo passo</button>
+        <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="stat-caminho loop-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-loop {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .loop-grade {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .loop-grade > * {
+    min-width: 0;
+  }
+  .loop-painel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .loop-contexto {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 15em;
+  }
+  .loop-contexto :global(.loop-linha) {
+    font-family: var(--fonte-dados);
+    font-size: 0.8rem;
+    line-height: 1.65;
+    padding: 8px 11px;
+    border-radius: 8px;
+    border-left: 3px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto-suave);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .loop-contexto :global(.loop-linha.modelo) {
+    border-left-color: var(--insper-roxo);
+    color: var(--insper-roxo);
+  }
+  .loop-contexto :global(.loop-linha.codigo) {
+    border-left-color: var(--verde);
+    color: #157a3a;
+    background: #eef7ee;
+  }
+  .loop-contexto :global(.loop-linha.usuario) {
+    border-left-color: var(--insper-azul);
+    color: var(--texto);
+  }
+  .loop-contexto :global(.loop-linha b) {
+    display: block;
+    font-family: var(--fonte);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+    margin-bottom: 2px;
+  }
+  .loop-contexto :global(.loop-vazio) {
+    font-size: 0.9rem;
+    color: var(--texto-suave);
+  }
+
+  .loop-ator-nome {
+    margin: 6px 0 0;
+    font-family: var(--fonte-titulo);
+    font-size: clamp(1.15rem, 2.6vw, 1.5rem);
+    font-weight: 700;
+    color: var(--insper-azul-aco);
+  }
+  .loop-ator.e-modelo .loop-ator-nome {
+    color: var(--insper-roxo);
+  }
+  .loop-ator.e-codigo .loop-ator-nome {
+    color: var(--verde);
+  }
+  .loop-ator-txt {
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--texto-suave);
+  }
+  .loop-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    .loop-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  interface Passo {
+    ator: "modelo" | "codigo" | "usuario";
+    nome: string;
+    explica: string;
+    /** O que este passo acrescenta ao contexto. */
+    rotulo: string;
+    texto: string;
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-viz="loop-tool-calling"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    const PASSOS: Passo[] = [
+      {
+        ator: "usuario",
+        nome: "O usuário",
+        explica: "Uma pergunta que o modelo não tem como responder de cabeça: ele não sabe fazer conta, ele sabe prever texto.",
+        rotulo: "mensagem do usuário",
+        texto: "Quanto é 127 vezes 43?",
+      },
+      {
+        ator: "modelo",
+        nome: "O modelo",
+        explica:
+          "Ele gera texto — e o texto que ele gera está no formato que a gente combinou no system prompt. Do ponto de vista dele, isto aqui não é diferente de escrever “Brasília”.",
+        rotulo: "resposta do modelo",
+        texto: '<tool_call>{"name": "calculadora", "args": {"expressao": "127 * 43"}}</tool_call>',
+      },
+      {
+        ator: "codigo",
+        nome: "Nosso código · parser",
+        explica:
+          "Uma expressão regular acha o trecho entre as tags e um JSON.parse transforma em objeto. Se falhar aqui, nada acontece — e falha bem mais do que se gostaria.",
+        rotulo: "o parser extraiu",
+        texto: 'name = "calculadora"\nargs = { expressao: "127 * 43" }',
+      },
+      {
+        ator: "codigo",
+        nome: "Nosso código · executor",
+        explica:
+          "Procura o nome no registro de ferramentas e chama a função Python de verdade. É aqui, e só aqui, que alguma coisa realmente acontece no mundo.",
+        rotulo: "executou",
+        texto: "calculadora(expressao=\"127 * 43\")  →  5461",
+      },
+      {
+        ator: "codigo",
+        nome: "Nosso código · devolve",
+        explica:
+          "O resultado é colado no contexto como mais um pedaço de texto, com uma marcação própria. O modelo vai lê-lo como leria qualquer outra coisa.",
+        rotulo: "acrescentado ao contexto",
+        texto: "<tool_result>5461</tool_result>",
+      },
+      {
+        ator: "modelo",
+        nome: "O modelo",
+        explica:
+          "Segunda chamada, com o contexto maior. Agora a resposta está lá dentro, e a continuação provável é uma frase que a usa.",
+        rotulo: "resposta do modelo",
+        texto: "127 vezes 43 dá 5461.",
+      },
+    ];
+
+    let passo = 0; // quantos passos já foram dados
+
+    function desenhar() {
+      const caixa = el("contexto");
+      caixa.replaceChildren();
+
+      if (passo === 0) {
+        const p = document.createElement("p");
+        p.className = "loop-vazio";
+        p.textContent =
+          "O contexto começa só com o system prompt (que descreve as ferramentas). Aperte “Próximo passo”.";
+        caixa.append(p);
+      } else {
+        PASSOS.slice(0, passo).forEach((s) => {
+          const d = document.createElement("div");
+          d.className = "loop-linha " + s.ator;
+          const b = document.createElement("b");
+          b.textContent = s.rotulo;
+          d.append(b, document.createTextNode(s.texto));
+          caixa.append(d);
+        });
+      }
+
+      const atual = PASSOS[passo - 1];
+      const atorCaixa = el("ator-caixa");
+      atorCaixa.className =
+        "stat loop-ator" +
+        (atual ? (atual.ator === "modelo" ? " e-modelo" : atual.ator === "codigo" ? " e-codigo" : "") : "");
+      el("passo-n").textContent = String(passo);
+      el("ator").textContent = atual ? atual.nome : "—";
+      el("explica").textContent = atual
+        ? atual.explica
+        : "Ninguém ainda. Avance para ver o laço.";
+
+      const btn = raiz.querySelector<HTMLButtonElement>("[data-proximo]")!;
+      btn.disabled = passo >= PASSOS.length;
+      btn.textContent = passo >= PASSOS.length ? "Fim do laço" : "Próximo passo";
+
+      el("nota").innerHTML =
+        passo === 0
+          ? "Seis passos. Acompanhe o <strong>crachá da direita</strong>: em quatro deles quem age é o nosso código, não o modelo."
+          : passo === 2
+            ? "Aqui está o pulo do gato. O modelo <strong>não chamou</strong> a calculadora — ele escreveu um texto que <em>parece</em> uma chamada. Se ninguém estivesse lendo esse texto, nada teria acontecido."
+            : passo === 4
+              ? "Este é o único passo em que algo acontece de verdade: a função roda, na nossa máquina, com os nossos privilégios. É por isso que a segurança de um agente mora aqui, e não no prompt."
+              : passo === PASSOS.length
+                ? "Fim do laço. Some os passos por ator: <strong>duas gerações do modelo, três ações do nosso código</strong>. O modelo decide <em>o que</em> chamar; o código faz. E como o resultado voltou como texto no contexto, o modelo pode encadear — pedir outra ferramenta, e outra, até responder."
+                : "Repare que tudo — pedido, resultado, resposta — é <strong>texto no mesmo contexto</strong>. Não existe canal separado para ferramenta.";
+    }
+
+    raiz.querySelector<HTMLButtonElement>("[data-proximo]")!.addEventListener("click", () => {
+      if (passo < PASSOS.length) passo++;
+      desenhar();
+    });
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", () => {
+      passo = 0;
+      desenhar();
+    });
+
+    desenhar();
+  });
+</script>

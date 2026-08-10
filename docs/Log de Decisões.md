@@ -244,3 +244,51 @@ conteúdo, e mereceria repo próprio. O Alex confirmou: **conteúdo estático**.
   apagado e sem link já diz isso) e o limite caiu para ~1085px, com as seções
   sumindo abaixo disso. As trilhas sobrevivem mais que os placeholders de
   Projetos e Recursos, de propósito.
+
+## 10 de agosto de 2026 — a trilha de Agentes entra no ar (Aulas 1–5)
+
+O Alex clonou `Trilha-Agents`, o repositório dos notebooks da trilha extra de
+LLMs e agentes, e pediu as **cinco primeiras aulas** no site — as que falam de
+agentes, antes das duas de deploy/plataforma. Fonte do conteúdo: os cinco
+notebooks e o `README.md` do repositório, do mesmo jeito que o `roteiro.md` é a
+fonte da trilha de trainees.
+
+**O arco ficou com as 7 aulas do README**, e não só com as 5 escritas: as Aulas 6
+(N8N) e 7 (prompt engineering) entram como `aberto`, estação muda no arco. Assim
+o aluno vê onde a trilha vai dar sem que exista link para o vazio.
+
+**O nome continua "Deploy de Agentes"**, embora o repositório chame a trilha de
+"LLMs e Agents". O hub, a URL `/agentes` e o `TrilhaId` já usavam esse nome, e
+renomear custaria redirecionamento sem ganho nenhum — os textos de rascunho é que
+foram reescritos, que era o `TODO` que estava no arquivo.
+
+**As 17 visualizações são novas, em `viz/agentes/`.** Nenhuma foi promovida para
+`viz/comum/`: não há ainda uma que sirva a duas trilhas. A A1 de trainees e a A1
+de agentes falam as duas de softmax, e de coisas diferentes o bastante (camada de
+saída × distribuição do próximo token) para não valer unificar agora.
+
+### O que eu decidi no caminho (e vale o Alex julgar)
+
+- **Preferi mecanismo real a número inventado, sempre que deu.** O tokenizador da
+  A1 usa casamento guloso de verdade sobre um vocabulário de brinquedo; o previsor
+  de próximo token é um bigrama montado na hora a partir de um corpusinho, com a
+  temperature aplicada na distribuição real; o parser da A3 é o parser mesmo,
+  rodando regex, `JSON.parse` e validação sobre o texto que a pessoa digitar. Só
+  onde era impossível (pesos de atenção, embeddings) os números são ilustrativos —
+  e a viz diz isso no comentário do topo.
+- **A calculadora da A3 é um parser recursivo escrito à mão, não `eval`.** A viz
+  executa expressão digitada pelo usuário; `eval` ali seria abrir a porta à toa.
+- **As vizzes de segurança mostram a defesa falhando.** Na `PromptInjection`, dos
+  quatro ataques com guardrail ligado, dois passam. Se todos fossem barrados, a
+  viz ensinaria o contrário do que a aula diz.
+- **As perguntas da `BuscaSemantica` foram escritas para ter zero palavra em comum
+  com o chunk certo**, e a tabela mostra as duas colunas lado a lado. Sem esse
+  contraste, "busca semântica" vira palavra bonita; com ele, a pessoa vê por que
+  não dá para usar Ctrl+F.
+- **Nada de tabela em Markdown nas aulas.** O `global.css` nunca estilizou
+  `table`, e nenhuma aula de trainees usa — a comparação manual × MCP virou a viz
+  `ManualVsMCP` e listas, em vez de eu acrescentar CSS novo por causa de uma aula.
+
+**Mudaria de ideia se** o Alex quiser as Aulas 6 e 7 antes de o material existir:
+aí valeria uma página de "em construção" em vez de estação muda. Como está, o
+padrão do site é não gerar página sem conteúdo.

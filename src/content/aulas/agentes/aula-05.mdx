@@ -1,0 +1,283 @@
+---
+n: "A5"
+titulo: "Agente com MCP"
+ordem: 5
+objetivo: "Jogar fora o parser artesanal e reconstruir o mesmo agente sobre um protocolo padronizado — entendendo exatamente o que se ganha, e o que continua sendo problema seu."
+---
+
+import VizEmbed from "@/components/VizEmbed.astro";
+import FluxoMCP from "@/components/viz/agentes/FluxoMCP.astro";
+import ManualVsMCP from "@/components/viz/agentes/ManualVsMCP.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
+
+Nas quatro aulas anteriores o agente foi construído na unha: o formato de tool call foi inventado por nós, o parser é uma expressão regular nossa, o registro de ferramentas é um dicionário Python nosso, e a lista que o modelo lê foi digitada à mão no system prompt.
+
+Funciona — e nada disso é o seu problema de verdade. Inventar um formato de tool call não resolve nada para ninguém: é trabalho de encanamento, refeito igual por toda equipe que monta um agente. Esta aula troca esse encanamento por um protocolo pronto, e a razão de ela vir só agora é que **jogar fora um código que você não escreveu não ensina nada.** Tendo escrito o parser, dá para avaliar o que o protocolo faz por você.
+
+## O problema: cada um inventava o seu
+
+Nossa convenção foi `<tool_call>{...}</tool_call>`. A OpenAI usou outra, a Anthropic outra, cada framework de agente mais uma. Cada combinação de modelo, framework e ferramenta virava um adaptador, e uma ferramenta escrita para um agente não servia para nenhum outro.
+
+O <Termo id="mcp">MCP</Termo> — Model Context Protocol, aberto, criado pela Anthropic em 2024 — padroniza essa conversa. A analogia que pegou é o USB-C: um conector só, no lugar de um por fabricante. A arquitetura tem três papéis:
+
+- **Servidor**: expõe ferramentas e dados de um domínio. Um servidor para o Google Drive, um para o seu banco de dados, um para as ferramentas da entidade.
+- **Cliente**: conecta-se a servidores, descobre o que existe neles e executa o que o modelo pedir.
+- **Host**: a aplicação onde o modelo roda — o Claude Desktop, o seu agente, uma IDE.
+
+A separação entre servidor e cliente é o que faz a diferença. O servidor não sabe qual modelo está do outro lado, e o cliente não sabe o que as ferramentas fazem. Nenhum dos dois precisa saber, e é por isso que ambos viram reaproveitáveis.
+
+## O servidor: uma função com um decorador
+
+Do lado do <Termo id="servidor-mcp">servidor</Termo>, expor uma ferramenta é escrever a função e decorá-la:
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Insper AI Agent Tools")
+
+
+@mcp.tool()
+def calculadora(expressao: str) -> str:
+    """Avalia uma expressão matemática e devolve o resultado.
+    Suporta + - * / ** e funções do módulo math.
+
+    Exemplos:
+        calculadora("15 * 23")        → "345"
+        calculadora("math.sqrt(144)") → "12.0"
+    """
+    ...
+```
+
+Repare no que **não** está ali. Não há registro num dicionário, não há descrição duplicada num system prompt, não há esquema de argumentos escrito à mão. O decorador lê a assinatura da função — o nome, os tipos dos parâmetros — e a docstring, e monta o esquema sozinho.
+
+Essa é a mudança prática mais importante: a docstring **deixa de ser documentação para humano e passa a ser o texto que o modelo lê para decidir se usa a ferramenta.** Vale o mesmo cuidado da Aula 3 — dizer em que situações usar, e não só o que a função faz.
+
+Além de ferramentas, um servidor pode expor <Termo id="resource">resources</Termo>: dados que o cliente pode ler e colocar no contexto, identificados por uma URI.
+
+```python
+@mcp.resource("insperai://trilhas")
+def trilhas_disponiveis() -> str:
+    """As trilhas abertas no semestre atual."""
+    return json.dumps({...}, ensure_ascii=False)
+```
+
+A diferença entre os dois é de papel: **ferramenta faz, resource informa.** Ferramenta é chamada pelo modelo quando ele decide; resource é lido pela aplicação e colocado no contexto, mais parecido com abrir um arquivo do que com executar uma ação.
+
+## O cliente descobre em vez de supor
+
+Do lado do <Termo id="cliente-mcp">cliente</Termo> está a peça que a versão artesanal não tinha: a <Termo id="descoberta-de-ferramentas">descoberta de ferramentas</Termo>. Ao conectar, ele pergunta ao servidor o que existe lá, e recebe nome, descrição e esquema de argumentos de cada ferramenta.
+
+```python
+await session.initialize()
+resposta = await session.list_tools()
+
+ferramentas = [
+    {"name": t.name, "description": t.description, "input_schema": t.inputSchema}
+    for t in resposta.tools
+]
+```
+
+Em nenhum lugar desse código aparece a palavra "calculadora". O cliente serve para qualquer servidor MCP, inclusive os que ainda não foram escritos.
+
+**Avance os sete passos** abaixo e acompanhe onde cada mensagem entra e sai.
+
+<VizEmbed titulo="avance os passos e siga a mensagem pela corrente">
+  <FluxoMCP />
+</VizEmbed>
+
+Compare com o laço da Aula 3, que tinha a mesma forma: o modelo pede, alguém executa, o resultado volta, o modelo responde. O laço não mudou. O que mudou foi quem cuida do formato — e, com isso, o parser de cinco estágios virou uma chamada de função.
+
+<Caixa tipo="erro">
+O MCP **não** faz o modelo chamar ferramentas. Ele padroniza como a ferramenta é anunciada, pedida e respondida. Quem decide chamar continua sendo o modelo, gerando tokens, exatamente como na Aula 1 — a diferença é que um modelo grande e ajustado para uso de ferramentas erra muito menos o formato, e que a API já entrega o pedido como bloco estruturado em vez de texto para você parsear.
+</Caixa>
+
+## O que se ganha, medido em edições
+
+A forma mais honesta de avaliar o protocolo é fazer a mesma tarefa nos dois mundos. **Aperte o botão** e acrescente a ferramenta nova dos dois lados.
+
+<VizEmbed titulo="adicione a ferramenta nos dois agentes e conte as edições">
+  <ManualVsMCP />
+</VizEmbed>
+
+Três edições contra uma, e vale insistir no caso do meio: marcar as duas primeiras edições do lado manual e esquecer a terceira produz o pior desfecho possível. A função existe, o executor a conhece, e **o modelo nunca vai pedir por ela** — porque, na versão manual, o que o modelo sabe é o que alguém digitou no system prompt. Nenhum erro é levantado, nada quebra, e você descobre semanas depois reparando que o agente nunca usa aquela ferramenta.
+
+O problema de fundo é duplicação: a mesma informação — o nome da ferramenta, o que ela faz, que argumentos aceita — vive em três lugares que precisam ficar em sincronia para sempre. No MCP existe uma fonte só, a função decorada, e o cliente pergunta em vez de supor.
+
+Resumindo o que muda de um lado para o outro:
+
+- **O formato do pedido**: era nosso, virou do protocolo.
+- **O <Termo id="parser">parser</Termo>**: era uma regex mais um `JSON.parse` mais quatro validações; virou `session.call_tool(nome, args)`.
+- **A lista de ferramentas**: era texto digitado no prompt; virou resposta de `tools/list`.
+- **A interoperabilidade**: era zero — as ferramentas só funcionavam no nosso código; virou qualquer cliente MCP.
+
+E o que **não** muda:
+
+- O <Termo id="loop-de-agente">laço do agente</Termo> é o mesmo: pedir, executar, devolver, responder.
+- A execução acontece no mesmo lugar de sempre: uma função, numa máquina, com as permissões dela.
+- Descrição ruim continua produzindo escolha ruim de ferramenta.
+- Resultado de ferramenta continua ocupando contexto, e o contexto continua finito. Tudo o que a Aula 4 diz continua valendo.
+
+<Pergunta pergunta="Se o MCP resolve tanta coisa, por que a trilha gastou três aulas construindo isso à mão?">
+Porque quem só viu a versão pronta não sabe o que está sendo abstraído — e abstração que você não entende vira caixa-preta assim que quebra. Sabendo que existe um parser embaixo, um JSON malformado deixa de ser mistério. Sabendo que a descrição da ferramenta é o que embasa a escolha do modelo, uma docstring preguiçosa deixa de parecer detalhe. E sabendo que tudo — pedido, resultado, resposta — vira texto no mesmo contexto, o custo de um agente com quarenta ferramentas deixa de ser surpresa. O protocolo poupa o encanamento, não o entendimento.
+</Pergunta>
+
+<Quiz
+  id="ag-a5-descoberta"
+  pergunta="Você acrescenta uma ferramenta nova ao seu servidor MCP e reinicia o servidor. O que precisa mudar no cliente para ele passar a usá-la?"
+  alternativas={[
+    {
+      texto: "Nada. Na próxima conexão ele chama tools/list e recebe a ferramenta nova, com descrição e esquema — que é o que ele repassa ao modelo.",
+      certa: true,
+      porque: "Isso é a descoberta de ferramentas, e é o que elimina a duplicação da versão manual. O cliente nunca teve o nome de ferramenta nenhuma escrito nele.",
+    },
+    {
+      texto: "Acrescentar o nome da ferramenta na lista de ferramentas permitidas do cliente.",
+      porque: "Não existe essa lista no fluxo padrão — é justamente o que o protocolo evita. Filtrar quais ferramentas expor é uma política que você pode acrescentar por segurança, e não um requisito para funcionar.",
+    },
+    {
+      texto: "Atualizar a descrição das ferramentas no system prompt do cliente.",
+      porque: "Isso é o que se fazia na versão manual, e é a edição que todo mundo esquece. Com MCP, os esquemas vão como parâmetro da chamada, montados a partir do que o servidor anunciou.",
+    },
+    {
+      texto: "Regenerar os esquemas JSON à mão e salvá-los junto do cliente.",
+      porque: "Os esquemas são gerados pelo decorador a partir da assinatura e da docstring, e viajam pelo protocolo. Mantê-los à mão é recriar a duplicação que se está tentando eliminar.",
+    },
+  ]}
+/>
+
+## Um servidor, vários clientes
+
+A consequência prática mais visível da padronização é que o mesmo `mcp_server.py` que o seu agente usa pode ser plugado no Claude Desktop, sem uma linha a mais:
+
+```json
+{
+  "mcpServers": {
+    "insper-ai-tools": {
+      "command": "python",
+      "args": ["/caminho/completo/para/mcp_server.py"]
+    }
+  }
+}
+```
+
+Reiniciado o aplicativo, o Claude passa a poder chamar as suas ferramentas na interface normal de conversa. Você escreveu um servidor; ganhou dois clientes.
+
+É isso que "protocolo" quer dizer na prática, e é a diferença entre escrever uma integração e escrever um adaptador para cada par de coisas que precisam conversar.
+
+<Caixa tipo="atencao">
+Padronizar o transporte **não** padroniza a confiança. Um servidor MCP é um processo que roda com as permissões de quem o iniciou: instalar um servidor de terceiros é dar a ele acesso àquela máquina, e as ferramentas que ele anuncia — nome e descrição — entram no contexto do modelo como texto, o que é uma porta de entrada para injection vinda de fora. Vale a mesma régua de instalar uma dependência qualquer: leia o que você está rodando, e dê ao servidor o mínimo de acesso de que ele precisa.
+</Caixa>
+
+<p class="nota">
+  Cinco aulas, e o arco fecha onde começou. Um modelo que só prevê o próximo token
+  continua sendo um modelo que só prevê o próximo token — e em volta dele foram sendo
+  montadas as camadas que transformam isso em algo útil: contexto, ferramentas, memória,
+  conhecimento e, agora, um protocolo. Nenhuma dessas camadas mudou o modelo. Todas
+  mudaram o que dá para fazer com ele.
+</p>
+
+## Teste o que entendeu
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz
+  id="ag-a5-o-que-mcp-faz"
+  pergunta="Um colega diz que trocou o agente artesanal por MCP e que “agora o modelo chama as ferramentas sozinho”. O que há de impreciso nisso?"
+  alternativas={[
+    {
+      texto: "O modelo já fazia isso antes — ele gera o pedido, e alguém executa. O MCP padroniza como o pedido é anunciado, transportado e respondido; ele não deu ao modelo uma capacidade nova.",
+      certa: true,
+      porque: "Isso. O laço é o mesmo das Aulas 3 e 4. O que melhora de verdade é a confiabilidade do formato — pedido estruturado em vez de texto para parsear — e o fim da duplicação da lista de ferramentas.",
+    },
+    {
+      texto: "Nada de impreciso: com MCP o modelo executa as funções diretamente, sem intermediário.",
+      porque: "Continua existindo intermediário, e agora são dois: o cliente e o servidor. O modelo não executa nada em situação nenhuma — quem executa é o processo do servidor.",
+    },
+    {
+      texto: "O impreciso é dizer “sozinho”: com MCP toda chamada exige confirmação do usuário.",
+      porque: "Alguns hosts pedem confirmação, o Claude Desktop entre eles, e isso é política do host. O protocolo não exige nem proíbe.",
+    },
+    {
+      texto: "O impreciso é o modelo: só o Claude funciona com MCP.",
+      porque: "O protocolo é aberto e independente de modelo — o servidor nem sabe qual modelo está do outro lado. Foi criado pela Anthropic, e isso não o restringe a modelos dela.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a5-docstring"
+  pergunta="No servidor MCP, por que a docstring da função merece mais cuidado do que uma docstring comum?"
+  alternativas={[
+    {
+      texto: "Porque ela vira a descrição que o modelo lê para decidir se aquela ferramenta serve. É o texto que embasa a escolha, não documentação para quem lê o código.",
+      certa: true,
+      porque: "Isso. O decorador monta o esquema a partir da assinatura e da docstring, e ele viaja pelo protocolo até o contexto do modelo. Docstring vaga produz ferramenta ignorada ou chamada na hora errada — o mesmo problema da Aula 3, agora num lugar que parece inofensivo.",
+    },
+    {
+      texto: "Porque o MCP valida a docstring e recusa registrar a ferramenta se ela estiver malformada.",
+      porque: "Não há validação de conteúdo: docstring vazia registra a ferramenta do mesmo jeito. O efeito de uma descrição ruim aparece no comportamento do agente, não num erro na inicialização.",
+    },
+    {
+      texto: "Porque ela é usada para gerar os tipos dos argumentos.",
+      porque: "Os tipos vêm das anotações da assinatura (`expressao: str`), não da docstring. Ela contribui com a descrição — que é o que o modelo lê para escolher.",
+    },
+    {
+      texto: "Porque ela aparece na interface do Claude Desktop para o usuário aprovar a chamada.",
+      porque: "Ela realmente aparece em alguns hosts, o que é mais um motivo para escrevê-la bem. Mas o papel principal é anterior: é ela que faz o modelo escolher a ferramenta certa.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a5-seguranca"
+  pergunta="Passar o agente para MCP muda alguma coisa no risco de uma ferramenta destrutiva ser chamada indevidamente?"
+  alternativas={[
+    {
+      texto: "Não. A execução continua acontecendo numa função, numa máquina, com as permissões daquele processo — o protocolo padronizou o transporte, não a autorização.",
+      certa: true,
+      porque: "Isso, e é a razão de a Aula 3 insistir tanto no ponto. Confirmação, escopo e permissão mínima continuam sendo decisões suas, agora do lado do servidor.",
+    },
+    {
+      texto: "Sim: o MCP valida os argumentos contra o esquema, então chamada perigosa é bloqueada.",
+      porque: "A validação de esquema pega tipo errado e argumento faltando, o que é útil. Ela não tem como saber se apagar aquele registro era uma boa ideia — isso é regra de negócio, e mora no seu código.",
+    },
+    {
+      texto: "Sim: servidores MCP rodam isolados, sem acesso ao sistema de arquivos.",
+      porque: "Um servidor MCP é um processo comum, iniciado com as permissões de quem o rodou. Isolar é possível — contêiner, usuário restrito —, e é trabalho que você faz, não um comportamento padrão.",
+    },
+    {
+      texto: "Sim: como o cliente descobre as ferramentas dinamicamente, ele pode recusar as perigosas.",
+      porque: "Ele pode filtrar, e é uma boa política escrever esse filtro. Mas o protocolo não classifica ferramenta como perigosa nem faz essa recusa sozinho.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="ag-a5-vale-a-pena"
+  pergunta="Você vai montar um agente interno com quatro ferramentas simples, todas suas, sem intenção de compartilhar. Qual é o argumento mais forte para usar MCP mesmo assim?"
+  alternativas={[
+    {
+      texto: "Elimina a duplicação entre função, registro e descrição no prompt — três lugares que precisam ficar em sincronia e que, na prática, divergem.",
+      certa: true,
+      porque: "É o ganho que aparece já na quarta ferramenta, mesmo sem compartilhar nada. Interoperabilidade é um bônus para depois; o que se colhe no primeiro dia é uma fonte só de verdade sobre cada ferramenta.",
+    },
+    {
+      texto: "O agente fica mais rápido, porque o protocolo evita uma chamada ao modelo.",
+      porque: "O número de chamadas ao modelo é o mesmo: uma para pedir a ferramenta, outra para responder. O MCP ainda acrescenta a comunicação entre cliente e servidor, que é barata mas não é negativa.",
+    },
+    {
+      texto: "O modelo passa a errar menos o formato porque o MCP corrige o JSON malformado.",
+      porque: "O erro de formato cai bastante — mas por causa do modelo ajustado para uso de ferramentas e da API entregar bloco estruturado, não porque o MCP conserte texto torto.",
+    },
+    {
+      texto: "Fica mais barato, porque as descrições das ferramentas param de ocupar contexto.",
+      porque: "Elas continuam ocupando: os esquemas vão em toda chamada, como iam antes. A diferença é quem os monta, não se eles são enviados.",
+    },
+  ]}
+/>
+
+</QuizBloco>

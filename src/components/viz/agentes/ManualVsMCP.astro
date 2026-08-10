@@ -1,0 +1,278 @@
+---
+// Agentes · Aula 5 · A mesma tarefa — acrescentar uma ferramenta ao agente —
+// nos dois mundos, com as edições que cada um exige listadas para clicar.
+//
+// A tarefa: adicionar `conversor_unidades` dos dois lados e contar cliques. No
+// manual são três edições em três arquivos diferentes, e esquecer a terceira
+// (a descrição no prompt) produz o pior caso: a ferramenta existe e o modelo
+// não sabe. No MCP é uma, e a lista do cliente se atualiza sozinha.
+//
+// O placar embaixo é o argumento da aula: não é que o MCP faça algo que a gente
+// não conseguia fazer — é que ele tira do nosso caminho o trabalho que não tem
+// valor nenhum.
+---
+
+<div class="viz-versus" data-viz="manual-vs-mcp">
+  <div class="viz-controles vs-topo">
+    <button class="btn" type="button" data-adicionar>
+      Adicionar a ferramenta <code>conversor_unidades</code>
+    </button>
+    <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+  </div>
+
+  <div class="vs-grade">
+    <article class="stat vs-coluna" data-col-manual>
+      <p class="stat-rotulo">Manual · o agente da Aula 3</p>
+      <ul class="vs-passos" data-passos-manual></ul>
+      <p class="vs-status" data-status-manual>—</p>
+    </article>
+
+    <article class="stat vs-coluna" data-col-mcp>
+      <p class="stat-rotulo">MCP · o agente da Aula 5</p>
+      <ul class="vs-passos" data-passos-mcp></ul>
+      <p class="vs-status" data-status-mcp>—</p>
+    </article>
+  </div>
+
+  <p class="stat-caminho vs-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-versus {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .vs-topo {
+    margin-top: 0;
+  }
+  .vs-topo :global(code) {
+    font-family: var(--fonte-dados);
+    font-size: 0.9em;
+  }
+  .vs-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .vs-grade > * {
+    min-width: 0;
+  }
+  .vs-passos {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vs-passos :global(li) {
+    display: block;
+  }
+  .vs-passos :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1.4em 1fr;
+    gap: 9px;
+    align-items: start;
+    padding: 11px 13px;
+    min-height: 46px;
+    border-radius: 10px;
+    border: 2px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+  .vs-passos :global(button:hover) {
+    border-color: var(--insper-azul);
+  }
+  .vs-passos :global(button .marca) {
+    font-weight: 800;
+    color: #b6bfcc;
+  }
+  .vs-passos :global(button[aria-pressed="true"]) {
+    border-color: var(--verde);
+    background: #eef7ee;
+  }
+  .vs-passos :global(button[aria-pressed="true"] .marca) {
+    color: var(--verde);
+  }
+  .vs-passos :global(button code),
+  .vs-passos :global(li code) {
+    font-family: var(--fonte-dados);
+    font-size: 0.86em;
+    color: var(--insper-azul-aco);
+  }
+  .vs-passos :global(.vs-auto) {
+    display: grid;
+    grid-template-columns: 1.4em 1fr;
+    gap: 9px;
+    padding: 11px 13px;
+    border-radius: 10px;
+    border: 2px dashed var(--borda);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: var(--texto-suave);
+  }
+  .vs-passos :global(.vs-auto b) {
+    color: var(--insper-roxo);
+  }
+  .vs-passos :global(.vs-vazio) {
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+  }
+
+  .vs-status {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--borda);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--texto-suave);
+  }
+  .vs-status :global(b.ok) {
+    color: var(--verde);
+  }
+  .vs-status :global(b.ruim) {
+    color: var(--vermelho);
+  }
+  .vs-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 760px) {
+    .vs-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="manual-vs-mcp"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    // O terceiro passo do lado manual é o que se esquece — e é o que faz a
+    // ferramenta existir sem o modelo saber que ela existe.
+    const MANUAL = [
+      { txt: "Escrever a função <code>conversor_unidades()</code> em <code>ferramentas.py</code>", feito: false },
+      { txt: "Registrar no dicionário <code>FERRAMENTAS</code> do executor", feito: false },
+      { txt: "Escrever a descrição e os argumentos no <code>system_prompt</code>", feito: false },
+    ];
+    const MCP = [
+      { txt: "Escrever a função decorada com <code>@mcp.tool()</code> em <code>mcp_server.py</code>", feito: false },
+    ];
+
+    let adicionando = false;
+
+    function montar(alvo: HTMLElement, passos: typeof MANUAL, auto: string | null) {
+      alvo.replaceChildren();
+
+      if (!adicionando) {
+        const li = document.createElement("li");
+        const p = document.createElement("p");
+        p.className = "vs-vazio";
+        p.textContent = "Aperte o botão acima para começar.";
+        li.append(p);
+        alvo.append(li);
+        return;
+      }
+
+      passos.forEach((p, i) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-pressed", String(p.feito));
+        const marca = document.createElement("span");
+        marca.className = "marca";
+        marca.textContent = p.feito ? "✓" : "○";
+        const txt = document.createElement("span");
+        txt.innerHTML = p.txt;
+        b.append(marca, txt);
+        b.addEventListener("click", () => {
+          passos[i].feito = !passos[i].feito;
+          desenhar();
+        });
+        li.append(b);
+        alvo.append(li);
+      });
+
+      if (auto) {
+        const li = document.createElement("li");
+        const d = document.createElement("div");
+        d.className = "vs-auto";
+        const marca = document.createElement("span");
+        marca.textContent = "⟳";
+        const txt = document.createElement("span");
+        txt.innerHTML = auto;
+        d.append(marca, txt);
+        li.append(d);
+        alvo.append(li);
+      }
+    }
+
+    function desenhar() {
+      const feitosManual = MANUAL.filter((p) => p.feito).length;
+      const feitosMcp = MCP.filter((p) => p.feito).length;
+
+      montar(el("passos-manual"), MANUAL, null);
+      montar(
+        el("passos-mcp"),
+        MCP,
+        adicionando
+          ? feitosMcp === 1
+            ? "<b>Feito pelo protocolo:</b> na próxima conexão o cliente chama <code>tools/list</code> e já recebe a ferramenta nova, com descrição e esquema de argumentos."
+            : "O cliente vai descobrir a ferramenta sozinho assim que ela existir no servidor — não há nada para editar aqui."
+          : null,
+      );
+
+      const stManual = el("status-manual");
+      const stMcp = el("status-mcp");
+
+      if (!adicionando) {
+        stManual.innerHTML = "3 ferramentas registradas.";
+        stMcp.innerHTML = "3 ferramentas expostas.";
+      } else {
+        stManual.innerHTML =
+          feitosManual === 3
+            ? '<b class="ok">Funciona.</b> Três edições, em três arquivos diferentes.'
+            : feitosManual === 2 && !MANUAL[2].feito
+              ? '<b class="ruim">A ferramenta existe e o modelo não sabe.</b> Ela está registrada no executor, mas não aparece no system prompt — então o modelo nunca vai pedir por ela. Nenhum erro é levantado: o agente só responde de cabeça, como se ela não existisse.'
+              : feitosManual === 2
+                ? '<b class="ruim">Ainda não funciona.</b> O modelo pede a ferramenta e o executor não a encontra no registro.'
+                : `<b class="ruim">Faltam ${3 - feitosManual} edições.</b>`;
+
+        stMcp.innerHTML =
+          feitosMcp === 1
+            ? '<b class="ok">Funciona.</b> Uma edição, num arquivo. O cliente não foi tocado.'
+            : '<b class="ruim">Falta 1 edição.</b>';
+      }
+
+      el("nota").innerHTML = !adicionando
+        ? "Os dois agentes fazem a mesma coisa e têm as mesmas três ferramentas. A diferença aparece na hora de acrescentar a quarta — <strong>aperte o botão</strong>."
+        : feitosManual === 2 && !MANUAL[2].feito
+          ? "Este é <strong>o caso que dói</strong>: função escrita, executor atualizado, e o modelo continua sem saber que a ferramenta existe — porque, na versão manual, o que o modelo sabe é o que alguém digitou no system prompt. Nenhum erro aparece. Você descobre em produção, reparando que o agente nunca usa aquilo."
+          : feitosManual === 3 && feitosMcp === 1
+            ? "<strong>Três edições contra uma.</strong> E não é só a contagem: no manual, as três precisam ficar em sincronia para sempre — a função, o registro e o texto do prompt. É o tipo de duplicação que sempre acaba divergindo. No MCP existe uma fonte só, e o cliente pergunta em vez de supor."
+            : "Vá marcando as edições dos dois lados e compare o esforço. Repare especialmente no que acontece quando faltar <strong>só</strong> a descrição no prompt.";
+    }
+
+    raiz.querySelector<HTMLButtonElement>("[data-adicionar]")!.addEventListener("click", () => {
+      adicionando = true;
+      desenhar();
+    });
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", () => {
+      adicionando = false;
+      MANUAL.forEach((p) => (p.feito = false));
+      MCP.forEach((p) => (p.feito = false));
+      desenhar();
+    });
+
+    desenhar();
+  });
+</script>

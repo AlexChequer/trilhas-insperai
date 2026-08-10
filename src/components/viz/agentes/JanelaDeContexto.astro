@@ -1,0 +1,272 @@
+---
+// Agentes · Aula 4 · A janela de contexto como um orçamento que se gasta.
+//
+// A tarefa: arrastar o número de turnos e ver a barra encher. O histórico é o
+// único pedaço que cresce — system prompt e descrição de ferramentas são fixos,
+// e o espaço para a RESPOSTA é o que sobra no fim. Quando a barra estoura, não
+// é "o modelo fica ruim": a chamada falha.
+//
+// O seletor de modelo existe para desmontar a ideia de que janela grande
+// resolve: com 200 mil tokens o estouro demora mais, e o custo por turno é o
+// mesmo problema, só que multiplicado.
+---
+
+<div class="viz-janela" data-viz="janela-contexto">
+  <div class="jan-topo">
+    <article class="stat">
+      <div class="slider-campo">
+        <label>Turnos de conversa <span class="valor" data-turnos-val>—</span></label>
+        <input type="range" data-turnos min="1" max="120" step="1" value="8" />
+      </div>
+    </article>
+    <article class="stat">
+      <p class="stat-rotulo">Modelo</p>
+      <div class="jan-chips" data-modelos></div>
+    </article>
+  </div>
+
+  <article class="stat">
+    <p class="stat-rotulo">A janela de contexto, ocupada</p>
+    <div class="jan-barra" data-barra></div>
+    <ul class="viz-legenda jan-legenda" data-legenda></ul>
+  </article>
+
+  <div class="jan-numeros">
+    <article class="stat">
+      <p class="stat-rotulo">Contexto neste turno</p>
+      <p class="stat-valor" data-usado>—</p>
+      <p class="stat-caminho" data-pct>—</p>
+    </article>
+    <article class="stat">
+      <p class="stat-rotulo">Sobra para a resposta</p>
+      <p class="stat-valor" data-sobra>—</p>
+      <p class="stat-caminho">precisa de ~600 tokens</p>
+    </article>
+    <article class="stat stat-destaque">
+      <p class="stat-rotulo">Processado na conversa toda</p>
+      <p class="stat-valor" data-acumulado>—</p>
+      <p class="stat-unidade">somando todos os turnos</p>
+    </article>
+  </div>
+
+  <p class="stat-caminho jan-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-janela {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .jan-topo {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .jan-topo > * {
+    min-width: 0;
+  }
+  .jan-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .jan-chips :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 9px 13px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .jan-chips :global(button.ativo) {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+
+  .jan-barra {
+    display: flex;
+    margin-top: 14px;
+    height: 42px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #eef2f8;
+    border: 1px solid var(--borda);
+  }
+  .jan-barra :global(.jan-parte) {
+    height: 100%;
+    transition: width 0.12s ease;
+  }
+  .jan-barra :global(.jan-estouro) {
+    background: repeating-linear-gradient(45deg, var(--vermelho) 0 7px, #f8b4b4 7px 14px);
+  }
+  .jan-legenda {
+    margin-top: 12px;
+    list-style: none;
+    padding: 0;
+  }
+  .jan-legenda :global(li) {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-right: 14px;
+    font-size: 0.86rem;
+    color: var(--texto-suave);
+  }
+  .jan-legenda :global(i) {
+    width: 16px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .jan-legenda :global(b) {
+    font-family: var(--fonte-dados);
+    color: var(--insper-azul-aco);
+  }
+
+  .jan-numeros {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .jan-numeros .stat-valor {
+    font-size: clamp(1.3rem, 2.8vw, 1.9rem);
+  }
+  .jan-numeros :global(.estourou) {
+    color: var(--vermelho);
+  }
+  .jan-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 760px) {
+    .jan-topo,
+    .jan-numeros {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="janela-contexto"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-turnos]")!;
+
+    const MODELOS: [string, number][] = [
+      ["Gemma 2B", 8_192],
+      ["GPT-4o", 128_000],
+      ["Claude", 200_000],
+    ];
+    let modelo = 0;
+
+    // Tamanhos típicos, em tokens. O histórico é o único que cresce com o turno.
+    const SYSTEM = 180;
+    const TOOLS = 320;
+    const POR_TURNO = 260;    // pergunta + resposta
+    const RESULTADO = 140;    // um resultado de ferramenta a cada 3 turnos
+    const RESPOSTA = 600;     // o que a geração precisa ter livre
+
+    const PARTES = [
+      { nome: "system prompt", cor: "#7c3aed" },
+      { nome: "descrição das ferramentas", cor: "#2563eb" },
+      { nome: "histórico da conversa", cor: "#0ea5e9" },
+      { nome: "resultados de ferramenta", cor: "#16a34a" },
+    ];
+
+    const milhar = (v: number) => Math.round(v).toLocaleString("pt-BR");
+
+    // --- chips de modelo ---
+    const chips = el("modelos");
+    MODELOS.forEach(([nome, limite], i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `${nome} · ${limite >= 1000 ? Math.round(limite / 1000) + "k" : limite}`;
+      b.addEventListener("click", () => {
+        modelo = i;
+        desenhar();
+      });
+      chips.append(b);
+    });
+
+    function desenhar() {
+      const turnos = parseInt(slider.value, 10);
+      const limite = MODELOS[modelo][1];
+
+      const historico = turnos * POR_TURNO;
+      const resultados = Math.floor(turnos / 3) * RESULTADO;
+      const valores = [SYSTEM, TOOLS, historico, resultados];
+      const usado = valores.reduce((s, v) => s + v, 0);
+      const sobra = limite - usado;
+      const estourou = sobra < 0;
+      const apertado = !estourou && sobra < RESPOSTA;
+
+      // total processado: cada turno reenvia tudo o que havia até ali
+      let acumulado = 0;
+      for (let t = 1; t <= turnos; t++) {
+        acumulado += SYSTEM + TOOLS + t * POR_TURNO + Math.floor(t / 3) * RESULTADO;
+      }
+
+      slider.max = String(modelo === 0 ? 60 : modelo === 1 ? 500 : 800);
+      el("turnos-val").textContent = String(turnos);
+
+      // --- a barra ---
+      const barra = el("barra");
+      barra.replaceChildren();
+      const escala = Math.max(usado, limite);
+      valores.forEach((v, i) => {
+        const d = document.createElement("div");
+        d.className = "jan-parte";
+        d.style.width = ((v / escala) * 100).toFixed(2) + "%";
+        d.style.background = PARTES[i].cor;
+        barra.append(d);
+      });
+      if (estourou) {
+        const d = document.createElement("div");
+        d.className = "jan-parte jan-estouro";
+        d.style.width = ((-sobra / escala) * 100).toFixed(2) + "%";
+        barra.append(d);
+      }
+
+      // --- legenda com os números ---
+      const legenda = el("legenda");
+      legenda.replaceChildren();
+      PARTES.forEach((p, i) => {
+        const li = document.createElement("li");
+        const icone = document.createElement("i");
+        icone.style.background = p.cor;
+        const b = document.createElement("b");
+        b.textContent = milhar(valores[i]);
+        li.append(icone, document.createTextNode(p.nome + " "), b);
+        legenda.append(li);
+      });
+
+      el("usado").textContent = milhar(usado);
+      el("usado").classList.toggle("estourou", estourou);
+      el("pct").textContent = `${((usado / limite) * 100).toFixed(0)}% de ${milhar(limite)}`;
+      el("sobra").textContent = estourou ? "—" : milhar(sobra);
+      el("sobra").classList.toggle("estourou", estourou || apertado);
+      el("acumulado").textContent = milhar(acumulado);
+
+      el("nota").innerHTML = estourou
+        ? `<strong>Estourou.</strong> O contexto passou de ${milhar(limite)} tokens e a chamada <strong>falha</strong> — não é que o modelo responda pior, é que ele não responde. Alguma coisa tem que sair do histórico antes de chegar aqui, e é o assunto da próxima visualização.`
+        : apertado
+          ? `Ainda cabe, mas sobram só <strong>${milhar(sobra)}</strong> tokens — menos do que a resposta precisa. A conta tem que incluir o espaço da geração: contexto cheio até a borda é contexto inútil.`
+          : turnos <= 3
+            ? "Repare na proporção: com poucos turnos, quem ocupa quase tudo são <strong>system prompt e descrição de ferramentas</strong> — o custo fixo. <strong>Arraste os turnos</strong> e veja quem passa a mandar."
+            : `Só o <strong>histórico</strong> cresce. E olhe o terceiro número: ${milhar(acumulado)} tokens processados numa conversa cujo contexto atual tem ${milhar(usado)} — a diferença é o começo da conversa, reenviado ${turnos} vezes. <strong>Troque de modelo</strong> e repare que janela maior adia o estouro, e não mexe nesse desperdício.`;
+
+      [...chips.querySelectorAll("button")].forEach((b, i) => b.classList.toggle("ativo", i === modelo));
+    }
+
+    slider.addEventListener("input", desenhar);
+    desenhar();
+  });
+</script>

@@ -1,0 +1,309 @@
+---
+// Agentes · Aula 4 · As duas podas de histórico — janela deslizante e orçamento
+// de tokens — com o custo delas visível.
+//
+// A tarefa: apertar a poda e olhar a pergunta pendente lá embaixo. O primeiro
+// turno é onde a Ana disse o nome e a área; assim que ele sai do contexto, o
+// agente deixa de saber responder — e, pior, não avisa: inventa.
+//
+// A viz existe para que "podar histórico" pare de parecer só uma otimização de
+// custo. Toda poda é uma aposta sobre o que não vai ser preciso depois.
+---
+
+<div class="viz-poda" data-viz="poda-historico">
+  <div class="poda-topo">
+    <article class="stat">
+      <p class="stat-rotulo">Estratégia</p>
+      <div class="poda-chips" data-chips></div>
+    </article>
+    <article class="stat">
+      <div class="slider-campo">
+        <label><span data-param-rotulo>—</span> <span class="valor" data-param-val>—</span></label>
+        <input type="range" data-param min="1" max="10" step="1" value="4" />
+      </div>
+      <p class="stat-caminho" data-param-dica>—</p>
+    </article>
+  </div>
+
+  <div class="poda-grade">
+    <article class="stat">
+      <p class="stat-rotulo">O histórico, e o que sobrevive</p>
+      <ol class="poda-lista" data-lista></ol>
+    </article>
+
+    <div class="poda-painel">
+      <article class="stat stat-destaque">
+        <p class="stat-rotulo">Contexto enviado</p>
+        <p class="stat-valor" data-tokens>—</p>
+        <p class="stat-unidade" data-economia>—</p>
+      </article>
+
+      <article class="stat">
+        <p class="stat-rotulo">A próxima pergunta</p>
+        <p class="poda-pergunta">👤 Você lembra qual é a minha área?</p>
+        <p class="poda-resposta" data-resposta>—</p>
+      </article>
+    </div>
+  </div>
+
+  <p class="stat-caminho poda-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-poda {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .poda-topo,
+  .poda-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .poda-grade {
+    grid-template-columns: 1.3fr 1fr;
+  }
+  .poda-topo > *,
+  .poda-grade > * {
+    min-width: 0;
+  }
+  .poda-painel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .poda-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .poda-chips :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 9px 13px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .poda-chips :global(button.ativo) {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+
+  .poda-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 330px;
+    overflow-y: auto;
+  }
+  .poda-lista :global(li) {
+    font-size: 0.82rem;
+    line-height: 1.5;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border-left: 3px solid var(--verde);
+    background: var(--fundo);
+    color: var(--texto);
+  }
+  .poda-lista :global(li.fora) {
+    border-left-color: #d7dde7;
+    color: #b6bfcc;
+    text-decoration: line-through;
+    background: transparent;
+  }
+  .poda-lista :global(li.chave) {
+    border-left-color: var(--insper-roxo);
+    background: #f6f1ff;
+  }
+  .poda-lista :global(li.chave.fora) {
+    border-left-color: var(--vermelho);
+    background: #fdf0f0;
+    color: #d08a8a;
+  }
+  .poda-lista :global(li b) {
+    color: var(--insper-azul-aco);
+  }
+  .poda-lista :global(li.fora b) {
+    color: inherit;
+  }
+
+  .poda-pergunta {
+    margin: 12px 0 0;
+    font-size: 0.92rem;
+    padding: 9px 12px;
+    border-radius: 9px;
+    border-left: 3px solid var(--insper-azul);
+    background: var(--fundo);
+    color: var(--texto);
+  }
+  .poda-resposta {
+    margin: 8px 0 0;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    padding: 9px 12px;
+    border-radius: 9px;
+    border-left: 3px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto-suave);
+  }
+  .poda-resposta.ok {
+    border-left-color: var(--verde);
+    background: #eef7ee;
+  }
+  .poda-resposta.ruim {
+    border-left-color: var(--vermelho);
+    background: #fdf0f0;
+  }
+  .poda-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    .poda-topo,
+    .poda-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="poda-historico"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-param]")!;
+
+    const SYSTEM = "Você é um assistente da Insper AI. Responda em português, de forma curta.";
+
+    // O turno 1 carrega o dado que a última pergunta vai cobrar. É o gatilho
+    // inteiro da viz: qualquer poda começa jogando fora exatamente ele.
+    const TURNOS: [string, string][] = [
+      ["Oi! Meu nome é Ana e eu trabalho com visão computacional.", "Oi, Ana! Prazer. Como posso ajudar?"],
+      ["O que é overfitting?", "É quando o modelo decora os exemplos de treino em vez de aprender a tendência."],
+      ["Como eu percebo que está acontecendo?", "O erro de treino cai e o de validação para de cair, ou volta a subir."],
+      ["E como eu resolvo?", "Mais dados, regularização, dropout ou parar o treino mais cedo."],
+      ["O que é dropout mesmo?", "Desligar neurônios ao acaso durante o treino, para a rede não depender de um caminho só."],
+      ["Isso vale para qualquer arquitetura?", "Vale, mas em convolucionais costuma-se usar menos, e com taxas mais baixas."],
+      ["Qual learning rate você sugere para começar?", "0,001 com Adam é o ponto de partida usual."],
+      ["E se o erro explodir?", "Baixe o learning rate. Erro crescendo rápido é quase sempre passo grande demais."],
+      ["Quantas épocas normalmente bastam?", "Depende do dataset — use early stopping em vez de fixar um número."],
+      ["Vale a pena usar um modelo pré-treinado?", "Quase sempre, se o seu conjunto for pequeno. É o transfer learning."],
+    ];
+
+    const PERGUNTA = "Você lembra qual é a minha área?";
+    const ESTRATEGIAS = ["tudo", "janela deslizante", "orçamento de tokens"];
+
+    let estrategia = 0;
+    const tokens = (t: string) => Math.ceil(t.length / 3.4);
+    const milhar = (v: number) => v.toLocaleString("pt-BR");
+
+    const custoTurno = (i: number) => tokens(TURNOS[i][0]) + tokens(TURNOS[i][1]);
+    const TOTAL_CHEIO = tokens(SYSTEM) + TURNOS.reduce((s, _, i) => s + custoTurno(i), 0) + tokens(PERGUNTA);
+
+    // --- chips ---
+    const chips = el("chips");
+    ESTRATEGIAS.forEach((e, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = e;
+      b.addEventListener("click", () => {
+        estrategia = i;
+        // cada estratégia tem a sua faixa de parâmetro
+        if (i === 1) { slider.min = "1"; slider.max = "10"; slider.step = "1"; slider.value = "4"; }
+        if (i === 2) { slider.min = "80"; slider.max = "700"; slider.step = "20"; slider.value = "300"; }
+        desenhar();
+      });
+      chips.append(b);
+    });
+
+    /** Quais turnos sobrevivem à poda escolhida. */
+    function mantidos(): boolean[] {
+      const n = TURNOS.length;
+      if (estrategia === 0) return TURNOS.map(() => true);
+
+      if (estrategia === 1) {
+        const janela = parseInt(slider.value, 10);
+        return TURNOS.map((_, i) => i >= n - janela);
+      }
+
+      // orçamento: entra do mais recente para o mais antigo enquanto couber
+      const teto = parseInt(slider.value, 10);
+      const fixo = tokens(SYSTEM) + tokens(PERGUNTA);
+      const vivo = TURNOS.map(() => false);
+      let usado = fixo;
+      for (let i = n - 1; i >= 0; i--) {
+        const custo = custoTurno(i);
+        if (usado + custo > teto) break;
+        usado += custo;
+        vivo[i] = true;
+      }
+      return vivo;
+    }
+
+    function desenhar() {
+      const vivo = mantidos();
+      const usado =
+        tokens(SYSTEM) + tokens(PERGUNTA) + vivo.reduce((s, v, i) => s + (v ? custoTurno(i) : 0), 0);
+      const lembra = vivo[0];
+
+      [...chips.querySelectorAll("button")].forEach((b, i) =>
+        b.classList.toggle("ativo", i === estrategia),
+      );
+
+      slider.disabled = estrategia === 0;
+      el("param-rotulo").textContent =
+        estrategia === 0 ? "sem parâmetro" : estrategia === 1 ? "Turnos mantidos" : "Teto de tokens";
+      el("param-val").textContent = estrategia === 0 ? "—" : slider.value;
+      el("param-dica").textContent =
+        estrategia === 0
+          ? "Nada é descartado. Simples, e insustentável em conversa longa."
+          : estrategia === 1
+            ? "Guarda os N turnos mais recentes e joga o resto fora, sem olhar o tamanho."
+            : "Enche a partir do turno mais recente até bater o teto. O custo fica previsível.";
+
+      // --- a lista de turnos ---
+      const lista = el("lista");
+      lista.replaceChildren();
+      TURNOS.forEach(([pergunta], i) => {
+        const li = document.createElement("li");
+        li.className = (vivo[i] ? "" : "fora ") + (i === 0 ? "chave" : "");
+        const b = document.createElement("b");
+        b.textContent = `t${i + 1} · `;
+        li.append(b, document.createTextNode(pergunta));
+        lista.append(li);
+      });
+
+      el("tokens").textContent = milhar(usado);
+      el("economia").textContent =
+        estrategia === 0
+          ? "sem poda"
+          : `${Math.round((1 - usado / TOTAL_CHEIO) * 100)}% mais barato que enviar tudo`;
+
+      const resposta = el("resposta");
+      resposta.className = "poda-resposta " + (lembra ? "ok" : "ruim");
+      resposta.textContent = lembra
+        ? "🤖 Visão computacional, Ana."
+        : "🤖 Pelo que conversamos, você trabalha com redes neurais e treino de modelos.";
+
+      el("nota").innerHTML = !lembra
+        ? `<strong>O turno 1 saiu do contexto</strong> — e com ele o nome e a área da Ana. Repare na resposta: o agente não disse “não sei”. Ele produziu uma frase plausível a partir do que sobrou, que é o assunto dos últimos nove turnos. Toda poda é uma <strong>aposta</strong> sobre o que não vai ser preciso depois, e quando a aposta erra, ela erra em silêncio.`
+        : estrategia === 0
+          ? `Sem poda, nada se perde — e o contexto é o maior possível (${milhar(usado)} tokens). Numa conversa de 100 turnos isso estoura a janela e para de funcionar. <strong>Escolha uma poda</strong> e aperte o parâmetro até o turno 1 sair.`
+          : `Ainda cabe o turno 1, então o agente lembra. <strong>Aperte mais o parâmetro</strong> e veja o que acontece quando ele sair.`;
+    }
+
+    slider.addEventListener("input", desenhar);
+    desenhar();
+  });
+</script>

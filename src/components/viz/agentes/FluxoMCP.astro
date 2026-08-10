@@ -1,0 +1,291 @@
+---
+// Agentes · Aula 5 · A mesma pergunta da Aula 3, agora atravessando as quatro
+// camadas do MCP. A cada passo acende o trecho ativo da corrente e aparece a
+// mensagem que trafega nele.
+//
+// A tarefa: avançar os sete passos e reparar em dois deles. O passo 0 é a
+// descoberta — inexistente na versão artesanal, e é ele que faz o cliente nunca
+// precisar saber o nome das ferramentas. O passo 4 é o único em que algo
+// acontece de verdade, exatamente como na Aula 3: o protocolo mudou, o lugar
+// onde o código roda não.
+---
+
+<div class="viz-mcp" data-viz="fluxo-mcp">
+  <article class="stat">
+    <p class="stat-rotulo">Passo <span data-passo-n>0</span> de 7</p>
+    <div class="mcp-corrente" data-corrente></div>
+  </article>
+
+  <div class="mcp-grade">
+    <article class="stat">
+      <p class="stat-rotulo" data-titulo>O que trafega</p>
+      <pre class="mcp-payload" data-payload></pre>
+    </article>
+
+    <div class="mcp-painel">
+      <article class="stat">
+        <p class="stat-rotulo">O que está acontecendo</p>
+        <p class="mcp-explica" data-explica>—</p>
+      </article>
+      <div class="viz-controles">
+        <button class="btn" type="button" data-proximo>Próximo passo</button>
+        <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="stat-caminho mcp-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-mcp {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .mcp-corrente {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  /* base pequena de propósito: com 130px os quatro nós não cabiam na largura da
+     leitura e "A função" caía sozinha numa segunda linha, com a seta anterior
+     apontando para o vazio. O flex-grow devolve o espaço que sobra. */
+  .mcp-corrente :global(.mcp-no) {
+    flex: 1 1 92px;
+    min-width: 0;
+    padding: 12px 8px;
+    border-radius: 10px;
+    border: 2px solid var(--borda);
+    background: var(--fundo);
+    text-align: center;
+    transition: all 0.15s ease;
+  }
+  .mcp-corrente :global(.mcp-no b) {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--texto);
+  }
+  .mcp-corrente :global(.mcp-no span) {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--fonte-dados);
+    font-size: 0.72rem;
+    color: var(--texto-suave);
+  }
+  .mcp-corrente :global(.mcp-no.ativo) {
+    border-color: var(--insper-roxo);
+    background: #f6f1ff;
+    box-shadow: var(--sombra);
+  }
+  .mcp-corrente :global(.mcp-no.ativo b) {
+    color: var(--insper-roxo);
+  }
+  .mcp-corrente :global(.mcp-seta) {
+    flex: 0 0 auto;
+    align-self: center;
+    font-size: 1.15rem;
+    color: #cfd8e6;
+    font-weight: 700;
+  }
+  .mcp-corrente :global(.mcp-seta.ativa) {
+    color: var(--insper-roxo);
+  }
+
+  .mcp-grade {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .mcp-grade > * {
+    min-width: 0;
+  }
+  .mcp-painel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mcp-payload {
+    margin: 12px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.79rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--insper-azul-aco);
+    min-height: 9em;
+  }
+  .mcp-explica {
+    margin: 10px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--texto-suave);
+  }
+  .mcp-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    .mcp-grade {
+      grid-template-columns: 1fr;
+    }
+    .mcp-corrente :global(.mcp-seta) {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  interface PassoMCP {
+    /** Qual trecho da corrente acende: índice do nó de origem, ou -1. */
+    de: number;
+    para: number;
+    titulo: string;
+    payload: string;
+    explica: string;
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-viz="fluxo-mcp"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    const NOS: [string, string][] = [
+      ["Modelo", "Claude, via API"],
+      ["Cliente MCP", "o seu agente"],
+      ["Servidor MCP", "mcp_server.py"],
+      ["A função", "Python de verdade"],
+    ];
+
+    const PASSOS: PassoMCP[] = [
+      {
+        de: 1,
+        para: 2,
+        titulo: "Conexão · descoberta de ferramentas",
+        payload:
+          'cliente → servidor:  initialize\ncliente → servidor:  tools/list\n\nservidor → cliente:\n[\n  { "name": "calculadora",\n    "description": "Avalia uma expressão…",\n    "inputSchema": { "expressao": "string" } },\n  { "name": "hora_atual", … },\n  { "name": "buscar_conhecimento", … },\n  { "name": "conversor_unidades", … }\n]',
+        explica:
+          "Antes de qualquer pergunta, o cliente pergunta ao servidor o que existe lá. Repare que o nome das ferramentas não está escrito em lugar nenhum do cliente — ele descobriu agora. É este passo que não existia na Aula 3.",
+      },
+      {
+        de: 1,
+        para: 0,
+        titulo: "O cliente chama o modelo",
+        payload:
+          'client.messages.create(\n  model="claude-…",\n  system="Você é um assistente da Insper AI…",\n  tools=[ …os 4 esquemas descobertos… ],\n  messages=[{"role": "user",\n             "content": "Quanto é 127 vezes 43?"}]\n)',
+        explica:
+          "Os esquemas descobertos vão como parâmetro da chamada, não coladas à mão no meio do system prompt. Quem monta o texto que o modelo lê é a API.",
+      },
+      {
+        de: 0,
+        para: 1,
+        titulo: "O modelo pede uma ferramenta",
+        payload:
+          'stop_reason: "tool_use"\n\ncontent: [\n  { "type": "tool_use",\n    "id": "toolu_01A…",\n    "name": "calculadora",\n    "input": { "expressao": "127 * 43" } }\n]',
+        explica:
+          "Continua sendo o modelo gerando — mas a API já entrega isso como um bloco estruturado, com um id próprio. Sem regex, sem JSON.parse, sem torcer para as aspas virem certas.",
+      },
+      {
+        de: 1,
+        para: 2,
+        titulo: "O cliente repassa pelo protocolo",
+        payload: 'await session.call_tool(\n  "calculadora",\n  { "expressao": "127 * 43" }\n)',
+        explica:
+          "Uma linha. O cliente não conhece a calculadora, não tem um dicionário de funções, não sabe o que ela faz — só encaminha o nome e os argumentos para o servidor que os anunciou.",
+      },
+      {
+        de: 2,
+        para: 3,
+        titulo: "O servidor executa",
+        payload:
+          "@mcp.tool()\ndef calculadora(expressao: str) -> str:\n    …\n    return str(resultado)\n\n→ \"5461\"",
+        explica:
+          "Aqui, e só aqui, algo acontece de verdade: a função roda, na máquina onde o servidor está, com os privilégios que ele tem. É o mesmo ponto único de execução da Aula 3.",
+      },
+      {
+        de: 1,
+        para: 0,
+        titulo: "O resultado volta ao modelo",
+        payload:
+          '{ "role": "user",\n  "content": [\n    { "type": "tool_result",\n      "tool_use_id": "toolu_01A…",\n      "content": "5461" }\n  ] }',
+        explica:
+          "O resultado é amarrado ao pedido pelo tool_use_id. Com várias ferramentas chamadas ao mesmo tempo, é esse id que diz qual resposta pertence a qual pedido.",
+      },
+      {
+        de: 0,
+        para: 1,
+        titulo: "A resposta final",
+        payload: 'stop_reason: "end_turn"\n\ncontent: [\n  { "type": "text",\n    "text": "127 vezes 43 dá 5461." }\n]',
+        explica:
+          "Sem tool_use no retorno, o laço acaba. Se viesse outro pedido de ferramenta, o cliente daria mais uma volta — e é assim que o agente encadeia várias chamadas sozinho.",
+      },
+    ];
+
+    let passo = 0;
+
+    function desenhar() {
+      const atual = PASSOS[passo - 1];
+
+      // --- a corrente ---
+      const corrente = el("corrente");
+      corrente.replaceChildren();
+      NOS.forEach(([nome, sub], i) => {
+        const d = document.createElement("div");
+        d.className = "mcp-no" + (atual && (atual.de === i || atual.para === i) ? " ativo" : "");
+        const b = document.createElement("b");
+        b.textContent = nome;
+        const s = document.createElement("span");
+        s.textContent = sub;
+        d.append(b, s);
+        corrente.append(d);
+
+        if (i < NOS.length - 1) {
+          const seta = document.createElement("span");
+          const noTrecho =
+            atual && Math.min(atual.de, atual.para) <= i && i < Math.max(atual.de, atual.para);
+          seta.className = "mcp-seta" + (noTrecho ? " ativa" : "");
+          seta.textContent = atual && noTrecho && atual.para < atual.de ? "◀" : "▶";
+          corrente.append(seta);
+        }
+      });
+
+      el("passo-n").textContent = String(passo);
+      el("titulo").textContent = atual ? atual.titulo : "O que trafega";
+      el("payload").textContent = atual
+        ? atual.payload
+        : "Nada ainda. Aperte “Próximo passo” para a conexão começar.";
+      el("explica").textContent = atual
+        ? atual.explica
+        : "As quatro camadas estão paradas. O primeiro passo é a conexão — e é o mais importante da visualização.";
+
+      const btn = raiz.querySelector<HTMLButtonElement>("[data-proximo]")!;
+      btn.disabled = passo >= PASSOS.length;
+      btn.textContent = passo >= PASSOS.length ? "Fim do laço" : "Próximo passo";
+
+      el("nota").innerHTML =
+        passo === 0
+          ? "Sete passos. Repare que o primeiro acontece <strong>antes de o usuário perguntar qualquer coisa</strong>."
+          : passo === 1
+            ? "Este passo é a diferença central. Na Aula 3, a lista de ferramentas estava <strong>escrita à mão no system prompt</strong> — mexer nela era editar texto. Aqui o cliente <strong>pergunta</strong>, e recebe nome, descrição e esquema de argumentos de cada uma."
+            : passo === 3
+              ? "Compare com a Aula 3: aquele parser de cinco estágios, com regex e JSON.parse, virou <strong>uma chamada de função</strong>. É essa a economia que o protocolo entrega."
+              : passo === 5
+                ? "Repare que o passo de execução é <strong>idêntico</strong> ao da Aula 3 — é uma função Python rodando numa máquina. O MCP padronizou como se pede e como se responde; ele não mudou quem executa nem com que permissões."
+                : passo === PASSOS.length
+                  ? "Fim. O laço é o mesmo da Aula 3: o modelo pede, alguém executa, o resultado volta, o modelo responde. O que mudou foi <strong>quem cuida do formato</strong> — e, com isso, o servidor virou reaproveitável: qualquer cliente MCP, inclusive o Claude Desktop, usa o mesmo <code>mcp_server.py</code> sem você escrever mais nada."
+                  : "Continue avançando e acompanhe onde cada mensagem entra e sai.";
+    }
+
+    raiz.querySelector<HTMLButtonElement>("[data-proximo]")!.addEventListener("click", () => {
+      if (passo < PASSOS.length) passo++;
+      desenhar();
+    });
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", () => {
+      passo = 0;
+      desenhar();
+    });
+
+    desenhar();
+  });
+</script>

@@ -1,0 +1,272 @@
+---
+// Agentes · Aula 2 · O que é reenviado ao modelo a cada turno de conversa.
+//
+// A tarefa: apertar "enviar" cinco vezes e olhar dois números — o contexto do
+// turno atual, que cresce em linha reta, e o total processado, que cresce muito
+// mais rápido, porque cada turno reenvia tudo o que veio antes.
+//
+// É a viz que sustenta a frase mais importante da aula: o modelo não tem
+// memória. A memória é o texto reenviado, e é ele que aparece na fatura.
+---
+
+<div class="viz-hist" data-viz="historico-cresce">
+  <div class="hist-grade">
+    <article class="stat hist-caixa">
+      <p class="stat-rotulo">O que é enviado ao modelo <b data-turno-rotulo>agora</b></p>
+      <div class="hist-contexto" data-contexto></div>
+    </article>
+
+    <div class="hist-painel">
+      <article class="stat stat-destaque">
+        <p class="stat-rotulo">Total já processado</p>
+        <p class="stat-valor" data-total>—</p>
+        <p class="stat-unidade">tokens somando todos os turnos</p>
+      </article>
+
+      <article class="stat">
+        <p class="stat-rotulo">Contexto deste turno</p>
+        <p class="stat-valor" data-atual>—</p>
+        <p class="stat-caminho">Por turno, um a um:</p>
+        <ul class="hist-barras" data-barras></ul>
+      </article>
+
+      <div class="viz-controles">
+        <button class="btn" type="button" data-enviar>Enviar mensagem</button>
+        <button class="btn btn-secundario" type="button" data-reiniciar>Reiniciar</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="stat-caminho hist-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-hist {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .hist-grade {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .hist-grade > * {
+    min-width: 0;
+  }
+  .hist-painel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hist-contexto {
+    margin-top: 12px;
+    max-height: 340px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hist-contexto :global(.hist-msg) {
+    font-family: var(--fonte-dados);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border-left: 3px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto-suave);
+  }
+  .hist-contexto :global(.hist-msg b) {
+    color: var(--insper-azul-aco);
+  }
+  .hist-contexto :global(.hist-msg.system) {
+    border-left-color: var(--insper-roxo);
+  }
+  .hist-contexto :global(.hist-msg.nova) {
+    border-left-color: var(--verde);
+    background: #eef7ee;
+    color: var(--texto);
+  }
+  .hist-contexto :global(.hist-vazio) {
+    font-size: 0.9rem;
+    color: var(--texto-suave);
+  }
+
+  .hist-barras {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .hist-barras :global(li) {
+    display: grid;
+    grid-template-columns: 2.6em 1fr 3.4em;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+  }
+  .hist-barras :global(.hist-trilho) {
+    height: 9px;
+    border-radius: 999px;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+  .hist-barras :global(.hist-fill) {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--insper-gradiente);
+  }
+  .hist-barras :global(.hist-num) {
+    font-family: var(--fonte-dados);
+    font-weight: 700;
+    text-align: right;
+    color: var(--insper-azul-aco);
+  }
+  .hist-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    .hist-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="historico-cresce"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    const SYSTEM =
+      "Você é um assistente da Insper AI. Responda em português, de forma curta e direta.";
+
+    // A segunda e a terceira perguntas não fazem sentido sozinhas — é o que
+    // obriga o histórico a existir, e é por isso que ele foi escrito assim.
+    const CONVERSA: [string, string][] = [
+      [
+        "O que é machine learning?",
+        "É fazer um programa aprender a regra a partir de exemplos, em vez de alguém escrever a regra na mão.",
+      ],
+      [
+        "Me dá um exemplo?",
+        "Prever o preço de um imóvel pela metragem: você mostra imóveis com preço conhecido e o modelo descobre a relação sozinho.",
+      ],
+      [
+        "E se eu tiver mais informações sobre o imóvel?",
+        "Aí cada informação vira uma feature: bairro, número de quartos, idade. O modelo aprende um peso para cada uma.",
+      ],
+      [
+        "Isso é a mesma coisa que deep learning?",
+        "Não. Deep learning é um caso particular, com muitas camadas empilhadas — útil quando as features boas são difíceis de escrever à mão, como em imagem e texto.",
+      ],
+      [
+        "E o que isso tem a ver com agentes?",
+        "Um LLM é um modelo de deep learning treinado em texto. O agente é o que a gente constrói em volta dele — e é o assunto do resto da trilha.",
+      ],
+    ];
+
+    /** Estimativa: em português dá perto de 3,4 caracteres por token. */
+    const tokens = (t: string) => Math.ceil(t.length / 3.4);
+    const milhar = (v: number) => v.toLocaleString("pt-BR");
+
+    let turno = 0; // quantos turnos já foram enviados
+
+    /** O contexto enviado no turno `n` (1-indexado): system + histórico + nova. */
+    function contextoDoTurno(n: number): number {
+      let total = tokens(SYSTEM);
+      for (let i = 0; i < n - 1; i++) {
+        total += tokens(CONVERSA[i][0]) + tokens(CONVERSA[i][1]);
+      }
+      total += tokens(CONVERSA[n - 1][0]);
+      return total;
+    }
+
+    function msg(rotulo: string, texto: string, classe: string) {
+      const d = document.createElement("div");
+      d.className = "hist-msg " + classe;
+      const b = document.createElement("b");
+      b.textContent = rotulo + " ";
+      d.append(b, document.createTextNode(texto));
+      return d;
+    }
+
+    function desenhar() {
+      const caixa = el("contexto");
+      caixa.replaceChildren();
+
+      if (turno === 0) {
+        const p = document.createElement("p");
+        p.className = "hist-vazio";
+        p.textContent =
+          "Nada ainda. Aperte “Enviar mensagem” e acompanhe o que sai daqui para o modelo a cada turno.";
+        caixa.append(p);
+      } else {
+        caixa.append(msg("Sistema:", SYSTEM, "system"));
+        for (let i = 0; i < turno - 1; i++) {
+          caixa.append(msg("Humano:", CONVERSA[i][0], ""));
+          caixa.append(msg("Assistente:", CONVERSA[i][1], ""));
+        }
+        caixa.append(msg("Humano:", CONVERSA[turno - 1][0], "nova"));
+      }
+
+      el("turno-rotulo").textContent = turno === 0 ? "agora" : `no turno ${turno}`;
+
+      const porTurno = Array.from({ length: turno }, (_, i) => contextoDoTurno(i + 1));
+      const atual = porTurno[turno - 1] ?? 0;
+      const total = porTurno.reduce((s, v) => s + v, 0);
+      el("atual").textContent = turno === 0 ? "—" : milhar(atual);
+      el("total").textContent = turno === 0 ? "—" : milhar(total);
+
+      const barras = el("barras");
+      barras.replaceChildren();
+      const maximo = Math.max(...porTurno, 1);
+      porTurno.forEach((v, i) => {
+        const li = document.createElement("li");
+        const rot = document.createElement("span");
+        rot.textContent = `t${i + 1}`;
+        const trilho = document.createElement("span");
+        trilho.className = "hist-trilho";
+        const fill = document.createElement("span");
+        fill.className = "hist-fill";
+        fill.style.width = ((v / maximo) * 100).toFixed(1) + "%";
+        trilho.append(fill);
+        const num = document.createElement("span");
+        num.className = "hist-num";
+        num.textContent = milhar(v);
+        li.append(rot, trilho, num);
+        barras.append(li);
+      });
+
+      const btn = raiz.querySelector<HTMLButtonElement>("[data-enviar]")!;
+      btn.disabled = turno >= CONVERSA.length;
+      btn.textContent = turno >= CONVERSA.length ? "Fim da conversa" : "Enviar mensagem";
+
+      const primeiro = porTurno[0] ?? 0;
+      el("nota").innerHTML =
+        turno === 0
+          ? "Repare, ao avançar, que a pergunta do turno 2 é <strong>“Me dá um exemplo?”</strong> — sozinha ela não quer dizer nada. É por isso que o histórico inteiro precisa ir junto."
+          : turno === 1
+            ? "Primeiro turno: só o system prompt e a pergunta. É o mais barato que a conversa vai ser."
+            : turno < CONVERSA.length
+              ? `Turno ${turno}: a mensagem nova (em verde) tem <strong>${milhar(tokens(CONVERSA[turno - 1][0]))} tokens</strong>, mas o que sai daqui são <strong>${milhar(atual)}</strong> — porque tudo o que veio antes vai junto, de novo. O modelo <strong>não guardou</strong> nada do turno passado.`
+              : `Cinco turnos. O contexto do último ficou <strong>${(atual / primeiro).toFixed(1).replace(".", ",")}×</strong> maior que o do primeiro, mas o <strong>total processado</strong> foi ${milhar(total)} tokens — muito mais que os ${milhar(atual)} da conversa inteira, porque o começo foi reenviado cinco vezes. Numa conversa de 50 turnos essa diferença vira ordens de grandeza, e é o problema que a Aula 4 ataca.`;
+    }
+
+    raiz.querySelector<HTMLButtonElement>("[data-enviar]")!.addEventListener("click", () => {
+      if (turno < CONVERSA.length) turno++;
+      desenhar();
+    });
+    raiz.querySelector<HTMLButtonElement>("[data-reiniciar]")!.addEventListener("click", () => {
+      turno = 0;
+      desenhar();
+    });
+
+    desenhar();
+  });
+</script>

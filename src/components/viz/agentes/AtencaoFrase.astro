@@ -1,0 +1,285 @@
+---
+// Agentes · Aula 1 · A atenção, no par de frases clássico:
+//   "O gato sentou no tapete porque ELE estava cansado"  → ele = o gato
+//   "O gato sentou no tapete porque ELE estava sujo"     → ele = o tapete
+//
+// Troca-se UMA palavra no fim e o "ele" passa a apontar para outro lugar. É a
+// demonstração mais curta que existe de que o significado de um token depende
+// do resto da frase — e de que é isso que a atenção resolve.
+//
+// A viz também mostra a máscara causal: os tokens à direita do escolhido ficam
+// apagados, porque durante a geração eles ainda não existem.
+//
+// Os pesos são ilustrativos (não saíram de um modelo rodando), mas o mecanismo
+// é o real: cada token distribui 100% de atenção entre ele e os anteriores.
+---
+
+<div class="viz-atencao" data-viz="atencao-frase">
+  <div class="stat">
+    <p class="stat-rotulo">A frase</p>
+    <div class="at-frase" data-frase></div>
+    <div class="viz-controles">
+      <button class="btn btn-secundario" type="button" data-trocar>
+        Trocar o fim para “sujo”
+      </button>
+    </div>
+  </div>
+
+  <div class="at-grade">
+    <article class="stat">
+      <p class="stat-rotulo">
+        Atenção de <b data-alvo>—</b>
+      </p>
+      <ul class="at-lista" data-lista></ul>
+    </article>
+
+    <article class="stat">
+      <p class="stat-rotulo">Máscara causal</p>
+      <p class="at-explica">
+        Um token só enxerga <b>ele mesmo e os anteriores</b>. Os tokens apagados
+        estão à frente na frase — durante a geração eles ainda nem foram
+        escritos, então não há como olhar para eles.
+      </p>
+    </article>
+  </div>
+
+  <p class="stat-caminho at-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-atencao {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .at-frase {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0 4px;
+  }
+  .at-frase :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: clamp(1rem, 2.2vw, 1.25rem);
+    font-weight: 600;
+    padding: 10px 12px;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background: var(--fundo);
+    color: var(--texto);
+    transition: background 0.12s ease;
+  }
+  .at-frase :global(button.escolhido) {
+    border-color: var(--insper-roxo);
+    font-weight: 800;
+  }
+  .at-frase :global(button.mascarado) {
+    opacity: 0.3;
+    cursor: pointer;
+  }
+
+  .at-grade {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .at-grade > * {
+    min-width: 0;
+  }
+  .at-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .at-lista :global(li) {
+    display: grid;
+    grid-template-columns: 5.6em 1fr 3.2em;
+    align-items: center;
+    gap: 8px;
+  }
+  .at-lista :global(.at-nome) {
+    font-size: 0.9rem;
+    color: var(--texto-suave);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .at-lista :global(li.forte .at-nome) {
+    color: var(--insper-roxo);
+    font-weight: 700;
+  }
+  .at-lista :global(.at-trilho) {
+    height: 12px;
+    border-radius: 999px;
+    background: #eef2f8;
+    overflow: hidden;
+  }
+  .at-lista :global(.at-fill) {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--insper-gradiente);
+  }
+  .at-lista :global(.at-val) {
+    font-family: var(--fonte-dados);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: right;
+    color: var(--insper-azul-aco);
+  }
+  .at-explica {
+    margin: 10px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--texto-suave);
+  }
+  .at-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .at-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="atencao-frase"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const frase = el("frase");
+    const btnTrocar = raiz.querySelector<HTMLButtonElement>("[data-trocar]")!;
+
+    const BASE = ["O", "gato", "sentou", "no", "tapete", "porque", "ele", "estava"];
+    const FIM = ["cansado", "sujo"];
+
+    // As ligações que o modelo teria aprendido: quem precisa de quem para se
+    // entender. O resto da atenção é a preferência por tokens próximos, que
+    // qualquer modelo tem.
+    const LIGACOES: Record<string, Record<string, number>>[] = [
+      {
+        // versão "cansado": quem cansa é o gato
+        ele: { gato: 7 },
+        sentou: { gato: 4 },
+        cansado: { ele: 3, gato: 3 },
+        tapete: { no: 2 },
+        no: { sentou: 2 },
+      },
+      {
+        // versão "sujo": quem suja é o tapete
+        ele: { tapete: 7 },
+        sentou: { gato: 4 },
+        sujo: { ele: 3, tapete: 3 },
+        tapete: { no: 2 },
+        no: { sentou: 2 },
+      },
+    ];
+
+    let versao = 0;
+    let escolhido = 6; // "ele", que é o token interessante
+
+    const tokens = () => [...BASE, FIM[versao]];
+
+    /** Atenção do token `i` para cada token `j <= i`, somando 1. */
+    function pesos(i: number): number[] {
+      const ts = tokens();
+      const ligacoes = LIGACOES[versao][ts[i]] ?? {};
+      const crus = ts.map((t, j) => {
+        if (j > i) return 0; // máscara causal: não se olha para a frente
+        const proximidade = 1 / (1 + (i - j) * 0.9);
+        return proximidade + (ligacoes[t] ?? 0);
+      });
+      const soma = crus.reduce((s, v) => s + v, 0) || 1;
+      return crus.map((v) => v / soma);
+    }
+
+    const pct = (v: number) => (v * 100).toFixed(0).replace(".", ",") + "%";
+
+    function atualizar() {
+      const ts = tokens();
+      const p = pesos(escolhido);
+      const maximo = Math.max(...p);
+
+      // --- a frase, com o fundo pintado pela atenção recebida ---
+      frase.replaceChildren();
+      ts.forEach((t, j) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = t;
+        if (j > escolhido) {
+          b.className = "mascarado";
+        } else {
+          const intensidade = maximo > 0 ? p[j] / maximo : 0;
+          b.style.background = `rgba(124, 58, 237, ${(intensidade * 0.62).toFixed(3)})`;
+          if (intensidade > 0.55) b.style.color = "#fff";
+        }
+        if (j === escolhido) b.classList.add("escolhido");
+        b.addEventListener("click", () => {
+          escolhido = j;
+          atualizar();
+        });
+        frase.append(b);
+      });
+
+      el("alvo").textContent = `“${ts[escolhido]}”`;
+
+      // --- as barras, do mais atendido para o menos ---
+      const lista = el("lista");
+      lista.replaceChildren();
+      ts
+        .map((t, j) => ({ t, j, v: p[j] }))
+        .filter((x) => x.j <= escolhido)
+        .sort((a, b) => b.v - a.v)
+        .forEach(({ t, v }) => {
+          const li = document.createElement("li");
+          if (v >= maximo * 0.98) li.className = "forte";
+
+          const nome = document.createElement("span");
+          nome.className = "at-nome";
+          nome.textContent = t;
+
+          const trilho = document.createElement("span");
+          trilho.className = "at-trilho";
+          const fill = document.createElement("span");
+          fill.className = "at-fill";
+          fill.style.width = pct(maximo > 0 ? v / maximo : 0);
+          trilho.append(fill);
+
+          const val = document.createElement("span");
+          val.className = "at-val";
+          val.textContent = pct(v);
+
+          li.append(nome, trilho, val);
+          lista.append(li);
+        });
+
+      btnTrocar.textContent =
+        versao === 0 ? "Trocar o fim para “sujo”" : "Voltar para “cansado”";
+
+      // --- a leitura do que apareceu ---
+      const alvoDoEle = versao === 0 ? "gato" : "tapete";
+      const outro = versao === 0 ? "tapete" : "gato";
+      el("nota").innerHTML =
+        ts[escolhido] === "ele"
+          ? `Com o fim em <strong>“${FIM[versao]}”</strong>, o “ele” manda a maior parte da atenção para <strong>“${alvoDoEle}”</strong> — e quase nada para “${outro}”. <strong>Aperte o botão</strong> e olhe de novo: a frase é a mesma até aqui, mas a última palavra faz o “ele” trocar de dono. Nenhum embedding sozinho resolveria isso; quem resolve é olhar o resto da frase.`
+          : ts[escolhido] === "O"
+            ? "O primeiro token só pode olhar para si mesmo — não há nada antes dele. Por isso ele recebe 100% da própria atenção, e essa linha não ensina nada. <strong>Clique em “ele”</strong>, que é onde a coisa fica interessante."
+            : `Cada token reparte 100% de atenção entre ele mesmo e os anteriores — perto pesa mais, e algumas ligações pesam muito mais que a distância explicaria. <strong>Clique em “ele”</strong> e depois troque o fim da frase.`;
+    }
+
+    btnTrocar.addEventListener("click", () => {
+      versao = 1 - versao;
+      // se o token escolhido era o último, ele mudou de palavra junto
+      atualizar();
+    });
+
+    atualizar();
+  });
+</script>

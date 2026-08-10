@@ -1,0 +1,420 @@
+---
+// Agentes · Aula 3 · O parser de tool call, funcionando de verdade: a regex, o
+// JSON.parse, a validação e o executor rodam no navegador, sobre o texto que
+// está na caixa. Dá para editar e ver quebrar.
+//
+// Cada exemplo pronto derruba um estágio diferente do funil — e são todos
+// modos de falha que acontecem de verdade com modelo pequeno. O de aspas
+// simples é o mais comum: o modelo escreve um dicionário Python em vez de JSON.
+//
+// A calculadora é um parser recursivo próprio, não eval(): a viz executa texto
+// que a pessoa digitou, e eval aqui seria abrir a porta à toa.
+---
+
+<div class="viz-parser" data-viz="parser-tool-call">
+  <div class="stat">
+    <p class="stat-rotulo">O que o modelo gerou</p>
+    <div class="par-chips" data-chips></div>
+    <textarea class="par-entrada" data-entrada spellcheck="false" rows="3"></textarea>
+  </div>
+
+  <div class="par-grade">
+    <article class="stat">
+      <p class="stat-rotulo">O funil do parser</p>
+      <ol class="par-etapas" data-etapas></ol>
+    </article>
+
+    <article class="stat">
+      <p class="stat-rotulo">O que o agente faz</p>
+      <p class="par-desfecho" data-desfecho>—</p>
+    </article>
+  </div>
+
+  <p class="stat-caminho par-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-parser {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .par-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .par-chips :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .par-chips :global(button.ativo) {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+  .par-entrada {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--fonte-dados);
+    font-size: 0.84rem;
+    line-height: 1.7;
+    color: var(--texto);
+    padding: 12px 14px;
+    border: 2px solid var(--borda);
+    border-radius: 10px;
+    background: var(--fundo);
+    resize: vertical;
+  }
+  .par-entrada:focus {
+    outline: none;
+    border-color: var(--insper-azul);
+  }
+
+  .par-grade {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .par-grade > * {
+    min-width: 0;
+  }
+  .par-etapas {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    counter-reset: etapa;
+  }
+  .par-etapas :global(li) {
+    display: grid;
+    grid-template-columns: 1.5em 1fr;
+    gap: 9px;
+    align-items: start;
+    font-size: 0.87rem;
+    line-height: 1.55;
+    color: var(--texto-suave);
+  }
+  .par-etapas :global(li.pulada) {
+    opacity: 0.35;
+  }
+  .par-etapas :global(.par-marca) {
+    font-weight: 800;
+    text-align: center;
+  }
+  .par-etapas :global(li.ok .par-marca) {
+    color: var(--verde);
+  }
+  .par-etapas :global(li.erro .par-marca) {
+    color: var(--vermelho);
+  }
+  .par-etapas :global(li.erro .par-txt) {
+    color: var(--texto);
+  }
+  .par-etapas :global(.par-detalhe) {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--fonte-dados);
+    font-size: 0.76rem;
+    color: var(--texto-suave);
+    word-break: break-word;
+  }
+  .par-etapas :global(li.erro .par-detalhe) {
+    color: var(--vermelho);
+  }
+
+  .par-desfecho {
+    margin: 12px 0 0;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--texto-suave);
+  }
+  .par-desfecho :global(b) {
+    color: var(--insper-azul-aco);
+  }
+  .par-desfecho :global(code) {
+    font-family: var(--fonte-dados);
+    font-size: 0.86rem;
+  }
+  .par-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    .par-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="parser-tool-call"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const entrada = raiz.querySelector<HTMLTextAreaElement>("[data-entrada]")!;
+
+    // --- calculadora sem eval: descida recursiva sobre + - * / e parênteses ---
+    function calcular(expr: string): string {
+      const toks = expr.match(/\d+\.?\d*|[+\-*/()]/g);
+      if (!toks) throw new Error("expressão vazia");
+      let i = 0;
+      const espiar = () => toks[i];
+      const soma = (): number => {
+        let v = produto();
+        while (espiar() === "+" || espiar() === "-") {
+          const op = toks[i++];
+          v = op === "+" ? v + produto() : v - produto();
+        }
+        return v;
+      };
+      const produto = (): number => {
+        let v = unario();
+        while (espiar() === "*" || espiar() === "/") {
+          const op = toks[i++];
+          const d = unario();
+          if (op === "/" && d === 0) throw new Error("divisão por zero");
+          v = op === "*" ? v * d : v / d;
+        }
+        return v;
+      };
+      const unario = (): number => {
+        if (espiar() === "-") { i++; return -unario(); }
+        if (espiar() === "(") {
+          i++;
+          const v = soma();
+          if (toks[i++] !== ")") throw new Error("parêntese não fechado");
+          return v;
+        }
+        const t = toks[i++];
+        if (t === undefined) throw new Error("expressão incompleta");
+        const n = Number(t);
+        if (!Number.isFinite(n)) throw new Error(`“${t}” não é número`);
+        return n;
+      };
+      const r = soma();
+      if (i < toks.length) throw new Error("sobrou coisa no fim da expressão");
+      return String(Number(r.toFixed(10)));
+    }
+
+    const BASE: Record<string, string> = {
+      "insper ai": "A Insper AI é a entidade de inteligência artificial do Insper, fundada em 2025.",
+      python: "Python é uma linguagem criada por Guido van Rossum, lançada em 1991.",
+      transformer: "O Transformer foi apresentado no artigo “Attention Is All You Need”, de 2017.",
+    };
+
+    const FERRAMENTAS: Record<string, { args: string[]; roda: (a: Record<string, unknown>) => string }> = {
+      calculadora: {
+        args: ["expressao"],
+        roda: (a) => calcular(String(a.expressao ?? "")),
+      },
+      hora_atual: {
+        args: [],
+        roda: () => new Date().toLocaleString("pt-BR"),
+      },
+      buscar_informacao: {
+        args: ["tema"],
+        roda: (a) => {
+          const tema = String(a.tema ?? "").toLowerCase();
+          const achado = Object.entries(BASE).find(([k]) => tema.includes(k));
+          return achado ? achado[1] : `Nada encontrado sobre “${a.tema}”.`;
+        },
+      },
+    };
+
+    // Cada exemplo derruba um estágio diferente do funil — é essa a graça deles.
+    const EXEMPLOS: [string, string][] = [
+      ["válido", 'Deixa eu calcular. <tool_call>{"name": "calculadora", "args": {"expressao": "127 * 43"}}</tool_call>'],
+      ["sem chamada", "A resposta é 5461."],
+      ["aspas simples", "<tool_call>{'name': 'calculadora', 'args': {'expressao': '127 * 43'}}</tool_call>"],
+      ["campo errado", '<tool_call>{"funcao": "calculadora", "args": {"expressao": "127 * 43"}}</tool_call>'],
+      ["ferramenta que não existe", '<tool_call>{"name": "buscar_no_google", "args": {"q": "capital do Brasil"}}</tool_call>'],
+    ];
+
+    // --- os chips ---
+    const chips = el("chips");
+    EXEMPLOS.forEach(([rotulo, texto]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = rotulo;
+      b.addEventListener("click", () => {
+        entrada.value = texto;
+        desenhar();
+      });
+      chips.append(b);
+    });
+
+    interface Etapa {
+      titulo: string;
+      estado: "ok" | "erro" | "pulada";
+      detalhe: string;
+    }
+
+    function analisar(texto: string): { etapas: Etapa[]; desfecho: string } {
+      const etapas: Etapa[] = [];
+      const pular = (titulos: string[]) =>
+        titulos.forEach((t) => etapas.push({ titulo: t, estado: "pulada", detalhe: "" }));
+
+      // 1 · a regex
+      const m = /<tool_call>([\s\S]*?)<\/tool_call>/.exec(texto);
+      if (!m) {
+        etapas.push({
+          titulo: "Achar <tool_call>…</tool_call>",
+          estado: "erro",
+          detalhe: "nenhuma tag encontrada",
+        });
+        pular(["Converter o conteúdo em JSON", "Conferir o campo “name”", "Achar no registro", "Executar"]);
+        return {
+          etapas,
+          desfecho:
+            "Não há pedido de ferramenta nenhum — então o texto <b>é</b> a resposta. O agente entrega direto ao usuário e o turno acaba aqui. É o caminho normal para pergunta que não precisa de ferramenta.",
+        };
+      }
+      etapas.push({ titulo: "Achar <tool_call>…</tool_call>", estado: "ok", detalhe: m[1].trim() });
+
+      // 2 · o JSON
+      let obj: Record<string, unknown>;
+      try {
+        obj = JSON.parse(m[1].trim());
+      } catch (e) {
+        etapas.push({
+          titulo: "Converter o conteúdo em JSON",
+          estado: "erro",
+          detalhe: e instanceof Error ? e.message : "JSON inválido",
+        });
+        pular(["Conferir o campo “name”", "Achar no registro", "Executar"]);
+        return {
+          etapas,
+          desfecho:
+            "O JSON não abriu. O agente <b>não tem o que executar</b> — na prática, ou ele devolve o texto cru ao usuário (feio), ou tenta de novo pedindo o formato certo (caro). Este é o modo de falha mais comum com modelo pequeno.",
+        };
+      }
+      etapas.push({ titulo: "Converter o conteúdo em JSON", estado: "ok", detalhe: JSON.stringify(obj) });
+
+      // 3 · o campo name
+      const nome = obj.name;
+      if (typeof nome !== "string") {
+        etapas.push({
+          titulo: "Conferir o campo “name”",
+          estado: "erro",
+          detalhe: `campos presentes: ${Object.keys(obj).join(", ") || "nenhum"}`,
+        });
+        pular(["Achar no registro", "Executar"]);
+        return {
+          etapas,
+          desfecho:
+            "JSON válido, mas sem o campo <code>name</code>. Sintaxe certa e semântica errada — por isso a validação existe depois do parse, e não no lugar dele.",
+        };
+      }
+      etapas.push({ titulo: "Conferir o campo “name”", estado: "ok", detalhe: `name = "${nome}"` });
+
+      // 4 · o registro
+      const ferramenta = FERRAMENTAS[nome];
+      if (!ferramenta) {
+        etapas.push({
+          titulo: "Achar no registro",
+          estado: "erro",
+          detalhe: `disponíveis: ${Object.keys(FERRAMENTAS).join(", ")}`,
+        });
+        pular(["Executar"]);
+        return {
+          etapas,
+          desfecho:
+            "O modelo <b>inventou uma ferramenta</b> que não existe. Acontece bastante: ele viu milhares de exemplos de código no treino e continua o padrão. O agente devolve o erro no contexto e deixa ele tentar de novo com a lista certa.",
+        };
+      }
+      etapas.push({ titulo: "Achar no registro", estado: "ok", detalhe: `${nome}(${ferramenta.args.join(", ")})` });
+
+      // 5 · a execução
+      const args = (obj.args ?? {}) as Record<string, unknown>;
+      const faltando = ferramenta.args.filter((a) => !(a in args));
+      if (faltando.length > 0) {
+        etapas.push({
+          titulo: "Executar",
+          estado: "erro",
+          detalhe: `faltou o argumento: ${faltando.join(", ")}`,
+        });
+        return {
+          etapas,
+          desfecho:
+            "Ferramenta certa, argumento errado. Mesmo desfecho: devolver o erro ao modelo como texto e deixar ele corrigir.",
+        };
+      }
+      try {
+        const r = ferramenta.roda(args);
+        etapas.push({ titulo: "Executar", estado: "ok", detalhe: `→ ${r}` });
+        return {
+          etapas,
+          desfecho: `A função rodou de verdade e devolveu <b>${r}</b>. Esse resultado volta ao contexto como <code>&lt;tool_result&gt;</code>, e o modelo é chamado de novo para escrever a resposta final.`,
+        };
+      } catch (e) {
+        etapas.push({
+          titulo: "Executar",
+          estado: "erro",
+          detalhe: e instanceof Error ? e.message : "erro na execução",
+        });
+        return {
+          etapas,
+          desfecho:
+            "A ferramenta existia e estourou ao rodar. Erro de execução é normal e precisa ser <b>capturado</b>: se a exceção subir, ela derruba o agente inteiro no meio da conversa.",
+        };
+      }
+    }
+
+    function desenhar() {
+      const texto = entrada.value;
+      const { etapas, desfecho } = analisar(texto);
+
+      [...chips.querySelectorAll("button")].forEach((b) => {
+        const ex = EXEMPLOS.find(([r]) => r === b.textContent);
+        b.classList.toggle("ativo", !!ex && ex[1] === texto);
+      });
+
+      const lista = el("etapas");
+      lista.replaceChildren();
+      etapas.forEach((e) => {
+        const li = document.createElement("li");
+        li.className = e.estado;
+
+        const marca = document.createElement("span");
+        marca.className = "par-marca";
+        marca.textContent = e.estado === "ok" ? "✓" : e.estado === "erro" ? "✕" : "·";
+
+        const txt = document.createElement("span");
+        txt.className = "par-txt";
+        txt.textContent = e.titulo;
+        if (e.detalhe) {
+          const d = document.createElement("span");
+          d.className = "par-detalhe";
+          d.textContent = e.detalhe;
+          txt.append(d);
+        }
+
+        li.append(marca, txt);
+        lista.append(li);
+      });
+
+      el("desfecho").innerHTML = desfecho;
+
+      const falhou = etapas.find((e) => e.estado === "erro");
+      el("nota").innerHTML = !falhou
+        ? "Passou pelos cinco estágios. Agora <strong>edite o texto</strong> — troque uma aspa, tire uma chave, mude o nome da ferramenta — e veja em qual estágio ele morre. Tudo aqui roda no seu navegador, é o parser de verdade."
+        : `Morreu em <strong>${falhou.titulo}</strong>. Repare que o modelo não fez nada de errado do ponto de vista dele: <strong>ele gerou texto</strong>, que é a única coisa que sabe fazer. Quem tem expectativa de formato é o nosso código — e é ele que precisa aguentar receber lixo.`;
+    }
+
+    entrada.addEventListener("input", desenhar);
+    entrada.value = EXEMPLOS[0][1];
+    desenhar();
+  });
+</script>

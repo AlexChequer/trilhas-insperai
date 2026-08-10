@@ -1,0 +1,298 @@
+---
+// Agentes · Aula 1 · O texto quebrado em tokens, com o contador de caracteres
+// por token ao lado. A tarefa é digitar (ou escolher uma frase pronta) e olhar
+// o número: em inglês dá perto de 5 caracteres por token, em português dá perto
+// de 2,5 — a mesma frase custa o dobro. É o argumento da aula inteira sobre
+// custo, e ele só convence quando a pessoa vê o número mudar com o que digitou.
+//
+// O vocabulário é de brinquedo (umas 150 entradas), mas o ALGORITMO é o de
+// verdade: casamento guloso do pedaço mais longo que existe no vocabulário,
+// da esquerda para a direita. É por isso que a palavra rara se estilhaça.
+---
+
+<div class="viz-tok" data-viz="tokenizacao">
+  <div class="stat">
+    <label class="tok-campo">
+      <span class="tok-rotulo">Escreva uma frase</span>
+      <input class="tok-entrada" type="text" data-entrada spellcheck="false" />
+    </label>
+    <div class="tok-presets">
+      <button class="tok-chip" type="button" data-preset="The capital of France is Paris">
+        inglês
+      </button>
+      <button class="tok-chip" type="button" data-preset="Inteligência Artificial é fascinante">
+        português
+      </button>
+      <button class="tok-chip" type="button" data-preset="Insper AI é a melhor entidade">
+        misturado
+      </button>
+    </div>
+  </div>
+
+  <div class="stat tok-saida">
+    <p class="stat-rotulo">Os tokens, em ordem</p>
+    <ol class="tok-lista" data-lista></ol>
+  </div>
+
+  <div class="tok-numeros">
+    <article class="stat">
+      <p class="stat-rotulo">Caracteres</p>
+      <p class="stat-valor" data-chars>—</p>
+    </article>
+    <article class="stat">
+      <p class="stat-rotulo">Tokens</p>
+      <p class="stat-valor" data-tokens>—</p>
+    </article>
+    <article class="stat stat-destaque">
+      <p class="stat-rotulo">Caracteres por token</p>
+      <p class="stat-valor" data-razao>—</p>
+    </article>
+  </div>
+
+  <p class="stat-caminho tok-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-tok {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .tok-rotulo {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+  }
+  .tok-entrada {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--fonte-dados);
+    font-size: 1.02rem;
+    color: var(--texto);
+    padding: 12px 14px;
+    border: 2px solid var(--borda);
+    border-radius: 10px;
+    background: var(--fundo);
+    min-height: 48px;
+  }
+  .tok-entrada:focus {
+    outline: none;
+    border-color: var(--insper-azul);
+  }
+  .tok-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .tok-chip {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 10px 16px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .tok-chip:hover {
+    border-color: var(--insper-azul);
+  }
+  .tok-chip.ativo {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+
+  .tok-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  /* Os <li> nascem em JS: sem :global() o CSS com escopo do Astro não os pega. */
+  .tok-lista :global(li) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--borda);
+    background: var(--fundo);
+  }
+  .tok-lista :global(li.inteiro) {
+    background: #eef7ee;
+    border-color: #bfe0bf;
+  }
+  .tok-lista :global(li.pedaco) {
+    background: #fdf1e7;
+    border-color: #f2d0ac;
+  }
+  .tok-lista :global(.tok-texto) {
+    font-family: var(--fonte-dados);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--texto);
+    white-space: pre;
+  }
+  .tok-lista :global(.tok-espaco) {
+    color: #b6bfcc;
+  }
+  .tok-lista :global(.tok-id) {
+    font-family: var(--fonte-dados);
+    font-size: 0.72rem;
+    color: var(--texto-suave);
+  }
+
+  .tok-numeros {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .tok-numeros .stat-valor {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+  }
+  .tok-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 640px) {
+    .tok-numeros {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="tokenizacao"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const entrada = raiz.querySelector<HTMLInputElement>("[data-entrada]")!;
+    const lista = el("lista");
+    const chips = [...raiz.querySelectorAll<HTMLButtonElement>(".tok-chip")];
+
+    // Vocabulário de brinquedo, na ordem em que os IDs são atribuídos: palavra
+    // frequente primeiro, pedaço solto depois — é a forma como um vocabulário
+    // real se organiza, e é o que faz "the" ter ID baixo e "ê" ter ID alto.
+    const VOCAB: string[] = [
+      // palavras inteiras do inglês (o espaço faz parte do token)
+      "The", " the", " of", " is", " a", " in", " to", " and", " for", " it",
+      " capital", " city", " called", " world", " where", " we", " live",
+      " machine", " learning", " model", " text", " token", " best", " group",
+      " France", " Paris", " Python", " Java", " AI", " artificial",
+      // palavras inteiras do português (menos frequentes no treino, IDs maiores)
+      " é", " de", " o", " que", " com", " um", " uma", " para", " mais",
+      " melhor", " sobre", " como",
+      // pedaços: é aqui que a palavra rara é montada
+      " Art", " Ins", " ent", " fasc",
+      "Ins", "per", "Art", "ific", "ial", "In", "tel", "ig", "nc", "ia", "cia",
+      "asc", "ante", "ent", "id", "ade", "me", "lh", "or", "es", "ar", "os",
+      "as", "in", "an", "ra", "ro", "re", "ri", "ta", "te", "ti", "to", "da",
+      "do", "de", "na", "no", "ma", "mo", "la", "lo", "ca", "co", "pa", "po",
+      "sa", "so",
+      " f", " m", " b", " c", " d", " e", " g", " i", " l", " n", " p", " r",
+      " s", " t", " v", " I", " A", " C", " E", " M", " P", " S", " T",
+    ];
+
+    // Letras, acentos, dígitos e pontuação entram como último recurso: qualquer
+    // caractere precisa existir no vocabulário, senão haveria texto impossível
+    // de representar.
+    const SOLTOS = ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+      "áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ0123456789 .,!?;:'\"()-—…\n").split("");
+    const TABELA = [...VOCAB, ...SOLTOS];
+    const ID = new Map(TABELA.map((t, i) => [t, 256 + i]));
+    // Para casar, o mais longo primeiro; para o ID, a posição na tabela acima.
+    const PORTAMANHO = [...TABELA].sort((a, b) => b.length - a.length);
+
+    /** Casamento guloso: sempre o pedaço mais longo que existe no vocabulário. */
+    function tokenizar(texto: string): string[] {
+      const saida: string[] = [];
+      let i = 0;
+      while (i < texto.length) {
+        const achado = PORTAMANHO.find((t) => texto.startsWith(t, i));
+        if (achado) {
+          saida.push(achado);
+          i += achado.length;
+        } else {
+          // caractere fora do vocabulário: vira o marcador de desconhecido
+          saida.push(texto[i]);
+          i += 1;
+        }
+      }
+      return saida;
+    }
+
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+
+    function desenhar() {
+      const texto = entrada.value;
+      const tokens = tokenizar(texto);
+
+      lista.replaceChildren();
+      tokens.forEach((t, i) => {
+        const li = document.createElement("li");
+        // Palavra inteira = o token abre uma palavra (começa com espaço, ou é o
+        // primeiro) e também a fecha (o próximo token começa outra). Qualquer
+        // outro caso é fragmento, e é o que a cor laranja marca.
+        const abre = t.startsWith(" ") || i === 0;
+        const fecha = i === tokens.length - 1 || tokens[i + 1].startsWith(" ");
+        li.className = t.trim() === "" ? "" : abre && fecha ? "inteiro" : "pedaco";
+
+        const span = document.createElement("span");
+        span.className = "tok-texto";
+        if (t.startsWith(" ")) {
+          const esp = document.createElement("span");
+          esp.className = "tok-espaco";
+          esp.textContent = "␣";
+          span.append(esp, t.slice(1));
+        } else {
+          span.textContent = t;
+        }
+
+        const id = document.createElement("span");
+        id.className = "tok-id";
+        id.textContent = String(ID.get(t) ?? 3);
+
+        li.append(span, id);
+        lista.append(li);
+      });
+
+      const chars = [...texto].length;
+      const razao = tokens.length > 0 ? chars / tokens.length : 0;
+      el("chars").textContent = String(chars);
+      el("tokens").textContent = String(tokens.length);
+      el("razao").textContent = tokens.length > 0 ? num(razao, 1) : "—";
+
+      chips.forEach((c) => c.classList.toggle("ativo", c.dataset.preset === texto));
+
+      el("nota").innerHTML =
+        chars === 0
+          ? "Escreva alguma coisa — ou escolha uma das frases prontas."
+          : razao >= 4
+            ? `Perto de <strong>${num(razao, 1)} caracteres por token</strong>: quase toda palavra coube em um token só. É o caso confortável — o texto está na língua em que o vocabulário foi construído. Repare que o <span class="tok-espaco">␣</span> faz parte do token: “ Paris” e “Paris” são <strong>tokens diferentes</strong>.`
+            : razao >= 3
+              ? `<strong>${num(razao, 1)} caracteres por token.</strong> Algumas palavras couberam inteiras (verde) e outras foram montadas com pedaços (laranja). Nomes próprios e palavras acentuadas são as primeiras a se estilhaçar.`
+              : `Só <strong>${num(razao, 1)} caracteres por token</strong> — as palavras estão sendo remontadas pedaço por pedaço. A mesma ideia escrita em inglês custaria perto da metade dos tokens, e como se paga por token, custaria perto da metade do dinheiro.`;
+    }
+
+    entrada.addEventListener("input", desenhar);
+    chips.forEach((c) =>
+      c.addEventListener("click", () => {
+        entrada.value = c.dataset.preset ?? "";
+        desenhar();
+      }),
+    );
+
+    entrada.value = "The capital of France is Paris";
+    desenhar();
+  });
+</script>

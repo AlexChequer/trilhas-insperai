@@ -1,0 +1,359 @@
+---
+// Agentes · Aula 3 · O modelo não "tem" ferramentas: ele tem a descrição delas
+// escrita no system prompt. Aqui as três podem ser ligadas e desligadas, e o
+// bloco de descrição é montado na hora a partir do registro — igual ao
+// gerar_descricao_ferramentas() do notebook.
+//
+// A tarefa: desligar a ferramenta de que a pergunta precisa. O modelo não diz
+// "não consigo": ele responde assim mesmo, com um número inventado. É a
+// demonstração mais direta de alucinação da trilha, e ela sai de graça de uma
+// mecânica que o aluno já entende.
+---
+
+<div class="viz-fer" data-viz="ferramenta-no-prompt">
+  <div class="fer-topo">
+    <article class="stat">
+      <p class="stat-rotulo">Ferramentas registradas</p>
+      <div class="fer-toggles" data-toggles></div>
+    </article>
+    <article class="stat">
+      <p class="stat-rotulo">Pergunta do usuário</p>
+      <div class="fer-chips" data-chips></div>
+    </article>
+  </div>
+
+  <div class="fer-grade">
+    <article class="stat">
+      <p class="stat-rotulo">O bloco gerado no system prompt</p>
+      <pre class="fer-bloco" data-prompt></pre>
+    </article>
+
+    <article class="stat">
+      <p class="stat-rotulo">O que acontece</p>
+      <p class="fer-linha fer-user" data-user></p>
+      <p class="fer-linha fer-acao" data-acao></p>
+      <p class="fer-linha fer-bot" data-bot></p>
+      <p class="fer-veredito" data-veredito></p>
+    </article>
+  </div>
+
+  <p class="stat-caminho fer-nota" data-nota></p>
+</div>
+
+<style>
+  .viz-fer {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .fer-topo,
+  .fer-grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .fer-grade {
+    grid-template-columns: 1fr 1.2fr;
+  }
+  .fer-topo > *,
+  .fer-grade > * {
+    min-width: 0;
+  }
+  .fer-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .fer-toggles :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 13px;
+    min-height: 46px;
+    border-radius: 10px;
+    border: 2px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto-suave);
+    font-size: 0.88rem;
+  }
+  .fer-toggles :global(button .marca) {
+    font-weight: 800;
+    width: 1.1em;
+    color: #b6bfcc;
+  }
+  .fer-toggles :global(button[aria-pressed="true"]) {
+    border-color: var(--verde);
+    background: #eef7ee;
+    color: var(--texto);
+  }
+  .fer-toggles :global(button[aria-pressed="true"] .marca) {
+    color: var(--verde);
+  }
+  .fer-toggles :global(button code) {
+    font-family: var(--fonte-dados);
+    font-size: 0.84rem;
+  }
+
+  .fer-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .fer-chips :global(button) {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 2px solid var(--borda);
+    background: var(--superficie);
+    color: var(--insper-azul);
+  }
+  .fer-chips :global(button.ativo) {
+    background: var(--insper-azul);
+    border-color: var(--insper-azul);
+    color: #fff;
+  }
+
+  .fer-bloco {
+    margin: 12px 0 0;
+    font-family: var(--fonte-dados);
+    font-size: 0.78rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--insper-roxo);
+    min-height: 10em;
+  }
+  .fer-linha {
+    margin: 10px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    padding: 9px 12px;
+    border-radius: 9px;
+    border-left: 3px solid var(--borda);
+    background: var(--fundo);
+    color: var(--texto-suave);
+  }
+  .fer-user {
+    border-left-color: var(--insper-azul);
+    color: var(--texto);
+  }
+  .fer-acao {
+    border-left-color: var(--verde);
+    font-family: var(--fonte-dados);
+    font-size: 0.8rem;
+  }
+  .fer-acao.sem {
+    border-left-color: var(--ambar);
+    font-family: var(--fonte);
+    font-size: 0.88rem;
+  }
+  .fer-veredito {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--borda);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--texto-suave);
+  }
+  .fer-veredito :global(b.ok) {
+    color: var(--verde);
+  }
+  .fer-veredito :global(b.ruim) {
+    color: var(--vermelho);
+  }
+  .fer-nota {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    .fer-topo,
+    .fer-grade {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-viz="ferramenta-no-prompt"]').forEach((raiz) => {
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+
+    interface Ferramenta {
+      nome: string;
+      descricao: string;
+      args: string;
+      ligada: boolean;
+    }
+
+    const FERRAMENTAS: Ferramenta[] = [
+      {
+        nome: "calculadora",
+        descricao: "Avalia uma expressão matemática. Use para qualquer conta.",
+        args: '{"expressao": "string — a conta, ex.: \'15 * 3 + 10\'"}',
+        ligada: true,
+      },
+      {
+        nome: "hora_atual",
+        descricao: "Devolve a data e a hora de agora.",
+        args: "nenhum",
+        ligada: true,
+      },
+      {
+        nome: "buscar_informacao",
+        descricao: "Procura informação sobre um tema na base da Insper AI.",
+        args: '{"tema": "string — o assunto a procurar"}',
+        ligada: true,
+      },
+    ];
+
+    interface Caso {
+      rotulo: string;
+      pergunta: string;
+      precisa: string | null;
+      chamada: string;
+      resposta: string;
+      /** O que o modelo responde quando a ferramenta não está registrada. */
+      semFerramenta: string;
+      alerta: string;
+    }
+
+    const CASOS: Caso[] = [
+      {
+        rotulo: "uma conta",
+        pergunta: "Quanto é 127 vezes 43?",
+        precisa: "calculadora",
+        chamada: '<tool_call>{"name": "calculadora", "args": {"expressao": "127 * 43"}}</tool_call>  →  5461',
+        resposta: "127 vezes 43 dá 5461.",
+        semFerramenta: "127 vezes 43 dá 5.441.",
+        alerta:
+          "Sem a calculadora ele <b>não avisa que não sabe</b>: ele completa a frase com o número mais plausível, e erra. Conta é justamente onde um previsor de texto é péssimo.",
+      },
+      {
+        rotulo: "que horas são",
+        pergunta: "Que horas são agora?",
+        precisa: "hora_atual",
+        chamada: '<tool_call>{"name": "hora_atual", "args": {}}</tool_call>  →  14:32',
+        resposta: "Agora são 14:32.",
+        semFerramenta: "Não tenho acesso ao horário atual — sou um modelo de linguagem.",
+        alerta:
+          "Este caso ele acerta ao recusar, porque “não sei que horas são” aparece muito no material de treino dos assistentes. Foi sorte de assunto, não uma regra.",
+      },
+      {
+        rotulo: "sobre a entidade",
+        pergunta: "Quando a Insper AI foi fundada?",
+        precisa: "buscar_informacao",
+        chamada:
+          '<tool_call>{"name": "buscar_informacao", "args": {"tema": "Insper AI fundação"}}</tool_call>  →  fundada em 2025',
+        resposta: "A Insper AI foi fundada em 2025.",
+        semFerramenta: "A Insper AI foi fundada em 2018, no campus do Insper em São Paulo.",
+        alerta:
+          "O pior dos três: resposta <b>fluente, específica e errada</b>. O modelo não tem esse dado, e mesmo assim produz uma data — porque produzir texto plausível é literalmente o que ele faz.",
+      },
+      {
+        rotulo: "não precisa de ferramenta",
+        pergunta: "De que cor é o céu?",
+        precisa: null,
+        chamada: "(nenhuma ferramenta chamada)",
+        resposta: "Azul, na maior parte do tempo.",
+        semFerramenta: "Azul, na maior parte do tempo.",
+        alerta:
+          "Nem toda pergunta precisa de ferramenta, e insistir em chamar uma seria pior. Decidir <b>não</b> chamar também é parte do trabalho.",
+      },
+    ];
+
+    let caso = 0;
+
+    // --- toggles ---
+    const toggles = el("toggles");
+    FERRAMENTAS.forEach((f, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      const marca = document.createElement("span");
+      marca.className = "marca";
+      marca.textContent = "✓";
+      const code = document.createElement("code");
+      code.textContent = f.nome;
+      b.append(marca, code);
+      b.addEventListener("click", () => {
+        FERRAMENTAS[i].ligada = !FERRAMENTAS[i].ligada;
+        desenhar();
+      });
+      toggles.append(b);
+    });
+
+    // --- chips de pergunta ---
+    const chips = el("chips");
+    CASOS.forEach((c, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = c.rotulo;
+      b.addEventListener("click", () => {
+        caso = i;
+        desenhar();
+      });
+      chips.append(b);
+    });
+
+    /** Monta o bloco de descrição a partir do registro — como no notebook. */
+    function descricao(): string {
+      const ligadas = FERRAMENTAS.filter((f) => f.ligada);
+      if (ligadas.length === 0) {
+        return "Ferramentas disponíveis:\n\n(nenhuma)";
+      }
+      return (
+        "Ferramentas disponíveis:\n" +
+        ligadas
+          .map((f) => `\n- ${f.nome}: ${f.descricao}\n  Argumentos: ${f.args}`)
+          .join("\n")
+      );
+    }
+
+    function desenhar() {
+      const c = CASOS[caso];
+      const temFerramenta = c.precisa === null || FERRAMENTAS.some((f) => f.nome === c.precisa && f.ligada);
+
+      [...toggles.querySelectorAll("button")].forEach((b, i) =>
+        b.setAttribute("aria-pressed", String(FERRAMENTAS[i].ligada)),
+      );
+      [...chips.querySelectorAll("button")].forEach((b, i) => b.classList.toggle("ativo", i === caso));
+
+      el("prompt").textContent = descricao();
+      el("user").textContent = "👤 " + c.pergunta;
+
+      const acao = el("acao");
+      acao.className = "fer-linha fer-acao" + (temFerramenta ? "" : " sem");
+      acao.textContent = temFerramenta
+        ? "🔧 " + c.chamada
+        : `⚠️ ${c.precisa} não está no prompt — o modelo nem sabe que ela existe`;
+
+      el("bot").textContent = "🤖 " + (temFerramenta ? c.resposta : c.semFerramenta);
+
+      el("veredito").innerHTML = temFerramenta
+        ? c.precisa === null
+          ? `<b class="ok">Respondeu direto.</b> ${c.alerta}`
+          : `<b class="ok">Chamou a ferramenta certa.</b> A descrição no prompt é o que tornou isso possível.`
+        : `<b class="ruim">Respondeu sem a ferramenta.</b> ${c.alerta}`;
+
+      const ligadas = FERRAMENTAS.filter((f) => f.ligada).length;
+      el("nota").innerHTML =
+        ligadas === 3 && temFerramenta
+          ? "Este bloco de texto é <strong>tudo o que o modelo sabe</strong> sobre as ferramentas. Ele não enxerga o seu código, não conhece o registro, não tem lista de funções — tem essa descrição, escrita em português no meio do prompt. <strong>Desligue a ferramenta que a pergunta usa</strong> e veja o que sobra."
+          : !temFerramenta
+            ? "Repare no que <strong>não</strong> aconteceu: nenhum erro, nenhum aviso, nenhuma recusa. Sem a ferramenta no prompt, a pergunta virou só mais um texto para continuar — e o modelo continuou, com a fluência de sempre. <strong>É assim que alucinação acontece</strong>, e é por isso que se dá ferramenta a um agente."
+            : "Cada ferramenta descrita aqui custa tokens em <strong>todo turno</strong> da conversa. Com três, é barato; com cinquenta, a descrição sozinha come o contexto — problema que a Aula 4 ataca e que o MCP, na Aula 5, resolve de outro jeito.";
+    }
+
+    desenhar();
+  });
+</script>
