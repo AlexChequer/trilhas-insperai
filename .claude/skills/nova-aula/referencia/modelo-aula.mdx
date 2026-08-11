@@ -1,0 +1,117 @@
+---
+n: "A4"
+titulo: "Título curto da aula"
+ordem: 4
+objetivo: "Uma frase sobre o que a pessoa sai sabendo fazer. Aparece no hero da página, abaixo do título."
+---
+
+{/*
+  MODELO — copie este arquivo para src/content/aulas/<trilha>/aula-XX.mdx e
+  apague os comentários como este.
+
+  Importe SÓ o que a aula usa: import que sobra é ruído, e o astro check reclama.
+  Todos os caminhos usam o alias @/, nunca ../../
+*/}
+
+import VizEmbed from "@/components/VizEmbed.astro";
+import NomeDaViz from "@/components/viz/<trilha>/NomeDaViz.astro";
+import Termo from "@/components/Termo.astro";
+import Caixa from "@/components/Caixa.astro";
+import Pergunta from "@/components/Pergunta.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Quiz from "@/components/Quiz.astro";
+import QuizBloco from "@/components/QuizBloco.astro";
+import Pratica from "@/components/Pratica.astro";
+
+{/*
+  ABERTURA — 1 ou 2 parágrafos. Onde a aula anterior parou, que problema sobrou,
+  e o que esta aula resolve. Sem "nesta aula veremos": vá direto ao problema.
+*/}
+
+Parágrafo de abertura, amarrando na aula anterior e nomeando o problema que esta
+resolve.
+
+## Primeira seção
+
+{/*
+  Explique antes de nomear: primeiro o que a coisa faz e por que existe, depois o
+  nome técnico. Texto que se explica sozinho, para quem lê sem professor.
+*/}
+
+Texto. Um conceito por seção, e a viz logo depois da ideia que ela mostra.
+
+$$
+\text{fórmula} = w \cdot x + b
+$$
+
+{/* <Simbolos> vem SEMPRE logo depois de uma fórmula em display. */}
+<Simbolos
+  itens={[
+    { simbolo: "$x$", significado: "explique no exemplo do curso, não em abstrato" },
+    { simbolo: "$w$", significado: "dentro de string JSX a barra invertida dobra: $\\alpha$" },
+  ]}
+/>
+
+{/* A instrução de "mexa aqui" vai em negrito, e o título do VizEmbed diz o que fazer. */}
+**Arraste o slider** e veja o que acontece com a curva.
+
+<VizEmbed titulo="arraste o grau, de 1 a 15">
+  <NomeDaViz />
+</VizEmbed>
+
+{/* Uma <Caixa tipo="erro"> para cada erro comum do roteiro. */}
+<Caixa tipo="erro">
+O erro comum, dito na voz de quem o comete, e por que ele escorrega. Tipos:
+`nota` (padrão), `atencao`, `dica`, `erro`.
+</Caixa>
+
+<Pergunta pergunta="Uma pergunta que valha a pena pausar e pensar?">
+A resposta, explicando o raciocínio — não só o resultado.
+</Pergunta>
+
+{/* 1 ou 2 quizzes soltos no meio, depois das seções mais duras. */}
+<Quiz
+  id="<trilha-abreviada>-<aula>-<assunto-curto>"
+  pergunta="Um cenário curto e concreto, terminando numa pergunta?"
+  alternativas={[
+    {
+      texto: "A alternativa certa, escrita como uma explicação completa.",
+      certa: true,
+      porque: "Por que está certa — e o que ela ilumina além do acerto.",
+    },
+    {
+      texto: "Um distrator que ataca um erro comum de verdade.",
+      porque: "Onde exatamente o raciocínio escorrega. Nunca só “está errado”.",
+    },
+    { texto: "Outro distrator plausível.", porque: "O porquê." },
+    { texto: "Mais um.", porque: "O porquê." },
+  ]}
+/>
+
+## Segunda seção
+
+Mais texto, mais uma viz.
+
+<p class="nota">
+  Fechamento curto: o que ficou desta aula, e o gancho para a próxima. Uma frase
+  ou duas — não é resumo com bullets.
+</p>
+
+## Teste o que entendeu
+
+{/*
+  ~4 quizzes aqui. O <QuizBloco> conta só os que estão dentro dele; deixe o
+  título fora dele e escreva o ## acima, para a seção aparecer no rail.
+*/}
+
+<QuizBloco intro="Responda, veja a explicação de cada alternativa e refaça quantas vezes quiser. As respostas ficam salvas neste navegador.">
+
+<Quiz id="…" pergunta="…" alternativas={[]} />
+
+</QuizBloco>
+
+{/* Só se a aula já tiver notebook no repositório notebooks-insperai. */}
+<Pratica
+  caminho="<trilha>/aula-XX-<assunto>.ipynb"
+  resumo="Uma linha sobre o que o notebook faz — não repita o título da aula."
+/>

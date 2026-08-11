@@ -1,5 +1,13 @@
 # Como Adicionar uma Aula
 
+> **Para montar uma aula inteira, use a skill `nova-aula`**
+> (`.claude/skills/nova-aula/`). Ela é a versão operacional disto aqui, carrega
+> sozinha no Claude Code de quem clonar o repositório, e é o que mantém o padrão
+> igual entre os coordenadores das trilhas.
+>
+> Esta nota continua sendo o **porquê** de cada regra, para leitura humana. Mexeu
+> numa, confira a outra — são duas faces do mesmo padrão.
+
 ## Passo a passo
 
 1. **Criar o conteúdo** em `src/content/aulas/<trilha>/aula-XX.mdx` — a pasta da

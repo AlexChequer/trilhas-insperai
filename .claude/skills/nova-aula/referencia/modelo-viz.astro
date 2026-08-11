@@ -1,0 +1,132 @@
+---
+// MODELO — copie para src/components/viz/<trilha>/NomeDaViz.astro.
+//
+// O comentário do topo é obrigatório e diz DUAS coisas:
+//   1. o que a viz ensina e qual é a tarefa que o aluno faz na tela;
+//   2. se algum número é ilustrativo (quando o mecanismo real não roda no
+//      navegador). Se a conta é a de verdade, diga isso também — o próximo a
+//      mexer precisa saber o que pode confiar.
+//
+// Exemplo de comentário bom:
+//   Aula 2 · O grau do polinômio, de 1 a 15. A tarefa é arrastar até a curva
+//   deixar de acompanhar a tendência e passar a perseguir cada ponto. O ajuste
+//   é mínimos quadrados de verdade, calculado aqui.
+---
+
+<div class="viz-corpo" data-viz="chave-unica">
+  <div class="viz-grafico-caixa">
+    <canvas class="viz-canvas"></canvas>
+  </div>
+
+  <aside class="viz-painel">
+    <article class="stat stat-destaque">
+      <p class="stat-rotulo">O número que importa</p>
+      <p class="stat-valor" data-valor>—</p>
+    </article>
+
+    <article class="stat">
+      <div class="slider-campo">
+        <label>O controle principal <span class="valor" data-slider-val>—</span></label>
+        <input type="range" data-slider min="1" max="15" step="1" value="3" />
+      </div>
+    </article>
+  </aside>
+
+  <p class="viz-dica viz-dica-larga" data-nota></p>
+</div>
+
+<style>
+  /* Use as variáveis do sistema de design; não invente cor nem fonte.
+     --insper-roxo --insper-azul --insper-azul-aco --verde --ambar --vermelho
+     --coral --ciano --texto --texto-suave --borda --superficie --fundo
+     --fonte --fonte-titulo --fonte-dados --raio --sombra --sombra-forte
+
+     Classes prontas em global.css: .stat .stat-rotulo .stat-valor .stat-caminho
+     .stat-destaque .slider-campo .viz-controles .btn .btn-secundario
+     .viz-legenda .viz-dica .viz-grafico-caixa .viz-painel .viz-corpo          */
+
+  /* ARMADILHA: o <style> do Astro é escopado por atributo. Elemento criado em
+     JavaScript NÃO recebe o carimbo, e o CSS simplesmente não aplica. O sintoma
+     é traiçoeiro: a página funciona, só fica sem estilo naquele pedaço.
+
+     A solução é envolver a parte dinâmica em :global(), sob um ancestral que
+     esteja no template. Ou seja, ".lista li { }" não pega o <li> que nasceu em
+     JS, e ".lista :global(li) { }" pega. Vale para innerHTML também.          */
+
+  @media (max-width: 760px) {
+    /* No celular tudo vira uma coluna. Confira a 390px antes de fechar. */
+  }
+</style>
+
+<script>
+  // Escopar por [data-viz="..."] e usar data-* em vez de id: assim a mesma viz
+  // pode aparecer duas vezes na página sem colidir.
+  document.querySelectorAll<HTMLElement>('[data-viz="chave-unica"]').forEach((raiz) => {
+    const canvas = raiz.querySelector<HTMLCanvasElement>(".viz-canvas");
+    const caixa = canvas?.parentElement;
+    if (!canvas || !caixa) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const el = (sel: string) => raiz.querySelector<HTMLElement>(`[data-${sel}]`)!;
+    const slider = raiz.querySelector<HTMLInputElement>("[data-slider]")!;
+
+    let W = 0;
+    let H = 0;
+    let ultimaLargura = -1;
+
+    const fonte = () => getComputedStyle(document.body).fontFamily;
+    const num = (v: number, casas: number) => v.toFixed(casas).replace(".", ",");
+    const milhar = (v: number) => v.toLocaleString("pt-BR");
+
+    function desenhar() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+
+      const valor = parseInt(slider.value, 10);
+
+      // ... desenhe aqui ...
+
+      // Número e desenho andam juntos: sempre atualize os dois.
+      el("slider-val").textContent = String(valor);
+      el("valor").textContent = milhar(valor);
+
+      // A nota reage ao estado — ela é o que transforma o gráfico em lição.
+      el("nota").innerHTML =
+        valor < 5
+          ? "O que se vê agora, e o que fazer para ver a consequência."
+          : "O que mudou, e por quê.";
+    }
+
+    // Canvas em alta resolução: sem o devicePixelRatio, tudo sai borrado no Mac.
+    function ajustar() {
+      if (!canvas || !ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = canvas.clientWidth;
+      const cheia = !!document.fullscreenElement && document.fullscreenElement.contains(canvas);
+      H = cheia ? 480 : Math.round(Math.min(Math.max(W * 0.6, 240), 380));
+      canvas.style.height = H + "px";
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      desenhar();
+    }
+
+    // Guarda de largura: sem ela o ResizeObserver entra em laço com o próprio
+    // redimensionamento do canvas.
+    new ResizeObserver(() => {
+      const l = Math.round(caixa.clientWidth);
+      if (l === ultimaLargura) return;
+      ultimaLargura = l;
+      ajustar();
+    }).observe(caixa);
+
+    document.addEventListener("fullscreenchange", () => {
+      ultimaLargura = -1;
+      ajustar();
+    });
+
+    slider.addEventListener("input", desenhar);
+    ajustar();
+  });
+</script>
