@@ -241,6 +241,10 @@ de engenharia, não de matemática.
 
 ## Próximos passos
 
+- **Notebooks:** as Aulas 1 e 2 de trainees já têm notebook, em
+  [notebooks-insperai](https://github.com/AlexChequer/notebooks-insperai) — ver
+  [[Notebooks das Aulas]]. Faltam as Aulas 3 a 10, e o Alex precisa julgar o
+  formato antes de eu escalar.
 - **Trilha de Agentes:** falta o Alex julgar as 5 aulas, e faltam as Aulas 6
   (N8N) e 7 (prompt engineering) — bloqueadas por não haver material no
   repositório de origem.

@@ -1464,6 +1464,80 @@ a.hub-card:focus-visible {
   color: #d1442a;
 }
 
+/* ---------- Bloco de prática (o notebook da aula) ---------- */
+
+/* Fecha a leitura, então é o único bloco com o gradiente cheio: ele precisa ler
+   como "acabou, agora vá fazer" e não competir com as caixas do meio do texto. */
+.pratica {
+  background: var(--insper-gradiente);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-forte);
+  padding: 22px 24px;
+  color: #fff;
+}
+
+.pratica-titulo {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.pratica-resumo {
+  margin: 8px 0 0;
+  font-size: 1.06rem;
+  line-height: 1.6;
+  color: #fff;
+}
+
+.pratica-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.pratica-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--insper-roxo);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+
+.pratica-btn:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.pratica-btn:active {
+  transform: translateY(1px);
+}
+
+.pratica-link {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.pratica-link:hover {
+  color: #fff;
+}
+
+.pratica-btn:focus-visible,
+.pratica-link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
 /* ---------- Pergunta recolhível ---------- */
 
 .pergunta {

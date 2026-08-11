@@ -75,15 +75,64 @@ seguíssemos o padrão acima — derivado do `roteiro.md`, não decidido ainda.
 - Provável ter **duas versões**: a do trainee (com lacunas) e o **gabarito** —
   é o que o site do Thomas/Gabriel faz e funciona bem.
 
-## Pendências antes de gerar os notebooks
+## Decidido (10/8/2026), com as Aulas 1 e 2 no ar
 
-- **Onde o notebook vive e como o trainee o abre:** GitHub Classroom, Colab, ou
-  download direto de `public/notebooks/`? *(É o item 17 do
-  [[Comparativo com o Site 2026.1]] — trava toda a Fase 4.)*
-- **Lacunas ou completo?** Notebook com células a preencher (`# TODO`) ou
-  já resolvido para ler e rodar?
-- **Ambiente:** `uv` + `pyproject.toml` versionado, ou tudo no Colab sem setup?
-  Se for local, precisa da trilha de setup de ambiente antes.
-- **Confirmar a tabela de candidatos** acima, aula por aula.
+O Alex fechou as pendências que estavam nesta nota, e os dois primeiros notebooks
+existem: **[notebooks-insperai](https://github.com/AlexChequer/notebooks-insperai)**,
+repositório próprio, público e só de leitura.
+
+- **Repositório separado do site.** Notebook é artefato de execução, não de build;
+  misturar com o Astro só faria o site carregar peso que ele não usa.
+- **Formato: completo, com desafio no fim.** O corpo todo resolvido e rodando —
+  é o que serve para consultar durante e depois da aula —, mais 3 exercícios no
+  fim, cada um com a resposta dentro de um `<details>`. Nada de versão com
+  lacunas: seriam dois arquivos por aula para manter em sincronia.
+- **Colab é o caminho principal**, com badge no topo de cada notebook. Zero setup,
+  abre no navegador, funciona no laptop da faculdade. Rodar local com `uv`
+  continua documentado no README, para quem já fez a Aula 0.
+- **As saídas vão commitadas.** O notebook precisa ser legível no GitHub sem rodar
+  nada. Deixa o diff feio, e é um preço aceito de propósito.
+- **O dado é commitado, não baixado.** `dados/imoveis.csv`, 44 KB. `fetch_openml`
+  é lento, depende de rede e é exatamente o tipo de coisa que falha na hora da
+  aula. A primeira célula tenta dois caminhos locais e cai na URL bruta do GitHub
+  — que é o caso do Colab.
+
+### O dataset mudou: Ames, não California Housing
+
+A tabela de candidatos abaixo dizia California Housing para A1 e A2. **Ele não
+serve**: as colunas são `MedInc`, `HouseAge`, `AveRooms`, `AveBedrms`,
+`Population`, `AveOccup`, `Lat`, `Long` — **não existe metragem**. Como a página
+da Aula 1 conta a história inteira em cima de "preço a partir da metragem", o
+notebook contradiria a aula logo na primeira célula.
+
+Trocado por **Ames Housing** (OpenML 42165), que tem `GrLivArea` de verdade:
+1.460 imóveis, mediana de 136 m², preços de US$ 35 mil a 755 mil. A história da
+página sobrevive intacta, e a A2 ganha features boas para o polinômio.
+
+### O que os dois notebooks acabaram ensinando
+
+Vale registrar duas coisas que só apareceram ao rodar o dado de verdade:
+
+- **A Aula 1 termina num mistério, de propósito.** No dado cru, o gradient descent
+  acha o `w` certo e deixa o `b` preso perto de zero (0,03 contra 18,57 do
+  gabarito). Não é bug: é o mau condicionamento que a Aula 2 explica. A Aula 2
+  abre resolvendo isso — padronizando, o mesmo código chega no gabarito exato em
+  50 iterações, contra 300 que não chegam.
+- **Um outlier se dilui em 1.460 pontos.** A viz da página usa uma dúzia de pontos
+  e o MSE explode; com o conjunto inteiro ele sobe só 1,8×. O notebook mostra os
+  dois casos e nomeia a lição — métrica de erro sempre depende do `n`.
+
+### Como a página chama o notebook
+
+Componente `<Pratica>` no fim do `.mdx`, com dois links: **Abrir no Colab**
+(principal) e **ler no GitHub** (para consultar sem rodar). As URLs saem de
+`src/data/notebooks.ts` — mesmo princípio do `rotas.ts`, o endereço num lugar só.
+
+### O que falta
+
+- **Aulas 3 a 10.** A tabela de candidatos abaixo continua valendo como ponto de
+  partida, com a ressalva do dataset acima. Confirmar aula por aula com o Alex.
+- **A8 (Claude Code)** provavelmente não tem notebook — é aula de ferramenta.
+- **A11 a A13** dependem do conteúdo do Bloco 5, que segue em aberto.
 
 Ver também [[Como Adicionar uma Aula]] · [[Status do Projeto]]

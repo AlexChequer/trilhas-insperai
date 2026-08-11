@@ -1,0 +1,30 @@
+---
+// O bloco de prática no fim de uma aula: o link para o notebook daquela aula.
+//
+// Dois caminhos de propósito. O Colab é o principal — abre no navegador, sem
+// instalar nada, e funciona no laptop da faculdade. O do GitHub existe porque os
+// notebooks vão commitados com as saídas: dá para ler os gráficos e os números
+// sem rodar, que é o modo "consultar depois da aula".
+import { urlColab, urlGitHub } from "../data/notebooks";
+
+interface Props {
+  /** Caminho do .ipynb dentro do repositório de notebooks. */
+  caminho: string;
+  /** Uma linha sobre o que o notebook faz — não repita o título da aula. */
+  resumo: string;
+}
+const { caminho, resumo } = Astro.props;
+---
+
+<aside class="pratica">
+  <p class="pratica-titulo">Agora rode</p>
+  <p class="pratica-resumo">{resumo}</p>
+  <div class="pratica-acoes">
+    <a class="pratica-btn" href={urlColab(caminho)} target="_blank" rel="noopener">
+      Abrir no Colab
+    </a>
+    <a class="pratica-link" href={urlGitHub(caminho)} target="_blank" rel="noopener">
+      ou ler no GitHub
+    </a>
+  </div>
+</aside>
