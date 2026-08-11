@@ -15,6 +15,7 @@ import Pergunta from "@/components/Pergunta.astro";
 import Simbolos from "@/components/Simbolos.astro";
 import Quiz from "@/components/Quiz.astro";
 import QuizBloco from "@/components/QuizBloco.astro";
+import Pratica from "@/components/Pratica.astro";
 
 Na Aula 1, o modelo tinha uma variável só: previsão a partir da metragem. É ótimo para aprender, mas ninguém prevê preço de imóvel só com metragem — entram quartos, idade, bairro, andar. Esta aula tem um tema único: **o vetor de entrada pode ter o que você quiser dentro**. E, surpreendentemente, quase nada do algoritmo muda para acomodar isso.
 
@@ -276,3 +277,8 @@ Calcule a média e o desvio da escala usando **só os dados de treino**, e depoi
 />
 
 </QuizBloco>
+
+<Pratica
+  caminho="trainees/aula-02-escalando-o-modelo.ipynb"
+  resumo="Várias features, regressão polinomial e o efeito da escala no mesmo dataset da Aula 1 — inclusive o mistério que ficou lá: por que o gradient descent não achava o b."
+/>
