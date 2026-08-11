@@ -1,7 +1,10 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"],
+  // .claude guarda os modelos da skill `nova-aula`, que têm placeholders de
+  // propósito (`@/components/viz/<trilha>/…`). São para copiar, não para
+  // compilar — e sem esta exclusão eles derrubariam o build.
+  "exclude": ["dist", ".claude"],
   "compilerOptions": {
     "baseUrl": ".",
     // Alias para o conteúdo não depender da profundidade da pasta: um MDX em

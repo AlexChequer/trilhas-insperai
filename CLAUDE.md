@@ -42,10 +42,21 @@ o site de um jeito que o build **não** acusa.
 5. **Não invente conteúdo pedagógico.** A fonte das aulas de trainees é
    `roteiro.md` na raiz. Se o roteiro não cobre, pergunte ao Alex — não preencha.
 
+## Montar uma aula
+
+Existe uma skill para isso: **`nova-aula`**, em `.claude/skills/nova-aula/`. Ela
+carrega sozinha quando alguém pede para criar, escrever ou revisar uma aula, e é
+o que mantém o padrão igual entre os coordenadores das trilhas — a anatomia do
+MDX, a densidade dos componentes, as regras das visualizações e o portão de
+conclusão. Os modelos para copiar estão em `.claude/skills/nova-aula/referencia/`.
+
+Se for mexer numa aula, comece por ela.
+
 ## Onde cada coisa vive
 
 | Vou mexer em… | Vá para | E leia |
 | --- | --- | --- |
+| montar uma aula inteira | `src/content/aulas/<trilha>/` | a skill `nova-aula` |
 | texto de uma aula | `src/content/aulas/<trilha>/` | `docs/Como Adicionar uma Aula.md` |
 | uma visualização | `src/components/viz/<trilha>/` | `docs/Como Adicionar uma Visualização.md` |
 | o arco / os textos de uma trilha | `src/data/trilhas/<trilha>.ts` | `docs/Como Adicionar uma Trilha.md` |

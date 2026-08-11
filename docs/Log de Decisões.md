@@ -292,3 +292,45 @@ saída × distribuição do próximo token) para não valer unificar agora.
 **Mudaria de ideia se** o Alex quiser as Aulas 6 e 7 antes de o material existir:
 aí valeria uma página de "em construção" em vez de estação muda. Como está, o
 padrão do site é não gerar página sem conteúdo.
+
+## 11 de agosto de 2026 — o padrão das aulas vira uma skill
+
+O Alex vai chamar os **coordenadores das trilhas** para escreverem as aulas, todos
+usando Claude Code. O pedido: que o padrão se mantenha igual em todas, e que eles
+só precisem preencher o conteúdo.
+
+**Decisão: uma skill de projeto, `.claude/skills/nova-aula/`.** Entre um documento
+no vault, um slash command e uma skill, a skill ganhou por um motivo só: ela
+**carrega sozinha**. Documento depende de alguém ir atrás; comando depende de
+lembrar que existe. Como `.claude/` é versionado, ela chega junto no clone e
+aparece no Claude Code do coordenador sem ele saber que ela existe.
+
+A skill cobre **a aula e as visualizações** — são a mesma entrega, e a viz é a
+parte que mais escapa do padrão. O notebook ficou de fora: mora em outro
+repositório e é outro ato. Se virar necessidade, vira uma segunda skill.
+
+**A entrada é o roteiro do coordenador**, e a skill manda **perguntar** quando
+faltar objetivo, exemplo concreto ou erros comuns — em vez de preencher com o que
+parece razoável. É a regra "não invente conteúdo pedagógico" aplicada a quem não
+conhece o repositório.
+
+### Sobre verificação automática, o Alex cortou uma ideia minha
+
+Eu propus um `checar-aula.mjs` no CI, reprovando densidade de termos, contagem de
+quizzes e afins. Ele recusou: o verificador tem que impedir que **o site caia**,
+não policiar quiz. Está certo, e ao conferir eu vi que a proteção já existe:
+
+- a `main` já está protegida com o check "Tipos, build e links" **obrigatório**;
+- o build já falha de propósito em `<Termo>` com id fora do glossário, `<Quiz>`
+  sem exatamente uma resposta certa, imagem sem `alt`, MDX em pasta que não é
+  trilha, e link interno morto.
+
+A brecha que sobra é outra, e nenhuma CI de conteúdo pegaria: **uma viz com erro
+de JavaScript compila normal e só quebra no navegador.** Foi o que aconteceu
+comigo montando a trilha de agentes. Por isso o portão de conclusão da skill
+exige, além do `npm run verificar`, abrir a página, conferir o console em zero
+erro, mexer em cada controle e estreitar para 390px.
+
+Também acrescentei `.claude` ao `exclude` do `tsconfig.json`: os modelos da skill
+têm placeholders de propósito (`@/components/viz/<trilha>/…`) e, sem isso, um dia
+derrubariam o build — exatamente o que o Alex não quer.
