@@ -262,7 +262,7 @@ o aluno vê onde a trilha vai dar sem que exista link para o vazio.
 renomear custaria redirecionamento sem ganho nenhum — os textos de rascunho é que
 foram reescritos, que era o `TODO` que estava no arquivo.
 
-**As 17 visualizações são novas, em `viz/agentes/`.** Nenhuma foi promovida para
+**As 16 visualizações são novas, em `viz/agentes/`.** Nenhuma foi promovida para
 `viz/comum/`: não há ainda uma que sirva a duas trilhas. A A1 de trainees e a A1
 de agentes falam as duas de softmax, e de coisas diferentes o bastante (camada de
 saída × distribuição do próximo token) para não valer unificar agora.
@@ -334,3 +334,37 @@ erro, mexer em cada controle e estreitar para 390px.
 Também acrescentei `.claude` ao `exclude` do `tsconfig.json`: os modelos da skill
 têm placeholders de propósito (`@/components/viz/<trilha>/…`) e, sem isso, um dia
 derrubariam o build — exatamente o que o Alex não quer.
+
+## 14 de agosto de 2026 — comparativo com o site da eletiva ANN-DL
+
+O Alex cursou a eletiva de redes neurais do Insper, achou o site do professor bom
+e pediu a comparação. A análise inteira está em [[Comparativo com o ANN-DL]].
+
+**O que ficou claro logo de saída:** são coisas diferentes. O ANN-DL é site de
+matéria com nota; o nosso é de trilha voluntária. Um aluno lê material denso
+porque cai na prova — nós concorremos com o resto da vida do universitário. Isso
+não invalida a comparação, mas decide o que copiar e o que não.
+
+**Os buracos reais que ele expôs**, em ordem de valor: Projetos (hoje um item de
+menu "em breve"), calendário com datas, página de avaliação, e Recursos /
+bibliografia (também "em breve"). Depois vêm versionamento por semestre,
+exercício com gabarito e subpáginas de aprofundamento.
+
+**Os três primeiros travam no mesmo lugar: é informação que só o Alex tem.** Data
+de prova, critério de efetivação e rubrica de projeto não se inventam — é
+exatamente o que o CLAUDE.md proíbe preencher por conta própria. Perguntei em vez
+de chutar.
+
+**O que decidi não copiar, e por quê:** o site bilíngue (dobraria o custo de
+escrever e revisar, contra uma regra registrada de tudo em pt-BR) e a densidade
+acadêmica (fórmula matricial sem intuição antes funciona com prova marcada, e
+afasta sem ela).
+
+**O que ele faz melhor e vale absorver mesmo sem os dados do Alex:** rubrica
+explícita — a de projeto dele lista as 8 etapas exigidas, os pontos de cada uma e
+até quais datasets zeram a nota. Não deixa dúvida sobre o que é entregar bem.
+
+**Uma correção que saiu daqui:** ao conferir os números para o comparativo, vi que
+os docs diziam "17 visualizações" na trilha de agentes quando são **16** — o arco
+(4+3+3+4+2) sempre esteve certo, o erro era só na prosa. Corrigido nos dois
+lugares.

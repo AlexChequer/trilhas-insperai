@@ -169,7 +169,7 @@ entram como `aberto` — estação muda, sem página. As 5 primeiras estão comp
 | A6 | Agente com N8N | ⬜ | em aberto (sem material) |
 | A7 | Prompt Engineering | ⬜ | em aberto (sem material) |
 
-**17 visualizações**, todas em `src/components/viz/agentes/`. Nenhuma foi
+**16 visualizações**, todas em `src/components/viz/agentes/`. Nenhuma foi
 promovida a `viz/comum/`: ainda não há uma que sirva a duas trilhas.
 
 **A1 · Embeddings, Transformers e GPTs**
@@ -238,6 +238,27 @@ O glossário ganhou **36 verbetes** de LLM e agentes (de `token` a
 `descoberta-de-ferramentas`), numa seção própria no fim de `glossario.ts`. As
 Aulas 3 e 5 não têm `<Simbolos>` porque não têm fórmula em display — é conteúdo
 de engenharia, não de matemática.
+
+## Verificado em produção (14/8/2026)
+
+Depois dos merges dos PRs #2, #3 e #4, conferi o site no ar, e não só o build:
+
+- **CI verde** nos três merges; produção publicada do commit `cb5ffc7`.
+- **Rotas**: hub, trainees, agentes, aulas, guia e `busca.json` respondendo 200.
+  `/aulas/aula-01/` (endereço antigo) ainda redireciona. `/agentes/aulas/aula-06/`
+  e `/aula-07/` dão **404 de propósito** — aula sem material não gera página.
+- **Busca**: 16 itens indexados, com "Agentes · Aulas: 5".
+- **Visualizações rodando em produção** — o que nem o build nem a CI pegam. Testei
+  a poda da A4 (o agente esquece a Ana quando o turno 1 sai), a busca semântica e
+  o chunking. **Zero erro de JavaScript.**
+- **Sem regressão**: a Aula 1 de trainees está com as 4 vizzes originais, todos os
+  canvas dimensionados, e o bloco de prática novo.
+- **A skill chega no clone**: `git ls-tree origin/main` confirma os 3 arquivos em
+  `.claude/skills/nova-aula/`.
+
+**Uma pendência cosmética:** não existe favicon. O único erro de console em
+produção é `/favicon.ico` 404 — o navegador pede por padrão e `public/` só tem os
+dois logos. Resolve com um arquivo e uma linha no layout.
 
 ## Próximos passos
 

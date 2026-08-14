@@ -56,6 +56,8 @@ nova sessão do Claude) está chegando agora, leia nesta ordem: [[Visão Geral]]
 - **A trilha de Agentes entrou no ar** em 10/8/2026, com as Aulas 1 a 5 e 17
   visualizações, a partir dos notebooks do repositório `Trilha-Agents`. **As
   aulas esperam o julgamento do Alex.** ML/DL Avançado segue sem arco.
+- **Comparativo com o ANN-DL** (14/8/2026): a eletiva de redes neurais do Insper,
+  e os buracos que ela expôs no nosso site — ver [[Comparativo com o ANN-DL]].
 - **Decisões esperando o Alex:** [[Decisões Pendentes]].
 - **Deploy:** no ar na Vercel — push na `main` publica sozinho (ver [[Deploy]]).
 - Detalhes sempre atualizados em [[Status do Projeto]].
