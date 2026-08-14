@@ -335,36 +335,39 @@ Também acrescentei `.claude` ao `exclude` do `tsconfig.json`: os modelos da ski
 têm placeholders de propósito (`@/components/viz/<trilha>/…`) e, sem isso, um dia
 derrubariam o build — exatamente o que o Alex não quer.
 
-## 14 de agosto de 2026 — comparativo com o site da eletiva ANN-DL
+## 14 de agosto de 2026 — comparativo curricular com o ANN-DL
 
-O Alex cursou a eletiva de redes neurais do Insper, achou o site do professor bom
-e pediu a comparação. A análise inteira está em [[Comparativo com o ANN-DL]].
+O Alex cursou a eletiva de redes neurais do Insper e pediu a comparação. Eu
+comecei olhando o **site** (calendário, rubricas, bibliografia) e ele corrigiu o
+rumo: o que interessa é **o conteúdo** — que assuntos faltam, se a ordem faz
+sentido, se o conjunto é coerente. A análise refeita está em
+[[Comparativo com o ANN-DL]]; o levantamento de site virou apêndice.
 
-**O que ficou claro logo de saída:** são coisas diferentes. O ANN-DL é site de
-matéria com nota; o nosso é de trilha voluntária. Um aluno lê material denso
-porque cai na prova — nós concorremos com o resto da vida do universitário. Isso
-não invalida a comparação, mas decide o que copiar e o que não.
+**A espinha dos dois arcos é a mesma** (fundamentos → redes → treino → visão →
+linguagem), o que é bom sinal: a ordem geral não precisa mudar.
 
-**Os buracos reais que ele expôs**, em ordem de valor: Projetos (hoje um item de
-menu "em breve"), calendário com datas, página de avaliação, e Recursos /
-bibliografia (também "em breve"). Depois vêm versionamento por semestre,
-exercício com gabarito e subpáginas de aprofundamento.
+**Os buracos de conteúdo, verificados um a um no nosso material** (e não supostos):
 
-**Os três primeiros travam no mesmo lugar: é informação que só o Alex tem.** Data
-de prova, critério de efetivação e rubrica de projeto não se inventam — é
-exatamente o que o CLAUDE.md proíbe preencher por conta própria. Perguntei em vez
-de chutar.
+- **RNN/LSTM não existe em lugar nenhum nosso.** Isso já produz uma incoerência
+  no ar: a Aula 1 de agentes compara o Transformer com RNNs que o leitor nunca viu.
+- **Dados faltantes e variável categórica são ausentes.** O arco entra em modelo
+  na primeira aula e nunca volta para o dado. Split, vazamento e desbalanceamento,
+  por outro lado, **estão** cobertos — conferi antes de chamar de buraco.
+- **Generativos (VAE, GAN, CLIP, difusão) são um terço do curso dele e zero do
+  nosso** — mas isso é escopo, não falha: seria fora de lugar na trilha de
+  trainees. O achado útil é outro: a trilha **ML/DL Avançado** está registrada com
+  `blocos: []`, e a segunda metade do ANN-DL é o arco dela praticamente pronto.
 
-**O que decidi não copiar, e por quê:** o site bilíngue (dobraria o custo de
-escrever e revisar, contra uma regra registrada de tudo em pt-BR) e a densidade
-acadêmica (fórmula matricial sem intuição antes funciona com prova marcada, e
-afasta sem ela).
+**A incoerência mais urgente é nossa e não veio dele:** as Aulas 11 e 12 de
+trainees (Embeddings e LLMs) estão em aberto e **duplicam** a Aula 1 e a Aula 2 da
+trilha de agentes, que já cobrem embeddings, Transformers e o que é um modelo de
+linguagem — com mais profundidade. Quem escrever a A11 vai reescrever pior o que
+já existe. Precisa de decisão antes de alguém trabalhar à toa.
 
-**O que ele faz melhor e vale absorver mesmo sem os dados do Alex:** rubrica
-explícita — a de projeto dele lista as 8 etapas exigidas, os pontos de cada uma e
-até quais datasets zeram a nota. Não deixa dúvida sobre o que é entregar bem.
+**Também registrei incoerências no arco dele**, para não copiarmos: convolucional
+aparece duas vezes (subpágina da aula 10 e aula 11 inteira), e métricas de LLM são
+ensinadas na aula 9 enquanto LLMs só aparecem na 16.
 
-**Uma correção que saiu daqui:** ao conferir os números para o comparativo, vi que
-os docs diziam "17 visualizações" na trilha de agentes quando são **16** — o arco
-(4+3+3+4+2) sempre esteve certo, o erro era só na prosa. Corrigido nos dois
-lugares.
+**Uma correção que saiu daqui:** ao conferir os números, vi que os docs diziam "17
+visualizações" na trilha de agentes quando são **16**. O arco (4+3+3+4+2) sempre
+esteve certo; o erro era só na prosa.
