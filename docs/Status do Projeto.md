@@ -12,9 +12,11 @@ sessão deve olhar._
 - **Aulas 11, 12 e 13:** aparecem no arco da home como "em breve"; ainda sem
   página `.mdx`. As 11 e 12 dependem do conteúdo do Bloco 5, que está **em
   aberto** no próprio `roteiro.md`.
-- **Aula 0 no ar** em `/guias/aula-0`: **pré-requisito, fora do arco**, com o
-  **setup de ambiente dentro dela** e 3 visualizações. Acesso pela seção "Antes
-  de começar" da sidebar. Ver [[Aula 0 e os Guias]].
+- **Aula 0 no ar** em `/trainees/guias/aula-0`: **pré-requisito, fora do arco**,
+  com o **setup de ambiente dentro dela**, 3 visualizações e, desde 31/8/2026,
+  **notebook próprio** (`aula-00-primeiro-notebook.ipynb`) que ensina a usar a
+  ferramenta e serve de teste do setup. Acesso pela seção "Antes de começar" da
+  sidebar. Ver [[Aula 0 e os Guias]].
 - **Home e navegação refeitas** (9/8/2026): barra no topo com as seções e a
   busca, lateral só com o índice da seção atual, home falando do programa em vez
   de repetir o índice. Detalhe em [[Sistema de Design]].
@@ -68,10 +70,11 @@ visualização que não estava no plano — ver [[Decisões Pendentes]].)
 ## Fora do arco: a Aula 0
 
 `/guias/aula-0` · coleção `guias`, layout `Guia.astro`, rota `/guias/[slug]`.
-Duas metades: **conceito** (programar, Python, NumPy, matemática, Git) e
-**prática** (montar o ambiente com uv, VS Code, Git e `uv sync`). Três
-visualizações — `Inclinacao`, `MediaDesvio` e `Vetorizacao` —, 6 caixas, 1
-pergunta e 4 quizzes. Detalhe em [[Aula 0 e os Guias]].
+Três partes: **conceito** (programar, Python, NumPy, matemática, Git),
+**prática** (montar o ambiente com uv, VS Code, Git e `uv sync`) e o **notebook**
+no fim, via `<Pratica>`. Três visualizações — `Inclinacao`, `MediaDesvio` e
+`Vetorizacao` —, 6 caixas, 1 pergunta e 4 quizzes. Detalhe em
+[[Aula 0 e os Guias]].
 
 Os comandos do `uv` foram conferidos na documentação oficial (Context7) antes de
 irem para a página — é instrução que o aluno vai colar no terminal.

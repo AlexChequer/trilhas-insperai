@@ -371,3 +371,54 @@ ensinadas na aula 9 enquanto LLMs só aparecem na 16.
 **Uma correção que saiu daqui:** ao conferir os números, vi que os docs diziam "17
 visualizações" na trilha de agentes quando são **16**. O arco (4+3+3+4+2) sempre
 esteve certo; o erro era só na prosa.
+
+## 31 de agosto de 2026 — a Aula 0 ganha notebook, e a intro vira três partes
+
+A trilha de trainees começa em poucos dias. O Alex pediu duas coisas: ajustar a
+intro da Aula 0 e **dar a ela um notebook que ensine a usar notebook**.
+
+**O que estava errado na página.** A abertura anunciava "duas metades — conceito e
+prática", e a seção 4 do setup mandava clonar `<endereço do repositório>` com uma
+caixa avisando que o repositório "ainda não existe". Ele existe desde 10/8, com as
+Aulas 1 e 2 dentro. Um trainee chegando agora leria uma instrução impossível de
+seguir logo no primeiro contato com o curso. Corrigido: o endereço real entrou no
+lugar do placeholder, e a caixa virou **"Como saber se deu certo"** — rode a
+primeira célula do notebook da A0 e veja as versões saírem.
+
+**O notebook** é `trainees/aula-00-primeiro-notebook.ipynb`. Ele acumula três
+papéis de propósito, e cada um resolve um problema que existia:
+
+1. **Teste do ambiente.** O setup da A0 terminava sem nenhuma forma de o trainee
+   confirmar que funcionou. Agora a primeira célula imprime as versões — se rodou,
+   acabou. Esse era o buraco mais concreto da página.
+2. **A mecânica da ferramenta.** Célula, o `[n]` como *ordem de execução*, a
+   memória do kernel, a armadilha de rodar fora de ordem (com Restart & Run All
+   como regra de ouro), e como ler um traceback de baixo para cima. Nenhuma das 13
+   aulas para para explicar isso, e todas assumem.
+3. **Um gostinho de ML de ponta a ponta**, escolha do Alex sabendo que roçava na
+   Aula 1.
+
+**Como o gostinho evita pisar na Aula 1.** A A1 é Ames, dado real, e o aluno
+escreve o gradient descent na mão. Aqui é o oposto: **nós inventamos a regra**
+(`nota = 4,0 + 0,8 × horas`), escondemos ela sob ruído, e o `LinearRegression().fit()`
+a recupera — 4,23 e 0,73 contra 4,00 e 0,80. O `fit()` fica **explicitamente** uma
+caixa fechada, e o texto diz que abri-la é a Aula 1. Cria apetite em vez de gastar
+o assunto.
+
+**Dado sintético, contra o invariante do repo de notebooks** (que manda o dado
+morar em `dados/`). É deliberado: a A0 é lida por quem **ainda não** tem ambiente,
+então ela não pode depender de arquivo nem de rede. Fabricar o dado com NumPy
+também dá a única coisa que dado real não dá — **a resposta certa conhecida**, que
+é o que torna "a máquina achou a regra" verificável em vez de mágico. O README do
+outro repo registra a exceção.
+
+**O que faria mudar de ideia:** se o gostinho de ML começar a ser tratado como
+"já vi regressão", tirar a seção 4 e deixar o notebook só na mecânica. O valor dele
+está em ser uma *demonstração*, não uma aula.
+
+**Um erro pego pelo portão, que vale registrar.** A primeira versão do Desafio 2
+afirmava que 8 alunos dariam inclinações "bem diferentes" entre si. Rodei: 0,85,
+0,82 e 0,76 — perto demais, e o trainee pegaria a mentira na primeira tentativa.
+Medi de verdade (200 sementes) e troquei para 5 alunos, onde o efeito é real
+(0,52 a 1,02 contra 0,72 a 0,93 com 40). É exatamente o "não deixe número no texto
+sem conferir na saída" do CLAUDE.md de lá — e ele pegou.

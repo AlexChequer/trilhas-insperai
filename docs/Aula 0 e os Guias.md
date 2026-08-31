@@ -59,11 +59,16 @@ saem sozinhos.
 
 ## O que a Aula 0 cobre
 
-A página é dividida em **duas metades independentes**, e o texto de abertura diz
-isso: a primeira é **conceito** (o que entender para as aulas fazerem sentido), a
-segunda é **prática** (deixar a máquina pronta). Cada seção é consultável
-sozinha — a caixa de abertura recomenda fazer o setup uma vez, ir para a Aula 1 e
-voltar aqui quando esbarrar em algo.
+A página é dividida em **três partes independentes**, e o texto de abertura diz
+isso: **conceito** (o que entender para as aulas fazerem sentido), **prática**
+(deixar a máquina pronta) e o **notebook** no fim, via `<Pratica>`. Cada seção é
+consultável sozinha — a caixa de abertura dá a ordem que funciona: montar o
+ambiente uma vez, rodar o notebook para confirmar que deu certo, e ir para a
+Aula 1, voltando aqui quando esbarrar em algo.
+
+A terceira parte entrou em 31/8/2026, junto com a correção do setup: ele mandava
+clonar `<endereço do repositório>` e avisava que o repo "ainda não existe", o que
+deixou de ser verdade em 10/8. Ver o [[Log de Decisões]].
 
 **Conceito**
 
