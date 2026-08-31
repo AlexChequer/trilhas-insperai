@@ -128,6 +128,28 @@ Componente `<Pratica>` no fim do `.mdx`, com dois links: **Abrir no Colab**
 (principal) e **ler no GitHub** (para consultar sem rodar). As URLs saem de
 `src/data/notebooks.ts` — mesmo princípio do `rotas.ts`, o endereço num lugar só.
 
+### A Aula 0 ganhou notebook (31/8/2026)
+
+Fora do padrão dos outros, de propósito — e por isso registrado aqui. Ele é sobre
+a **ferramenta**, não sobre ML: célula, kernel, ordem de execução, Restart & Run
+All e como ler um traceback. Acumula três papéis: ensinar a mecânica, **testar o
+ambiente** que o setup da A0 monta (a primeira célula imprime as versões), e dar
+um gostinho de ML de ponta a ponta.
+
+Duas quebras deliberadas do padrão desta nota:
+
+- **O dado é sintético**, não vem de `dados/`. A A0 é lida por quem ainda não tem
+  ambiente: não pode depender de arquivo nem de rede. E fabricar o dado dá a única
+  coisa que dado real não dá — a resposta certa conhecida.
+- **Ele não é o par de uma aula do arco**, porque a A0 também não é.
+
+Para não pisar na Aula 1 (Ames, gradient descent na mão), o gostinho vai pelo
+avesso: inventamos `nota = 4,0 + 0,8 × horas`, escondemos sob ruído, e o
+`fit()` do sklearn recupera 4,23 e 0,73. O `fit()` fica declaradamente uma caixa
+fechada — abri-la é a A1.
+
+O raciocínio completo está no [[Log de Decisões]], em 31 de agosto de 2026.
+
 ### O que falta
 
 - **Aulas 3 a 10.** A tabela de candidatos abaixo continua valendo como ponto de
