@@ -422,3 +422,37 @@ afirmava que 8 alunos dariam inclinações "bem diferentes" entre si. Rodei: 0,8
 Medi de verdade (200 sementes) e troquei para 5 alunos, onde o efeito é real
 (0,52 a 1,02 contra 0,72 a 0,93 com 40). É exatamente o "não deixe número no texto
 sem conferir na saída" do CLAUDE.md de lá — e ele pegou.
+
+## 8 de setembro de 2026 — uma página de aula pode ter mais de um notebook
+
+O Alex escreveu um **laboratório de revisão das Aulas 1 e 2** — 15 minutos, para
+rodar em sala fechando o Bloco 1 — e pediu que ele entrasse no fim da Aula 2, no
+mesmo esquema de abrir no Colab. Ele está em
+`trainees/aula-revisao-a1-a2.ipynb`, no repositório de notebooks.
+
+**A decisão de fundo:** até aqui valia "um notebook por aula", e o `<Pratica>` foi
+desenhado para isso — rótulo fixo "Agora rode", e o comentário no `global.css`
+registra que ele é *o único* bloco com gradiente cheio porque precisa ler como
+"acabou, agora vá fazer". Agora a A2 tem dois. Em vez de criar um componente novo,
+o `<Pratica>` ganhou uma prop `titulo` opcional (default "Agora rode"): dois blocos
+com o mesmo rótulo não diriam qual é qual. O segundo se chama "Revisão · Aulas 1 e
+2" e vem depois do da aula — a leitura fecha em "acabou a A2, agora revise as duas".
+
+**Por que ele quebra a continuidade de dataset de propósito.** Os notebooks das A1
+e A2 rodam em Ames, 1.460 imóveis. Este volta aos **cinco apartamentos da lousa**.
+Não é descuido: com cinco pontos o trainee confere cada erro e cada erro² na tabela
+impressa, e é justamente essa conta que ele viu na mão. Com 1.460 linhas, a tabela
+vira um resumo estatístico e a revisão perde o que tinha de concreto. O CLAUDE.md
+do repo de notebooks passa a registrar a exceção para os `aula-revisao-*`.
+
+**O custo visual, assumido:** dois blocos de gradiente cheio empilhados no fim da
+página. Os rótulos separam bem, mas é bastante roxo. **O que faria mudar de ideia:**
+se uma terceira página precisar de dois notebooks, vale desenhar uma variante mais
+leve para o bloco secundário em vez de repetir o gradiente.
+
+**Dois pontos apontados no notebook e ainda não resolvidos**, para não se perderem:
+a Pergunta 2 diz que o `w` "praticamente chega no valor certo" quando a saída dá
+3,47 contra o alvo 3 (o `b` de fato fica preso em 0,06, então o argumento se
+sustenta — o "praticamente" é que está generoso); e o `# MUDE AQUI: acrescente
+0.001` da seção 3 chega depois que o `alpha = 0.0004` já explodiu, então o convite
+perde o efeito. Conteúdo pedagógico é do Alex, então ficaram como estão.

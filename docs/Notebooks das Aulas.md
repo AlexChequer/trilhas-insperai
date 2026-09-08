@@ -150,6 +150,25 @@ fechada — abri-la é a A1.
 
 O raciocínio completo está no [[Log de Decisões]], em 31 de agosto de 2026.
 
+### Um notebook de revisão, e o fim de "um por aula" (8/9/2026)
+
+O Alex escreveu `trainees/aula-revisao-a1-a2.ipynb`: um laboratório de 15 minutos
+que **fecha o Bloco 1**, para rodar em sala. Ele mora no fim da página da Aula 2,
+num segundo `<Pratica titulo="Revisão · Aulas 1 e 2">`.
+
+O que isso muda no princípio desta nota:
+
+- **Uma página pode ter mais de um notebook.** O `<Pratica>` ganhou uma prop
+  `titulo` (default "Agora rode") justamente para isso.
+- **Notebook de revisão não segue a continuidade de dataset.** Os das A1 e A2
+  rodam em Ames; este volta aos cinco apartamentos da lousa, porque com cinco
+  pontos o trainee confere erro e erro² na tabela impressa — que é a conta que ele
+  fez na mão. O invariante continua valendo para os notebooks *de aula*.
+- **O que ele não faz:** não introduz nada. Revisita custo, gradient descent, taxa
+  de aprendizado e padronização, e cada seção termina numa pergunta para discutir.
+
+O raciocínio completo está no [[Log de Decisões]], em 8 de setembro de 2026.
+
 ### O que falta
 
 - **Aulas 3 a 10.** A tabela de candidatos abaixo continua valendo como ponto de

@@ -265,7 +265,8 @@ dois logos. Resolve com um arquivo e uma linha no layout.
 
 ## Próximos passos
 
-- **Notebooks:** as Aulas 1 e 2 de trainees já têm notebook, em
+- **Notebooks:** a Aula 0 e as Aulas 1 e 2 de trainees já têm notebook, mais um
+  **laboratório de revisão das A1+A2** no fim da página da Aula 2, em
   [notebooks-insperai](https://github.com/AlexChequer/notebooks-insperai) — ver
   [[Notebooks das Aulas]]. Faltam as Aulas 3 a 10, e o Alex precisa julgar o
   formato antes de eu escalar.
@@ -278,8 +279,9 @@ dois logos. Resolve com um arquivo e uma linha no layout.
 - **Aulas 11, 12 e 13** — bloqueadas pelo conteúdo em aberto do Bloco 5.
 - **Páginas novas**: setup de ambiente, Aula 0, recursos, projetos, e a seção
   "Antes de começar" na sidebar — decididas, ainda não começadas.
-- **Notebook por aula** — decidido, ainda não começado. Princípio e candidatos
-  em [[Notebooks das Aulas]]; o repositório ainda não existe.
+- **Notebook por aula** — princípio e candidatos em [[Notebooks das Aulas]]. O
+  repositório existe desde 10/8, com quatro notebooks dentro; o que falta são as
+  Aulas 3 a 10.
 - **Lacunas frente ao site 2026.1** (busca, tema escuro, rodapé) — lista
   priorizada em [[Comparativo com o Site 2026.1]].
 
