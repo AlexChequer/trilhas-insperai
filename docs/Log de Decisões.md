@@ -262,7 +262,7 @@ o aluno vê onde a trilha vai dar sem que exista link para o vazio.
 renomear custaria redirecionamento sem ganho nenhum — os textos de rascunho é que
 foram reescritos, que era o `TODO` que estava no arquivo.
 
-**As 17 visualizações são novas, em `viz/agentes/`.** Nenhuma foi promovida para
+**As 16 visualizações são novas, em `viz/agentes/`.** Nenhuma foi promovida para
 `viz/comum/`: não há ainda uma que sirva a duas trilhas. A A1 de trainees e a A1
 de agentes falam as duas de softmax, e de coisas diferentes o bastante (camada de
 saída × distribuição do próximo token) para não valer unificar agora.
@@ -334,3 +334,195 @@ erro, mexer em cada controle e estreitar para 390px.
 Também acrescentei `.claude` ao `exclude` do `tsconfig.json`: os modelos da skill
 têm placeholders de propósito (`@/components/viz/<trilha>/…`) e, sem isso, um dia
 derrubariam o build — exatamente o que o Alex não quer.
+
+## 14 de agosto de 2026 — comparativo curricular com o ANN-DL
+
+O Alex cursou a eletiva de redes neurais do Insper e pediu a comparação. Eu
+comecei olhando o **site** (calendário, rubricas, bibliografia) e ele corrigiu o
+rumo: o que interessa é **o conteúdo** — que assuntos faltam, se a ordem faz
+sentido, se o conjunto é coerente. A análise refeita está em
+[[Comparativo com o ANN-DL]]; o levantamento de site virou apêndice.
+
+**A espinha dos dois arcos é a mesma** (fundamentos → redes → treino → visão →
+linguagem), o que é bom sinal: a ordem geral não precisa mudar.
+
+**Os buracos de conteúdo, verificados um a um no nosso material** (e não supostos):
+
+- **RNN/LSTM não existe em lugar nenhum nosso.** Isso já produz uma incoerência
+  no ar: a Aula 1 de agentes compara o Transformer com RNNs que o leitor nunca viu.
+- **Dados faltantes e variável categórica são ausentes.** O arco entra em modelo
+  na primeira aula e nunca volta para o dado. Split, vazamento e desbalanceamento,
+  por outro lado, **estão** cobertos — conferi antes de chamar de buraco.
+- **Generativos (VAE, GAN, CLIP, difusão) são um terço do curso dele e zero do
+  nosso** — mas isso é escopo, não falha: seria fora de lugar na trilha de
+  trainees. O achado útil é outro: a trilha **ML/DL Avançado** está registrada com
+  `blocos: []`, e a segunda metade do ANN-DL é o arco dela praticamente pronto.
+
+**A incoerência mais urgente é nossa e não veio dele:** as Aulas 11 e 12 de
+trainees (Embeddings e LLMs) estão em aberto e **duplicam** a Aula 1 e a Aula 2 da
+trilha de agentes, que já cobrem embeddings, Transformers e o que é um modelo de
+linguagem — com mais profundidade. Quem escrever a A11 vai reescrever pior o que
+já existe. Precisa de decisão antes de alguém trabalhar à toa.
+
+**Também registrei incoerências no arco dele**, para não copiarmos: convolucional
+aparece duas vezes (subpágina da aula 10 e aula 11 inteira), e métricas de LLM são
+ensinadas na aula 9 enquanto LLMs só aparecem na 16.
+
+**Uma correção que saiu daqui:** ao conferir os números, vi que os docs diziam "17
+visualizações" na trilha de agentes quando são **16**. O arco (4+3+3+4+2) sempre
+esteve certo; o erro era só na prosa.
+
+## 31 de agosto de 2026 — a Aula 0 ganha notebook, e a intro vira três partes
+
+A trilha de trainees começa em poucos dias. O Alex pediu duas coisas: ajustar a
+intro da Aula 0 e **dar a ela um notebook que ensine a usar notebook**.
+
+**O que estava errado na página.** A abertura anunciava "duas metades — conceito e
+prática", e a seção 4 do setup mandava clonar `<endereço do repositório>` com uma
+caixa avisando que o repositório "ainda não existe". Ele existe desde 10/8, com as
+Aulas 1 e 2 dentro. Um trainee chegando agora leria uma instrução impossível de
+seguir logo no primeiro contato com o curso. Corrigido: o endereço real entrou no
+lugar do placeholder, e a caixa virou **"Como saber se deu certo"** — rode a
+primeira célula do notebook da A0 e veja as versões saírem.
+
+**O notebook** é `trainees/aula-00-primeiro-notebook.ipynb`. Ele acumula três
+papéis de propósito, e cada um resolve um problema que existia:
+
+1. **Teste do ambiente.** O setup da A0 terminava sem nenhuma forma de o trainee
+   confirmar que funcionou. Agora a primeira célula imprime as versões — se rodou,
+   acabou. Esse era o buraco mais concreto da página.
+2. **A mecânica da ferramenta.** Célula, o `[n]` como *ordem de execução*, a
+   memória do kernel, a armadilha de rodar fora de ordem (com Restart & Run All
+   como regra de ouro), e como ler um traceback de baixo para cima. Nenhuma das 13
+   aulas para para explicar isso, e todas assumem.
+3. **Um gostinho de ML de ponta a ponta**, escolha do Alex sabendo que roçava na
+   Aula 1.
+
+**Como o gostinho evita pisar na Aula 1.** A A1 é Ames, dado real, e o aluno
+escreve o gradient descent na mão. Aqui é o oposto: **nós inventamos a regra**
+(`nota = 4,0 + 0,8 × horas`), escondemos ela sob ruído, e o `LinearRegression().fit()`
+a recupera — 4,23 e 0,73 contra 4,00 e 0,80. O `fit()` fica **explicitamente** uma
+caixa fechada, e o texto diz que abri-la é a Aula 1. Cria apetite em vez de gastar
+o assunto.
+
+**Dado sintético, contra o invariante do repo de notebooks** (que manda o dado
+morar em `dados/`). É deliberado: a A0 é lida por quem **ainda não** tem ambiente,
+então ela não pode depender de arquivo nem de rede. Fabricar o dado com NumPy
+também dá a única coisa que dado real não dá — **a resposta certa conhecida**, que
+é o que torna "a máquina achou a regra" verificável em vez de mágico. O README do
+outro repo registra a exceção.
+
+**O que faria mudar de ideia:** se o gostinho de ML começar a ser tratado como
+"já vi regressão", tirar a seção 4 e deixar o notebook só na mecânica. O valor dele
+está em ser uma *demonstração*, não uma aula.
+
+**Um erro pego pelo portão, que vale registrar.** A primeira versão do Desafio 2
+afirmava que 8 alunos dariam inclinações "bem diferentes" entre si. Rodei: 0,85,
+0,82 e 0,76 — perto demais, e o trainee pegaria a mentira na primeira tentativa.
+Medi de verdade (200 sementes) e troquei para 5 alunos, onde o efeito é real
+(0,52 a 1,02 contra 0,72 a 0,93 com 40). É exatamente o "não deixe número no texto
+sem conferir na saída" do CLAUDE.md de lá — e ele pegou.
+
+## 8 de setembro de 2026 — uma página de aula pode ter mais de um notebook
+
+O Alex escreveu um **laboratório de revisão das Aulas 1 e 2** — 15 minutos, para
+rodar em sala fechando o Bloco 1 — e pediu que ele entrasse no fim da Aula 2, no
+mesmo esquema de abrir no Colab. Ele está em
+`trainees/aula-revisao-a1-a2.ipynb`, no repositório de notebooks.
+
+**A decisão de fundo:** até aqui valia "um notebook por aula", e o `<Pratica>` foi
+desenhado para isso — rótulo fixo "Agora rode", e o comentário no `global.css`
+registra que ele é *o único* bloco com gradiente cheio porque precisa ler como
+"acabou, agora vá fazer". Agora a A2 tem dois. Em vez de criar um componente novo,
+o `<Pratica>` ganhou uma prop `titulo` opcional (default "Agora rode"): dois blocos
+com o mesmo rótulo não diriam qual é qual. O segundo se chama "Revisão · Aulas 1 e
+2" e vem depois do da aula — a leitura fecha em "acabou a A2, agora revise as duas".
+
+**Por que ele quebra a continuidade de dataset de propósito.** Os notebooks das A1
+e A2 rodam em Ames, 1.460 imóveis. Este volta aos **cinco apartamentos da lousa**.
+Não é descuido: com cinco pontos o trainee confere cada erro e cada erro² na tabela
+impressa, e é justamente essa conta que ele viu na mão. Com 1.460 linhas, a tabela
+vira um resumo estatístico e a revisão perde o que tinha de concreto. O CLAUDE.md
+do repo de notebooks passa a registrar a exceção para os `aula-revisao-*`.
+
+**O custo visual, assumido:** dois blocos de gradiente cheio empilhados no fim da
+página. Os rótulos separam bem, mas é bastante roxo. **O que faria mudar de ideia:**
+se uma terceira página precisar de dois notebooks, vale desenhar uma variante mais
+leve para o bloco secundário em vez de repetir o gradiente.
+
+**Dois pontos apontados no notebook e ainda não resolvidos**, para não se perderem:
+a Pergunta 2 diz que o `w` "praticamente chega no valor certo" quando a saída dá
+3,47 contra o alvo 3 (o `b` de fato fica preso em 0,06, então o argumento se
+sustenta — o "praticamente" é que está generoso); e o `# MUDE AQUI: acrescente
+0.001` da seção 3 chega depois que o `alpha = 0.0004` já explodiu, então o convite
+perde o efeito. Conteúdo pedagógico é do Alex, então ficaram como estão.
+
+## 10 de setembro de 2026 — o notebook vira exercício, e por que não tem autograder
+
+O Alex pediu um notebook de classificação **no estilo do Andrew Ng**: a
+matemática da sigmoid antes, e depois o trainee implementando. E levantou a
+questão maior — *"eu pensei em fazer um autograder, mas preciso saber o quão
+difícil é"* —, junto com a vontade de gerir quem entregou e quem não.
+
+**O que a pesquisa achou, e que mudou a resposta.** A org `InsperAI-Trainee` já
+existe no GitHub, com repos no padrão do GitHub Classroom (`mlp-AlexChequer`,
+`mnist-challenge-AlexChequer`), um pipeline de entrega funcionando em
+`.github/workflows/submit.yml` e o servidor `challenge.insperai.com.br` ainda
+respondendo. E o dado mais útil: os notebooks semanais de 2026.1 **não tinham
+nada** — nenhum `assert`, nenhum `### START CODE HERE`, nenhum CI. Só o desafio
+do MNIST era corrigido.
+
+**A decomposição que resolveu a conversa:** corrigir e rastrear são dois
+problemas, e só o segundo é caro. O autograder do Ng é literalmente um arquivo
+de testes rodando na máquina do aluno — meio dia de trabalho. E não é ele que
+mata o "Run all e pronto": é o `raise NotImplementedError` na célula. Rastrear é
+que exige identidade e um lugar para guardar.
+
+**A decisão do Alex: só os testes, sem servidor e sem Classroom.** O argumento
+dele é o que fecha a questão — *"todo mundo teria que dar commit e nem todos têm
+familiaridade com GitHub"*. Exigir `git push` na **Aula 3** filtraria trainee por
+ferramenta, não por entendimento, e ainda antes da Aula 8, que é a aula de
+ferramentas. O Colab é o caminho principal justamente por não exigir setup.
+
+**O que se abre mão:** rastreio automático. Descobre-se em aula quem fez. Se um
+dia precisar de sinal sem exigir git, o meio-termo é o notebook imprimir um
+código de conclusão que eles colam num Google Form (~2h) — anotado aqui para não
+se reinventar a discussão.
+
+**Achado de segurança, para quem for reusar o pipeline do MNIST:** o
+`submit.yml` traz a `SUBMISSION_API_KEY` **em texto puro no arquivo**, enquanto o
+README afirma que a Action "inherits org-level secrets". Não herda. Os repos são
+privados, mas cada trainee tinha esse arquivo, então a chave circulou pela turma
+inteira — e o `github_actor` vai no corpo do POST como dado do cliente, então
+com a chave dá para submeter no nome de qualquer um. Rotacionar, mover para
+secret de org e derivar o autor do contexto do Actions. Não testei a chave.
+
+### O notebook em si
+
+`trainees/aula-03-classificacao.ipynb`, 8 funções para implementar, cada uma com
+enunciado (matemática deduzida, não entregue), lacuna e célula de teste. A forma
+completa está no CLAUDE.md do repo de notebooks.
+
+**Dataset: Breast Cancer**, que vem dentro do sklearn. Quebra a continuidade com
+Ames porque o conceito exige — Ames é regressão, não há o que classificar nele —
+e casa com o exemplo que a própria página usa para justificar recall alto.
+
+**Sem saídas commitadas**, contra o invariante 2. Metade das células depende de
+código que o trainee ainda não escreveu; uma sequência de `NotImplementedError`
+commitada não serve de consulta a ninguém.
+
+**O portão mudou de forma em vez de sumir.** Como o notebook não roda de ponta a
+ponta como sai, `scripts/verificar_exercicios.py` extrai o gabarito do primeiro
+bloco de código de cada `<details>`, injeta na lacuna e roda tudo — falhando se
+alguma célula estourar ou se algum `verificar()` imprimir ✗. Efeito colateral: o
+`<details>` deixou de ser só texto e virou fonte de verdade executável.
+
+Ele se pagou na primeira execução: pegou um valor esperado que eu tinha chutado
+(0,6478 contra os 0,5914 reais) e um teste que afirmava que a sigmoid nunca
+chega a 1 — em float64 ela chega a partir de ±37, e isso virou nota no gabarito.
+
+**O que faria mudar de ideia:** se os trainees pularem direto para o `<details>`
+sem tentar, o conserto não é esconder a resposta (eles achariam de qualquer
+jeito) — é a Aula 8 passar a exigir o notebook feito como pré-requisito, ou o
+Alex olhar o resultado em aula. Se em algum momento virar nota, aí sim vale
+reabrir o Classroom, quando a turma já tiver git na mão.

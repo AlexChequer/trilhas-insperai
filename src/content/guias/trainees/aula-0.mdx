@@ -3,7 +3,7 @@ titulo: "Aula 0 — Fundamentos"
 rotulo: "Fundamentos"
 codigo: "A0"
 ordem: 0
-objetivo: "O pré-requisito do curso: o mínimo de programação, Python, NumPy e matemática para acompanhar as aulas — e o passo a passo para deixar a máquina pronta."
+objetivo: "O pré-requisito do curso: o mínimo de programação, Python, NumPy e matemática para acompanhar as aulas, o passo a passo para deixar a máquina pronta, e o notebook onde você roda o primeiro código."
 ---
 
 import VizEmbed from "@/components/VizEmbed.astro";
@@ -11,16 +11,19 @@ import Inclinacao from "@/components/viz/trainees/Inclinacao.astro";
 import MediaDesvio from "@/components/viz/trainees/MediaDesvio.astro";
 import Vetorizacao from "@/components/viz/trainees/Vetorizacao.astro";
 import Caixa from "@/components/Caixa.astro";
+import Pratica from "@/components/Pratica.astro";
 import Pergunta from "@/components/Pergunta.astro";
 import Quiz from "@/components/Quiz.astro";
 import QuizBloco from "@/components/QuizBloco.astro";
 
 Esta página não é uma aula do semestre — é o **pré-requisito** dele, e material de consulta o tempo todo. Ela existe porque o programa recebe gente que nunca programou, e porque nenhuma das treze aulas vai parar para explicar o que é uma função ou o que quer dizer uma média.
 
-São duas metades independentes. A primeira é **conceito**: o que você precisa entender para as aulas fazerem sentido. A segunda é **prática**: o passo a passo para deixar a sua máquina pronta para rodar os notebooks.
+São três partes independentes. A primeira é **conceito**: o que você precisa entender para as aulas fazerem sentido. A segunda é **prática**: o passo a passo para deixar a sua máquina pronta. E a terceira é o **notebook** — onde você abre a ferramenta que vai usar o semestre inteiro e roda o primeiro código, mesmo que nunca tenha aberto um.
 
 <Caixa tipo="dica" titulo="Como usar esta página">
-Não precisa ler de cabo a rabo antes de começar. O que funciona é: faça a parte de **montar o ambiente** uma vez, vá para a **Aula 1**, e volte aqui quando esbarrar em algo. Cada seção é independente e o índice à direita leva direto ao ponto. Se você já programa em Python, provavelmente só a seção de matemática interessa.
+Não precisa ler de cabo a rabo antes de começar. A ordem que funciona é: **monte o ambiente** (uma vez só), **rode o notebook** para confirmar que deu certo, e vá para a **Aula 1** — voltando aqui quando esbarrar em algo. Cada seção é independente e o índice à direita leva direto ao ponto.
+
+Se você já programa em Python, pule para a matemática e para o notebook. Se você nunca programou, comece do começo: a página foi escrita para você.
 </Caixa>
 
 ## O que é programar
@@ -197,10 +200,11 @@ Use o mesmo e-mail da sua conta do GitHub. Se você ainda não tem conta, crie u
 
 ### 4. O projeto e o primeiro notebook
 
-Com o repositório da aula clonado (`git clone <endereço do repositório>`), entre na pasta e prepare o ambiente:
+Os notebooks de todas as aulas moram num repositório público só de leitura. Clone e prepare o ambiente:
 
 ```bash
-cd nome-da-pasta
+git clone https://github.com/AlexChequer/notebooks-insperai.git
+cd notebooks-insperai
 uv sync
 ```
 
@@ -212,19 +216,37 @@ Se preferir o Jupyter no navegador em vez do VS Code:
 uv run --with jupyter jupyter lab
 ```
 
-<Caixa tipo="atencao" titulo="O repositório dos notebooks ainda não existe">
-Os comandos acima são o fluxo final, mas o endereço do repositório das aulas ainda vai ser divulgado. Enquanto isso, dá para fazer os passos 1 a 3 — que são os que costumam dar trabalho — e deixar a máquina pronta. Quando o repositório sair, só falta o `git clone` e o `uv sync`.
+<Caixa tipo="dica" titulo="Como saber se deu certo">
+Abra `trainees/aula-00-primeiro-notebook.ipynb` e rode a primeira célula. Se ela imprimir as versões do Python, do NumPy e das outras bibliotecas, está tudo no lugar — e aí é só seguir o notebook até o fim. Se ela reclamar, traga a mensagem de erro para a aula em vez de brigar sozinho: setup quebrado é o tipo de coisa que se resolve em dois minutos junto e em duas horas sozinho.
 </Caixa>
 
 <Caixa tipo="erro">
 Instalar bibliotecas "para o computador inteiro" com `pip install` solto, sem ambiente isolado. Funciona no primeiro projeto e quebra no terceiro, quando dois projetos precisam de versões diferentes da mesma biblioteca — e o erro que aparece não tem nada a ver com a causa. O `uv sync` cria um ambiente por projeto justamente para isso, e é por isso que o curso pede o uv em vez do pip.
 </Caixa>
 
+## O seu primeiro notebook
+
+A terceira parte, e a única em que você digita alguma coisa. É um notebook sobre a
+**ferramenta**, não sobre machine learning: o que é uma célula, o que o kernel
+guarda entre elas, por que a ordem em que você roda importa mais do que a ordem em
+que está escrito, e como ler um erro em vez de travar nele. Nenhuma das treze aulas
+para para explicar isso, e todas assumem que você sabe.
+
+Se você fez o setup acima, ele também é o seu teste: **a primeira célula imprime as
+versões das bibliotecas** — se ela rodar, a máquina está pronta. E se você ainda não
+fez, abra no Colab, que roda no navegador sem instalar nada.
+
+<Pratica
+  caminho="trainees/aula-00-primeiro-notebook.ipynb"
+  resumo="A ferramenta em si: célula, kernel, ordem de execução e como ler um erro — e, no fim, uma máquina achando sozinha uma regra que você escondeu dela."
+/>
+
 <p class="nota">
-  Se as seções de conceito fizeram sentido e a máquina está pronta, você tem o
-  suficiente para começar a Aula 1 sem tropeçar em pré-requisito. E se não
-  fizeram, tudo bem: volte a esta página quando a dúvida aparecer de verdade —
-  ela costuma ficar bem mais fácil de entender quando você já sabe para que serve.
+  Se as seções de conceito fizeram sentido, a máquina está pronta e o notebook
+  acima rodou, você tem o suficiente para começar a Aula 1 sem tropeçar em
+  pré-requisito. E se não fizeram, tudo bem: volte a esta página quando a dúvida
+  aparecer de verdade — ela costuma ficar bem mais fácil de entender quando você
+  já sabe para que serve.
 </p>
 
 ## Teste o que entendeu

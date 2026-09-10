@@ -12,9 +12,11 @@ sessão deve olhar._
 - **Aulas 11, 12 e 13:** aparecem no arco da home como "em breve"; ainda sem
   página `.mdx`. As 11 e 12 dependem do conteúdo do Bloco 5, que está **em
   aberto** no próprio `roteiro.md`.
-- **Aula 0 no ar** em `/guias/aula-0`: **pré-requisito, fora do arco**, com o
-  **setup de ambiente dentro dela** e 3 visualizações. Acesso pela seção "Antes
-  de começar" da sidebar. Ver [[Aula 0 e os Guias]].
+- **Aula 0 no ar** em `/trainees/guias/aula-0`: **pré-requisito, fora do arco**,
+  com o **setup de ambiente dentro dela**, 3 visualizações e, desde 31/8/2026,
+  **notebook próprio** (`aula-00-primeiro-notebook.ipynb`) que ensina a usar a
+  ferramenta e serve de teste do setup. Acesso pela seção "Antes de começar" da
+  sidebar. Ver [[Aula 0 e os Guias]].
 - **Home e navegação refeitas** (9/8/2026): barra no topo com as seções e a
   busca, lateral só com o índice da seção atual, home falando do programa em vez
   de repetir o índice. Detalhe em [[Sistema de Design]].
@@ -68,10 +70,11 @@ visualização que não estava no plano — ver [[Decisões Pendentes]].)
 ## Fora do arco: a Aula 0
 
 `/guias/aula-0` · coleção `guias`, layout `Guia.astro`, rota `/guias/[slug]`.
-Duas metades: **conceito** (programar, Python, NumPy, matemática, Git) e
-**prática** (montar o ambiente com uv, VS Code, Git e `uv sync`). Três
-visualizações — `Inclinacao`, `MediaDesvio` e `Vetorizacao` —, 6 caixas, 1
-pergunta e 4 quizzes. Detalhe em [[Aula 0 e os Guias]].
+Três partes: **conceito** (programar, Python, NumPy, matemática, Git),
+**prática** (montar o ambiente com uv, VS Code, Git e `uv sync`) e o **notebook**
+no fim, via `<Pratica>`. Três visualizações — `Inclinacao`, `MediaDesvio` e
+`Vetorizacao` —, 6 caixas, 1 pergunta e 4 quizzes. Detalhe em
+[[Aula 0 e os Guias]].
 
 Os comandos do `uv` foram conferidos na documentação oficial (Context7) antes de
 irem para a página — é instrução que o aluno vai colar no terminal.
@@ -169,7 +172,7 @@ entram como `aberto` — estação muda, sem página. As 5 primeiras estão comp
 | A6 | Agente com N8N | ⬜ | em aberto (sem material) |
 | A7 | Prompt Engineering | ⬜ | em aberto (sem material) |
 
-**17 visualizações**, todas em `src/components/viz/agentes/`. Nenhuma foi
+**16 visualizações**, todas em `src/components/viz/agentes/`. Nenhuma foi
 promovida a `viz/comum/`: ainda não há uma que sirva a duas trilhas.
 
 **A1 · Embeddings, Transformers e GPTs**
@@ -239,12 +242,35 @@ O glossário ganhou **36 verbetes** de LLM e agentes (de `token` a
 Aulas 3 e 5 não têm `<Simbolos>` porque não têm fórmula em display — é conteúdo
 de engenharia, não de matemática.
 
+## Verificado em produção (14/8/2026)
+
+Depois dos merges dos PRs #2, #3 e #4, conferi o site no ar, e não só o build:
+
+- **CI verde** nos três merges; produção publicada do commit `cb5ffc7`.
+- **Rotas**: hub, trainees, agentes, aulas, guia e `busca.json` respondendo 200.
+  `/aulas/aula-01/` (endereço antigo) ainda redireciona. `/agentes/aulas/aula-06/`
+  e `/aula-07/` dão **404 de propósito** — aula sem material não gera página.
+- **Busca**: 16 itens indexados, com "Agentes · Aulas: 5".
+- **Visualizações rodando em produção** — o que nem o build nem a CI pegam. Testei
+  a poda da A4 (o agente esquece a Ana quando o turno 1 sai), a busca semântica e
+  o chunking. **Zero erro de JavaScript.**
+- **Sem regressão**: a Aula 1 de trainees está com as 4 vizzes originais, todos os
+  canvas dimensionados, e o bloco de prática novo.
+- **A skill chega no clone**: `git ls-tree origin/main` confirma os 3 arquivos em
+  `.claude/skills/nova-aula/`.
+
+**Uma pendência cosmética:** não existe favicon. O único erro de console em
+produção é `/favicon.ico` 404 — o navegador pede por padrão e `public/` só tem os
+dois logos. Resolve com um arquivo e uma linha no layout.
+
 ## Próximos passos
 
-- **Notebooks:** as Aulas 1 e 2 de trainees já têm notebook, em
+- **Notebooks:** a Aula 0 e as Aulas 1, 2 e 3 de trainees já têm notebook, mais
+  um **laboratório de revisão das A1+A2** no fim da página da Aula 2, em
   [notebooks-insperai](https://github.com/AlexChequer/notebooks-insperai) — ver
-  [[Notebooks das Aulas]]. Faltam as Aulas 3 a 10, e o Alex precisa julgar o
-  formato antes de eu escalar.
+  [[Notebooks das Aulas]]. A A3 estreia o **formato de exercício** (o trainee
+  implementa, com testes no notebook) — o Alex precisa julgá-lo antes de eu
+  escalar. Faltam as Aulas 4 a 10.
 - **Trilha de Agentes:** falta o Alex julgar as 5 aulas, e faltam as Aulas 6
   (N8N) e 7 (prompt engineering) — bloqueadas por não haver material no
   repositório de origem.
@@ -254,8 +280,9 @@ de engenharia, não de matemática.
 - **Aulas 11, 12 e 13** — bloqueadas pelo conteúdo em aberto do Bloco 5.
 - **Páginas novas**: setup de ambiente, Aula 0, recursos, projetos, e a seção
   "Antes de começar" na sidebar — decididas, ainda não começadas.
-- **Notebook por aula** — decidido, ainda não começado. Princípio e candidatos
-  em [[Notebooks das Aulas]]; o repositório ainda não existe.
+- **Notebook por aula** — princípio e candidatos em [[Notebooks das Aulas]]. O
+  repositório existe desde 10/8, com quatro notebooks dentro; o que falta são as
+  Aulas 3 a 10.
 - **Lacunas frente ao site 2026.1** (busca, tema escuro, rodapé) — lista
   priorizada em [[Comparativo com o Site 2026.1]].
 

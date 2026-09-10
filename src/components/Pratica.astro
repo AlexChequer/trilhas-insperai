@@ -12,12 +12,17 @@ interface Props {
   caminho: string;
   /** Uma linha sobre o que o notebook faz — não repita o título da aula. */
   resumo: string;
+  /**
+   * Troca o rótulo "Agora rode". Existe porque uma página pode ter mais de um
+   * notebook: dois blocos com o mesmo rótulo não diriam qual é qual.
+   */
+  titulo?: string;
 }
-const { caminho, resumo } = Astro.props;
+const { caminho, resumo, titulo = "Agora rode" } = Astro.props;
 ---
 
 <aside class="pratica">
-  <p class="pratica-titulo">Agora rode</p>
+  <p class="pratica-titulo">{titulo}</p>
   <p class="pratica-resumo">{resumo}</p>
   <div class="pratica-acoes">
     <a class="pratica-btn" href={urlColab(caminho)} target="_blank" rel="noopener">

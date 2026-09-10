@@ -128,6 +128,64 @@ Componente `<Pratica>` no fim do `.mdx`, com dois links: **Abrir no Colab**
 (principal) e **ler no GitHub** (para consultar sem rodar). As URLs saem de
 `src/data/notebooks.ts` — mesmo princípio do `rotas.ts`, o endereço num lugar só.
 
+### A Aula 0 ganhou notebook (31/8/2026)
+
+Fora do padrão dos outros, de propósito — e por isso registrado aqui. Ele é sobre
+a **ferramenta**, não sobre ML: célula, kernel, ordem de execução, Restart & Run
+All e como ler um traceback. Acumula três papéis: ensinar a mecânica, **testar o
+ambiente** que o setup da A0 monta (a primeira célula imprime as versões), e dar
+um gostinho de ML de ponta a ponta.
+
+Duas quebras deliberadas do padrão desta nota:
+
+- **O dado é sintético**, não vem de `dados/`. A A0 é lida por quem ainda não tem
+  ambiente: não pode depender de arquivo nem de rede. E fabricar o dado dá a única
+  coisa que dado real não dá — a resposta certa conhecida.
+- **Ele não é o par de uma aula do arco**, porque a A0 também não é.
+
+Para não pisar na Aula 1 (Ames, gradient descent na mão), o gostinho vai pelo
+avesso: inventamos `nota = 4,0 + 0,8 × horas`, escondemos sob ruído, e o
+`fit()` do sklearn recupera 4,23 e 0,73. O `fit()` fica declaradamente uma caixa
+fechada — abri-la é a A1.
+
+O raciocínio completo está no [[Log de Decisões]], em 31 de agosto de 2026.
+
+### Um notebook de revisão, e o fim de "um por aula" (8/9/2026)
+
+O Alex escreveu `trainees/aula-revisao-a1-a2.ipynb`: um laboratório de 15 minutos
+que **fecha o Bloco 1**, para rodar em sala. Ele mora no fim da página da Aula 2,
+num segundo `<Pratica titulo="Revisão · Aulas 1 e 2">`.
+
+O que isso muda no princípio desta nota:
+
+- **Uma página pode ter mais de um notebook.** O `<Pratica>` ganhou uma prop
+  `titulo` (default "Agora rode") justamente para isso.
+- **Notebook de revisão não segue a continuidade de dataset.** Os das A1 e A2
+  rodam em Ames; este volta aos cinco apartamentos da lousa, porque com cinco
+  pontos o trainee confere erro e erro² na tabela impressa — que é a conta que ele
+  fez na mão. O invariante continua valendo para os notebooks *de aula*.
+- **O que ele não faz:** não introduz nada. Revisita custo, gradient descent, taxa
+  de aprendizado e padronização, e cada seção termina numa pergunta para discutir.
+
+O raciocínio completo está no [[Log de Decisões]], em 8 de setembro de 2026.
+
+### A Aula 3 estreia o notebook de exercício (10/9/2026)
+
+Até aqui o notebook vinha resolvido e o trainee rodava. A partir da A3 existe um
+segundo tipo: **ele implementa**. São 8 funções com lacuna e uma célula de teste
+abaixo de cada uma, no estilo da Deep Learning Specialization.
+
+- **Sem autograder de servidor e sem GitHub Classroom.** A decisão e o argumento
+  do Alex ("nem todos têm familiaridade com GitHub") estão no [[Log de Decisões]].
+  Os testes rodam na máquina do trainee; não há rastreio de quem entregou.
+- **Dataset: Breast Cancer**, do próprio sklearn. Quebra a continuidade com Ames
+  porque o conceito exige — não se classifica preço de imóvel.
+- **Sem saídas commitadas**, ao contrário dos outros. O portão também é outro:
+  `scripts/verificar_exercicios.py`, que injeta os gabaritos e roda.
+
+A tabela de candidatos abaixo continua valendo para as A4 a A10, agora com uma
+pergunta a mais por aula: quais funções o trainee escreve.
+
 ### O que falta
 
 - **Aulas 3 a 10.** A tabela de candidatos abaixo continua valendo como ponto de
