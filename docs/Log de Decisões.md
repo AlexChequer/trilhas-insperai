@@ -456,3 +456,73 @@ a Pergunta 2 diz que o `w` "praticamente chega no valor certo" quando a saída d
 sustenta — o "praticamente" é que está generoso); e o `# MUDE AQUI: acrescente
 0.001` da seção 3 chega depois que o `alpha = 0.0004` já explodiu, então o convite
 perde o efeito. Conteúdo pedagógico é do Alex, então ficaram como estão.
+
+## 10 de setembro de 2026 — o notebook vira exercício, e por que não tem autograder
+
+O Alex pediu um notebook de classificação **no estilo do Andrew Ng**: a
+matemática da sigmoid antes, e depois o trainee implementando. E levantou a
+questão maior — *"eu pensei em fazer um autograder, mas preciso saber o quão
+difícil é"* —, junto com a vontade de gerir quem entregou e quem não.
+
+**O que a pesquisa achou, e que mudou a resposta.** A org `InsperAI-Trainee` já
+existe no GitHub, com repos no padrão do GitHub Classroom (`mlp-AlexChequer`,
+`mnist-challenge-AlexChequer`), um pipeline de entrega funcionando em
+`.github/workflows/submit.yml` e o servidor `challenge.insperai.com.br` ainda
+respondendo. E o dado mais útil: os notebooks semanais de 2026.1 **não tinham
+nada** — nenhum `assert`, nenhum `### START CODE HERE`, nenhum CI. Só o desafio
+do MNIST era corrigido.
+
+**A decomposição que resolveu a conversa:** corrigir e rastrear são dois
+problemas, e só o segundo é caro. O autograder do Ng é literalmente um arquivo
+de testes rodando na máquina do aluno — meio dia de trabalho. E não é ele que
+mata o "Run all e pronto": é o `raise NotImplementedError` na célula. Rastrear é
+que exige identidade e um lugar para guardar.
+
+**A decisão do Alex: só os testes, sem servidor e sem Classroom.** O argumento
+dele é o que fecha a questão — *"todo mundo teria que dar commit e nem todos têm
+familiaridade com GitHub"*. Exigir `git push` na **Aula 3** filtraria trainee por
+ferramenta, não por entendimento, e ainda antes da Aula 8, que é a aula de
+ferramentas. O Colab é o caminho principal justamente por não exigir setup.
+
+**O que se abre mão:** rastreio automático. Descobre-se em aula quem fez. Se um
+dia precisar de sinal sem exigir git, o meio-termo é o notebook imprimir um
+código de conclusão que eles colam num Google Form (~2h) — anotado aqui para não
+se reinventar a discussão.
+
+**Achado de segurança, para quem for reusar o pipeline do MNIST:** o
+`submit.yml` traz a `SUBMISSION_API_KEY` **em texto puro no arquivo**, enquanto o
+README afirma que a Action "inherits org-level secrets". Não herda. Os repos são
+privados, mas cada trainee tinha esse arquivo, então a chave circulou pela turma
+inteira — e o `github_actor` vai no corpo do POST como dado do cliente, então
+com a chave dá para submeter no nome de qualquer um. Rotacionar, mover para
+secret de org e derivar o autor do contexto do Actions. Não testei a chave.
+
+### O notebook em si
+
+`trainees/aula-03-classificacao.ipynb`, 8 funções para implementar, cada uma com
+enunciado (matemática deduzida, não entregue), lacuna e célula de teste. A forma
+completa está no CLAUDE.md do repo de notebooks.
+
+**Dataset: Breast Cancer**, que vem dentro do sklearn. Quebra a continuidade com
+Ames porque o conceito exige — Ames é regressão, não há o que classificar nele —
+e casa com o exemplo que a própria página usa para justificar recall alto.
+
+**Sem saídas commitadas**, contra o invariante 2. Metade das células depende de
+código que o trainee ainda não escreveu; uma sequência de `NotImplementedError`
+commitada não serve de consulta a ninguém.
+
+**O portão mudou de forma em vez de sumir.** Como o notebook não roda de ponta a
+ponta como sai, `scripts/verificar_exercicios.py` extrai o gabarito do primeiro
+bloco de código de cada `<details>`, injeta na lacuna e roda tudo — falhando se
+alguma célula estourar ou se algum `verificar()` imprimir ✗. Efeito colateral: o
+`<details>` deixou de ser só texto e virou fonte de verdade executável.
+
+Ele se pagou na primeira execução: pegou um valor esperado que eu tinha chutado
+(0,6478 contra os 0,5914 reais) e um teste que afirmava que a sigmoid nunca
+chega a 1 — em float64 ela chega a partir de ±37, e isso virou nota no gabarito.
+
+**O que faria mudar de ideia:** se os trainees pularem direto para o `<details>`
+sem tentar, o conserto não é esconder a resposta (eles achariam de qualquer
+jeito) — é a Aula 8 passar a exigir o notebook feito como pré-requisito, ou o
+Alex olhar o resultado em aula. Se em algum momento virar nota, aí sim vale
+reabrir o Classroom, quando a turma já tiver git na mão.

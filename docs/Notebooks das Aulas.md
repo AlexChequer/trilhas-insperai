@@ -169,6 +169,23 @@ O que isso muda no princípio desta nota:
 
 O raciocínio completo está no [[Log de Decisões]], em 8 de setembro de 2026.
 
+### A Aula 3 estreia o notebook de exercício (10/9/2026)
+
+Até aqui o notebook vinha resolvido e o trainee rodava. A partir da A3 existe um
+segundo tipo: **ele implementa**. São 8 funções com lacuna e uma célula de teste
+abaixo de cada uma, no estilo da Deep Learning Specialization.
+
+- **Sem autograder de servidor e sem GitHub Classroom.** A decisão e o argumento
+  do Alex ("nem todos têm familiaridade com GitHub") estão no [[Log de Decisões]].
+  Os testes rodam na máquina do trainee; não há rastreio de quem entregou.
+- **Dataset: Breast Cancer**, do próprio sklearn. Quebra a continuidade com Ames
+  porque o conceito exige — não se classifica preço de imóvel.
+- **Sem saídas commitadas**, ao contrário dos outros. O portão também é outro:
+  `scripts/verificar_exercicios.py`, que injeta os gabaritos e roda.
+
+A tabela de candidatos abaixo continua valendo para as A4 a A10, agora com uma
+pergunta a mais por aula: quais funções o trainee escreve.
+
 ### O que falta
 
 - **Aulas 3 a 10.** A tabela de candidatos abaixo continua valendo como ponto de

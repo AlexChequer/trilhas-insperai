@@ -265,11 +265,12 @@ dois logos. Resolve com um arquivo e uma linha no layout.
 
 ## Próximos passos
 
-- **Notebooks:** a Aula 0 e as Aulas 1 e 2 de trainees já têm notebook, mais um
-  **laboratório de revisão das A1+A2** no fim da página da Aula 2, em
+- **Notebooks:** a Aula 0 e as Aulas 1, 2 e 3 de trainees já têm notebook, mais
+  um **laboratório de revisão das A1+A2** no fim da página da Aula 2, em
   [notebooks-insperai](https://github.com/AlexChequer/notebooks-insperai) — ver
-  [[Notebooks das Aulas]]. Faltam as Aulas 3 a 10, e o Alex precisa julgar o
-  formato antes de eu escalar.
+  [[Notebooks das Aulas]]. A A3 estreia o **formato de exercício** (o trainee
+  implementa, com testes no notebook) — o Alex precisa julgá-lo antes de eu
+  escalar. Faltam as Aulas 4 a 10.
 - **Trilha de Agentes:** falta o Alex julgar as 5 aulas, e faltam as Aulas 6
   (N8N) e 7 (prompt engineering) — bloqueadas por não haver material no
   repositório de origem.

@@ -15,6 +15,7 @@ import Pergunta from "@/components/Pergunta.astro";
 import Simbolos from "@/components/Simbolos.astro";
 import Quiz from "@/components/Quiz.astro";
 import QuizBloco from "@/components/QuizBloco.astro";
+import Pratica from "@/components/Pratica.astro";
 
 Até agora a resposta era um número: um preço, uma nota. Isso é **regressão**. Mas muitos problemas pedem outra coisa: o e-mail é spam ou não? a transação é fraude ou não? o tumor é benigno ou maligno? Aqui a resposta é uma **classe**, não um número — e a maneira de modelar e de medir acerto muda. Isso é **classificação**, o segundo grande tipo de problema supervisionado, e o assunto desta aula. Vamos ficar no caso binário: duas classes, que a gente chama de 0 e 1.
 
@@ -234,3 +235,8 @@ Qual priorizar depende do problema. Diagnóstico de câncer quer <Termo id="reca
 />
 
 </QuizBloco>
+
+<Pratica
+  caminho="trainees/aula-03-classificacao.ipynb"
+  resumo="O primeiro notebook em que você escreve o código: 8 funções para implementar — sigmoid, cross-entropy, gradiente, treino e as métricas — cada uma com um teste logo abaixo que diz na hora se está certo."
+/>
