@@ -1,0 +1,82 @@
+---
+n: "A3"
+titulo: "Feature Engineering Avançado"
+ordem: 3
+objetivo: "Criar variáveis que aumentam de forma significativa o poder preditivo dos modelos."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Uma crença comum e equivocada é que "deep learning aprende as features sozinho, então feature engineering não importa mais". Isso vale principalmente para dados não-estruturados — imagem, texto, áudio. Para dados tabulares, o tipo mais comum em empresas, modelos baseados em árvores (Random Forest, XGBoost — Aula 5) ainda costumam superar redes neurais, e a qualidade das features criadas manualmente frequentemente importa mais do que a escolha do algoritmo.
+
+## Encoding de variáveis categóricas
+
+- **One-Hot Encoding**: uma coluna binária (0/1) para cada categoria. Funciona bem para poucas categorias, mas gera muitas colunas e esparsidade quando há alta cardinalidade — milhares de CEPs diferentes.
+- **Target Encoding**: substitui cada categoria pela média da variável-alvo naquela categoria — para "cidade = São Paulo", a taxa média de conversão dos clientes de São Paulo. Poderoso, mas arriscado quanto a data leakage.
+- **Frequency Encoding**: substitui cada categoria pela sua frequência no dataset. Simples e útil quando a frequência em si carrega informação.
+- **Embeddings para categóricas de alta cardinalidade**: em vez de one-hot, uma camada de embedding (conceito da Aula 8) aprende uma representação vetorial densa para categorias com muitos valores possíveis — milhares de produtos de um e-commerce. Usado quando se combina dados tabulares com redes neurais.
+
+<Caixa tipo="erro">
+Target encoding calculado sobre o dataset inteiro é vazamento de target puro: a média da categoria já embute o alvo das linhas de teste. Ele precisa ser calculado **apenas com dados de treino**, geralmente com suavização — combinar com a média global quando há poucas observações da categoria, ou adicionar ruído — para não fazer overfitting em categorias raras.
+</Caixa>
+
+## Feature engineering para variáveis numéricas
+
+- **Binning (discretização)**: transformar uma variável contínua em faixas — idade em "jovem", "adulto", "idoso". Ajuda modelos lineares a capturar relações não-lineares simples e às vezes melhora a interpretabilidade.
+- **Features polinomiais**: elevar variáveis ao quadrado, ao cubo, etc., para capturar relações não-lineares.
+- **Interações entre features**: multiplicar (ou combinar) duas ou mais variáveis para capturar efeitos combinados que nenhuma delas captura sozinha — "renda × idade" pode ser mais informativo do que renda ou idade isoladamente.
+
+## Feature engineering para datas e séries temporais
+
+- **Extração de componentes de data**: dia da semana, mês, se é feriado, se é fim de semana — capturam sazonalidade que o modelo não inferiria de um timestamp bruto.
+- **Lags**: features com o valor da própria variável (ou de outra) em instantes anteriores — "vendas de 7 dias atrás". Essenciais para modelos tabulares de séries temporais, que não têm memória interna como uma RNN/LSTM.
+- **Rolling windows (janelas móveis)**: estatísticas sobre uma janela deslizante — média móvel dos últimos 7 dias, desvio-padrão dos últimos 30. Capturam tendência e volatilidade recentes.
+
+## Feature scaling: quando é necessário
+
+Modelos baseados em **distância** (KNN, SVM) ou que usam **gradiente descendente com regularização** (regressão linear/logística, redes neurais) geralmente precisam que as variáveis estejam em escalas parecidas — senão as de escala maior dominam o cálculo de forma artificial.
+
+Modelos baseados em **árvores** (Random Forest, XGBoost, LightGBM) **não precisam de scaling**: árvores decidem por limiares ("idade maior que 30?"), e o limiar não é afetado pela escala absoluta da variável.
+
+## Feature stores
+
+Um **Feature Store** é uma infraestrutura, usada em empresas maduras em ML, que centraliza a criação, o armazenamento e o versionamento de features, para que times e modelos diferentes reutilizem as mesmas features já calculadas. Garante consistência entre treino e produção, evitando o *training-serving skew* — quando a feature é calculada de um jeito no treino e de outro, sutilmente diferente, em produção, degradando a performance.
+
+## Aplicação no mercado
+
+Em competições de dados e em empresas, feature engineering bem feito frequentemente traz mais ganho de performance do que trocar de algoritmo. É uma das habilidades mais valorizadas em vagas de Data Scientist, porque exige entendimento de negócio combinado com técnica.
+
+<p class="nota">
+  Feita a engenharia, o problema vira o oposto: features demais. A Aula 4 é sobre
+  selecionar e reduzir dimensionalidade sem perder poder preditivo.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "One-Hot, Label, Target and K-Fold Target Encoding, Clearly Explained!!!",
+      tag: "Técnico",
+      fonte: "StatQuest with Josh Starmer",
+      nota: "inclui o cuidado com data leakage no target encoding",
+    },
+    {
+      titulo: "Feature Engineering Part 1 e 2 — Advance House Price Prediction",
+      tag: "Intuitivo",
+      fonte: "Krish Naik",
+    },
+    {
+      titulo: "Feature Engineering for Time Series — lag features, rolling window",
+      tag: "Técnico",
+      nota: "aulas específicas em canais como freeCodeCamp e Kaggle Learn",
+    },
+    {
+      titulo: "Feature Scaling — Normalization vs Standardization, Clearly Explained",
+      tag: "Intuitivo",
+      nota: "quando escalar, e quando não precisa (árvores)",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Target encoding sem vazamento, features de lag e rolling window sobre uma série real — em construção." />

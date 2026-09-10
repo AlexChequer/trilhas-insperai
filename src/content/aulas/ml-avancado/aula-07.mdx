@@ -1,0 +1,144 @@
+---
+n: "A7"
+titulo: "LSTM e GRU"
+ordem: 7
+objetivo: "Entender os mecanismos de portas (gates) que permitem redes recorrentes reterem informação por muito mais tempo."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Na Aula 6, a RNN simples sofre do *vanishing/exploding gradient*, o que a impede de lembrar informação por muitos passos de tempo. A **LSTM (*Long Short-Term Memory*)** e a **GRU (*Gated Recurrent Unit*)** foram criadas para resolver exatamente isso, com mecanismos de **portas (*gates*)** que controlam explicitamente o que a rede deve lembrar, esquecer e passar adiante.
+
+## A ideia central: a esteira de memória
+
+Pense na LSTM como uma **esteira rolante** — o *cell state*, ou "estado da célula" — que atravessa toda a sequência. Em cada estação (cada instante de tempo), há "trabalhadores" (as portas) que decidem: o que remover da esteira (esquecer), o que adicionar (o que é novo e relevante) e o que "olhar" da esteira para produzir a saída daquele instante.
+
+A sacada é que essa esteira tem um caminho relativamente "direto" ao longo do tempo, com poucas transformações não-lineares — o que permite ao gradiente fluir por muitos passos sem desaparecer, resolvendo o problema da Aula 6.
+
+## As portas da LSTM, uma por uma
+
+A LSTM tem duas memórias internas em cada instante: o *cell state* (`C_t`, a esteira de longo prazo) e o *hidden state* (`h_t`, mais de curto prazo e saída). São quatro etapas por passo de tempo.
+
+**Forget gate** — decide o que remover da memória de longo prazo:
+
+$$
+f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)
+$$
+
+A `sigmoid` produz valores entre 0 e 1: uma "torneira" onde 0 é "esqueça completamente" e 1 é "mantenha completamente".
+
+**Input gate** — decide o que adicionar de novo:
+
+$$
+i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)
+\qquad
+\tilde{C}_t = \tanh(W_C \cdot [h_{t-1}, x_t] + b_C)
+$$
+
+`i_t` decide **quanto** da nova informação entra; `C̃_t` é a **nova informação candidata** em si, entre −1 e 1.
+
+**Atualização do cell state** — combina o que foi esquecido com o que foi adicionado:
+
+$$
+C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t
+$$
+
+Literalmente: pegue a memória antiga, apague uma parte dela (multiplicando por `f_t`) e some a nova informação relevante (o candidato multiplicado por `i_t`). Repare que é só multiplicação e soma, sem passar repetidamente por uma não-linearidade complexa — o que ajuda o gradiente a fluir por longas sequências.
+
+**Output gate** — decide o que da memória vira a saída (*hidden state*) do instante:
+
+$$
+o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o)
+\qquad
+h_t = o_t \odot \tanh(C_t)
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$\\sigma$", significado: "a função sigmoid: comprime qualquer número para o intervalo entre 0 e 1" },
+    { simbolo: "$[h_{t-1}, x_t]$", significado: "a concatenação do estado oculto anterior com a entrada atual" },
+    { simbolo: "$f_t, i_t, o_t$", significado: "as portas de esquecimento, entrada e saída — vetores entre 0 e 1, uma comporta por dimensão da memória" },
+    { simbolo: "$\\tilde{C}_t$", significado: "a informação candidata a entrar na memória de longo prazo" },
+    { simbolo: "$C_t$", significado: "o cell state: a memória de longo prazo, a “esteira”" },
+    { simbolo: "$h_t$", significado: "o hidden state: a saída do instante, uma versão filtrada do cell state" },
+    { simbolo: "$\\odot$", significado: "multiplicação elemento a elemento entre dois vetores" },
+  ]}
+/>
+
+Resumindo a intuição: o *forget gate* pergunta "o que da memória antiga eu não preciso mais?"; o *input gate*, "o que de novo é importante guardar?"; o candidato, "qual é essa informação nova, especificamente?"; o *output gate*, "o que da memória atual eu exponho agora como resultado?".
+
+## GRU: a versão simplificada
+
+A GRU combina algumas portas: tem apenas **duas** portas em vez de quatro, e um **único** estado (não separa *cell state* e *hidden state*).
+
+$$
+z_t = \sigma(W_z \cdot [h_{t-1}, x_t])
+\qquad
+r_t = \sigma(W_r \cdot [h_{t-1}, x_t])
+$$
+
+$$
+\tilde{h}_t = \tanh(W \cdot [r_t \odot h_{t-1}, x_t])
+$$
+
+$$
+h_t = (1 - z_t) \odot h_{t-1} + z_t \odot \tilde{h}_t
+$$
+
+- **Update gate (`z_t`)**: decide quanto do estado anterior é mantido contra substituído pelo novo candidato — faz o papel combinado do *forget* + *input gate* da LSTM.
+- **Reset gate (`r_t`)**: decide quanto do estado anterior é "esquecido" ao calcular o novo candidato.
+
+## LSTM vs. GRU: quando usar
+
+A GRU tem 2 portas contra 4 da LSTM, cerca de 25–30% menos parâmetros, treino mais rápido e capacidade "boa, mas um pouco menos expressiva" em sequências muito longas. A LSTM tem mais parâmetros, treino mais lento e controle ligeiramente melhor em sequências muito longas.
+
+Na prática: LSTM para datasets grandes, sequências muito longas e quando performance é prioridade máxima; GRU para datasets menores e quando velocidade ou recursos computacionais são limitados. A diferença de performance costuma ser pequena — muitas equipes testam as duas e escolhem empiricamente.
+
+## O que ainda falta resolver
+
+Mesmo com LSTM/GRU resolvendo boa parte da memória de longo prazo, um problema estrutural permanece: **o processamento é sequencial**. Para calcular `h_t` é preciso ter calculado `h_{t-1}` antes. Isso impede a paralelização total durante o treino e vira um gargalo de velocidade em sequências muito longas ou datasets muito grandes. É exatamente o problema que os Transformers (Aula 9) resolvem.
+
+## Aplicação no mercado
+
+LSTM/GRU foram — e em alguns casos ainda são — usados em tradução automática, reconhecimento de fala, chatbots, previsão de séries temporais financeiras e manutenção preditiva industrial. Muitas empresas ainda preferem LSTM a Transformers para séries temporais tabulares, por serem computacionalmente mais leves e não exigirem tanto dado para treinar bem.
+
+<p class="nota">
+  As portas seguraram a memória; a recorrência sequencial continua no caminho. A
+  Aula 8 traz os embeddings como matéria-prima de entrada e o mecanismo de
+  atenção, que abre a porta para largar a recorrência de vez.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "Long Short-Term Memory (LSTM), Clearly Explained",
+      url: "https://youtu.be/YCzL96nL7j0",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+    },
+    {
+      titulo: "Illustrated Guide to LSTM's and GRU's: A step by step explanation",
+      url: "https://youtu.be/8HyCNIVRbSU",
+      tag: "Intuitivo",
+      fonte: "Michael Phi",
+      nota: "usa a analogia da esteira rolante",
+    },
+    {
+      titulo: "Understanding Gated Recurrent Unit (GRU) Deep Neural Network",
+      url: "https://youtu.be/pYRIOGTPRPU",
+      tag: "Técnico",
+      fonte: "DeepLearning.AI · Andrew Ng",
+    },
+    {
+      titulo: "Simple Explanation of GRU (Gated Recurrent Units) | Deep Learning Tutorial 37",
+      url: "https://youtu.be/tOuXgORsXJ4",
+      tag: "Técnico",
+      fonte: "codebasics",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Treinar LSTM e GRU na mesma série longa e comparar retenção de memória, parâmetros e tempo de treino — em construção." />

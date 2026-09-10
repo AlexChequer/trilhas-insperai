@@ -1,0 +1,142 @@
+---
+n: "A10"
+titulo: "Fine-tuning Avançado e LoRA/PEFT"
+ordem: 10
+objetivo: "Adaptar modelos gigantes (LLMs) a tarefas específicas sem re-treinar bilhões de parâmetros — o padrão da indústria hoje."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+LLMs modernos têm de bilhões a centenas de bilhões de parâmetros. Para adaptar um deles a uma tarefa específica — um chatbot jurídico, um assistente médico, um modelo que entende o jeito de falar de uma empresa —, a abordagem óbvia seria o **full fine-tuning**: continuar treinando todos os parâmetros com os novos dados. Na maioria das empresas, isso é inviável.
+
+## Por que full fine-tuning é inviável
+
+- **Memória**: treinar um modelo de bilhões de parâmetros exige guardar na GPU não só os pesos, mas os gradientes e os estados do otimizador (o Adam guarda duas cópias extras por parâmetro) — facilmente 4–6× o tamanho do modelo em memória. Isso exige GPUs caríssimas, geralmente múltiplas, em cluster.
+- **Tempo e custo**: treinar todos os parâmetros, mesmo com poucos dados novos, é lento e caro em GPU-horas.
+- **Armazenamento**: várias versões especializadas (uma por cliente) significam guardar uma cópia inteira do modelo gigante para cada uma — proibitivo.
+
+Isso motivou o **PEFT (*Parameter-Efficient Fine-Tuning*)**: só uma pequena fração dos parâmetros é treinada, com o resto do modelo congelado.
+
+## Panorama de técnicas PEFT
+
+- **Adapters**: inserir pequenas camadas extras entre as camadas existentes, treinando só elas.
+- **Prefix Tuning**: adicionar um conjunto de vetores treináveis prependados à entrada de cada camada de atenção, como um "contexto extra aprendido".
+- **Prompt Tuning**: parecido, mas mais simples — aprende apenas um conjunto de "tokens virtuais" adicionados no início do input, sem alterar a arquitetura interna.
+
+Essas funcionam, mas o **LoRA** virou o padrão de mercado pelo equilíbrio entre simplicidade, eficiência e qualidade.
+
+## LoRA: a ideia central
+
+A hipótese fundamental: quando se faz fine-tuning de um modelo grande, a **atualização** necessária nos pesos — a diferença entre o peso original e o peso depois do ajuste — tende a ter **rank (posto) baixo**. Embora a matriz de pesos original seja gigante, a mudança para adaptar o modelo a uma nova tarefa pode ser descrita com muito menos informação.
+
+O **rank** de uma matriz mede quantas "direções independentes de informação" ela contém. Uma matriz de rank baixo pode ser fatorada em duas matrizes bem menores cujo produto a reconstrói (ou aproxima bem).
+
+## A matemática do LoRA, passo a passo
+
+Considere uma matriz de pesos do modelo pré-treinado, `W`, de dimensão `d × d` (pode ser grande, ex.: 4096 × 4096). No full fine-tuning aprenderíamos uma atualização `ΔW` da mesma dimensão:
+
+$$
+W_{\text{novo}} = W + \Delta W
+$$
+
+Isso significa que `ΔW` sozinha teria o mesmo número gigante de parâmetros que `W`. A proposta do LoRA: em vez de aprender `ΔW` diretamente, decompô-la no produto de duas matrizes menores:
+
+$$
+\Delta W = B A
+$$
+
+Onde `A` tem dimensão `r × d`, `B` tem dimensão `d × r`, e `r` (o rank) é bem menor que `d` — `d` pode ser 4096 e `r` pode ser 8, 16 ou 32.
+
+<Simbolos
+  itens={[
+    { simbolo: "$W$", significado: "a matriz de pesos original do modelo pré-treinado — fica congelada durante o LoRA" },
+    { simbolo: "$\\Delta W$", significado: "a atualização de fine-tuning; a hipótese é que ela tem rank baixo" },
+    { simbolo: "$A$", significado: "matriz $r \\times d$, treinável" },
+    { simbolo: "$B$", significado: "matriz $d \\times r$, treinável" },
+    { simbolo: "$r$", significado: "o rank da adaptação: bem menor que d, tipicamente 8 a 32" },
+  ]}
+/>
+
+Com `d = 4096`, uma `ΔW` completa teria cerca de 16,7 milhões de parâmetros. Com LoRA e `r = 8`: `A` (8 × 4096) + `B` (4096 × 8) = 65.536 parâmetros — uma redução de mais de 99,6% nos parâmetros treináveis dessa matriz, e a economia se repete em cada matriz onde o LoRA é aplicado.
+
+Durante o treinamento: `W` fica congelada (os pesos pré-treinados permanecem intactos); só `A` e `B` são treinadas; e a saída da camada passa a ser:
+
+$$
+\text{saída} = W x + B A x
+$$
+
+Ou seja, a saída original do modelo (`Wx`) é somada a uma "correção" aprendida (`BAx`), a adaptação de baixo rank. Como `W` nunca muda, depois do treino dá para somar `BA` a `W` e ter um único modelo combinado — ou manter os "adaptadores" LoRA (`A` e `B`) separados e trocar entre diferentes tarefas/clientes sem duplicar o modelo gigante, guardando só os arquivos pequenos de `A` e `B`.
+
+## Onde aplicar LoRA no Transformer
+
+O Transformer tem várias matrizes de peso (`W_Q`, `W_K`, `W_V`, `W_O` na atenção, além das feed-forward). Na prática, aplicar LoRA **apenas nas matrizes de Query e Value (`W_Q` e `W_V`)** já costuma trazer a maior parte do benefício, com custo ainda menor — embora seja possível, e às vezes recomendado, aplicar em mais matrizes para ganhar performance, ao custo de mais parâmetros treináveis.
+
+## Hiperparâmetros do LoRA
+
+- **Rank (`r`)**: controla a "capacidade" da adaptação. Maior `r`, mais expressiva (e mais cara). Valores comuns: 4, 8, 16, 32, 64. Na maioria dos casos, 8–32 já funciona surpreendentemente bem.
+- **Alpha**: fator de escala da contribuição de `BA` na saída (geralmente a saída da adaptação é multiplicada por `alpha/r`). É comum manter uma proporção — por exemplo, `alpha = 2 × r` —, ajustável experimentalmente.
+- **Quais camadas aplicar**: só atenção, ou atenção + feed-forward, conforme o orçamento e a tarefa.
+
+## QLoRA: LoRA + quantização
+
+O **QLoRA** combina LoRA com **quantização** — representar os pesos com menos bits (ex.: 4 bits em vez de 16 ou 32). Guardar cada peso como um número "arredondado" de 4 bits reduz drasticamente o uso de memória (até 8× menos comparado a float32), com perda de qualidade surpreendentemente pequena, especialmente com técnicas cuidadosas como a NF4.
+
+Combinando: carrega-se o modelo base gigante já quantizado (ocupando muito menos memória de GPU), enquanto os pequenos adaptadores LoRA continuam sendo treinados em precisão normal por cima. Foi o que permitiu, pela primeira vez, fazer fine-tuning de modelos de dezenas de bilhões de parâmetros em **uma única GPU de consumidor** — um marco que democratizou o fine-tuning de LLMs.
+
+## Comparando as abordagens
+
+- **Full fine-tuning**: custo muito alto, qualidade máxima teoricamente. Para quando há orçamento alto e uma tarefa muito diferente do que o modelo já sabe.
+- **LoRA**: custo baixo, qualidade muito próxima do full fine-tuning na maioria dos casos. O padrão de mercado atual.
+- **QLoRA**: custo muito baixo (cabe em GPU única), qualidade levemente abaixo do LoRA puro, mas ainda muito boa. Para hardware bem limitado.
+- **Apenas prompt engineering** (sem fine-tuning): não treina nada; qualidade variável conforme a tarefa. É a primeira coisa a tentar.
+
+## Ferramentas do mercado
+
+- `peft` (Hugging Face): implementação pronta de LoRA e outras técnicas PEFT, integrada ao ecossistema Hugging Face.
+- `bitsandbytes`: implementa a quantização usada no QLoRA.
+- `axolotl`: simplifica todo o pipeline de fine-tuning (incluindo LoRA/QLoRA) com arquivos de configuração.
+
+## Aplicação no mercado
+
+É um dos temas mais requisitados em vagas de ML/AI Engineer. Empresas de todos os tamanhos usam LoRA para customizar LLMs open-source (LLaMA, Mistral) para domínios específicos — jurídico, saúde, atendimento, código interno — sem o orçamento de treinar do zero ou fazer fine-tuning completo. Há um mercado crescente de startups de "fine-tuning as a service". Explicar a matemática da decomposição de baixo rank é pergunta frequente de entrevista técnica.
+
+<p class="nota">
+  Fecha o Bloco 2 e a parte definida da trilha: da regressão tabular ao ajuste
+  fino de um LLM em uma GPU só. A Aula 11 encerra o arco — o tema ainda está
+  sendo definido.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "LoRA (Low-rank Adaption of AI Large Language Models) for fine-tuning LLM models",
+      url: "https://youtu.be/lixMONUAjfs",
+      tag: "Intuitivo",
+      fonte: "IBM Technology",
+      nota: "usa analogia de Lego — bom ponto de partida",
+    },
+    {
+      titulo: "Low-Rank Adaptation (LoRA) Explained",
+      url: "https://youtu.be/CNmsM6JGJz0",
+      tag: "Técnico",
+      fonte: "AI Coffee Break with Letitia",
+    },
+    {
+      titulo: "Part 2 — LoRA, QLoRA Indepth Mathematical Intuition — Finetuning LLM Models",
+      url: "https://youtu.be/l5a_uKnbEr4",
+      tag: "Técnico",
+      fonte: "Krish Naik",
+      nota: "a matemática da decomposição de baixo rank",
+    },
+    {
+      titulo: "QLoRA paper explained (Efficient Finetuning of Quantized LLMs)",
+      url: "https://youtu.be/6l8GZDPbFn8",
+      tag: "Técnico",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Fazer LoRA e QLoRA sobre um LLM open-source pequeno e comparar parâmetros treináveis, memória e qualidade — em construção." />

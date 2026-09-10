@@ -1,0 +1,115 @@
+---
+n: "A1"
+titulo: "Análise Exploratória de Dados (EDA) Avançada"
+ordem: 1
+objetivo: "Ir além do .describe() e dos histogramas básicos — extrair da exploração os insights que orientam as decisões de modelagem."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Toda pipeline séria de ciência de dados começa aqui. EDA malfeita é uma das causas mais comuns de modelos que "funcionam no notebook, mas falham em produção" — porque problemas nos dados que passariam despercebidos numa exploração superficial acabam corrompendo o modelo de formas sutis. Esta aula é sobre o que olhar, e o que cada coisa que se olha decide mais adiante.
+
+## O objetivo real da EDA
+
+EDA (*Exploratory Data Analysis*) não é só "rodar `.describe()` e fazer uns gráficos". É o processo sistemático de entender profundamente os dados **antes** de modelar, com objetivos claros:
+
+- entender a distribuição de cada variável;
+- detectar problemas — outliers, dados faltantes, inconsistências;
+- entender as relações entre variáveis;
+- formular hipóteses que vão orientar as decisões de feature engineering e a escolha de modelo.
+
+## Análise univariada: assimetria, curtose e transformações
+
+**Assimetria (*skewness*)** mede o quão "torta" é a distribuição de uma variável em relação a uma distribuição simétrica como a normal. Assimetria positiva é uma cauda longa à direita — muitos valores baixos, poucos muito altos (renda é o exemplo clássico: a maioria ganha pouco, poucos ganham muitíssimo). Assimetria negativa é o oposto. Importa porque muitos modelos, principalmente os lineares, performam melhor quando as variáveis se aproximam da normal; variáveis muito enviesadas podem prejudicar o ajuste.
+
+**Curtose (*kurtosis*)** mede o quão "pesadas" são as caudas — quantos valores extremos além do esperado existem, comparado a uma normal. Curtose alta indica mais outliers do que uma normal teria.
+
+**Testes de normalidade** (Shapiro-Wilk, Kolmogorov-Smirnov) avaliam formalmente se uma variável se aproxima de uma distribuição normal — útil para decidir se uma transformação é necessária.
+
+**Transformações de variáveis** corrigem enviesamento forte:
+
+- **Log**: reduz a influência de valores muito grandes, "compactando" a escala — muito usado em preço, renda e contagens.
+- **Box-Cox**: uma família mais geral de transformações (o log é um caso particular dela) que encontra automaticamente a que melhor aproxima a variável de uma normal.
+
+## Análise bivariada e multivariada
+
+Há três medidas de correlação, e cada uma serve para uma coisa:
+
+- **Pearson**: relação **linear** entre duas variáveis numéricas (−1 a +1). Assume que a relação, se existir, é uma linha reta. Sensível a outliers.
+- **Spearman**: relação **monotônica** (quando uma sobe, a outra sobe ou desce de forma consistente, não necessariamente reta). Calculada sobre os *ranks* — as posições ordenadas — e não sobre os valores brutos. Mais robusta a outliers e a relações não-lineares porém monotônicas.
+- **Kendall**: também baseada em *ranks*, mede a proporção de pares "concordantes" contra "discordantes". Costuma ser mais robusta que Spearman em amostras pequenas ou com muitos empates, mas é mais cara de calcular.
+
+**Pairplots** mostram, numa grade, o *scatter plot* entre cada par de variáveis numéricas e a distribuição individual na diagonal — uma visão geral rápida de padrões e relações.
+
+<Caixa tipo="erro">
+Correlação não implica causalidade. Duas variáveis podem estar correlacionadas por coincidência, por uma terceira variável que influencia ambas (variável confundidora), ou por uma relação temporal que não é causal. Achar uma correlação alta é o começo de uma investigação, não a conclusão dela.
+</Caixa>
+
+## Detecção de outliers
+
+- **Z-score**: quantos desvios-padrão um valor está da média. Um limiar comum é marcar como outlier tudo com `|Z| > 3`. Assume distribuição aproximadamente normal.
+- **IQR (intervalo interquartil)**: a diferença entre o 3º quartil (Q3) e o 1º (Q1). Valores abaixo de `Q1 − 1.5×IQR` ou acima de `Q3 + 1.5×IQR` são considerados outliers. Não assume normalidade e costuma ser mais robusto que o Z-score.
+- **Isolation Forest**: um algoritmo baseado em árvores que "isola" observações. A intuição: outliers são mais fáceis de isolar — precisam de menos divisões da árvore para ficarem sozinhos — do que observações normais, que vivem em regiões densas. Funciona bem para detecção **multivariada** (várias variáveis ao mesmo tempo), diferente do Z-score e do IQR, que costumam ser aplicados variável por variável.
+
+O impacto de um outlier depende do modelo: os lineares e os baseados em distância (como o KNN) são muito sensíveis a eles; os baseados em árvores (Random Forest, XGBoost) são naturalmente mais robustos.
+
+## Dados faltantes: MCAR, MAR e MNAR
+
+Existem três tipos de *missingness*, e a distinção orienta a estratégia de tratamento:
+
+- **MCAR (*Missing Completely At Random*)**: a ausência não tem relação com nenhuma variável, observada ou não — é aleatória de fato. Um sensor que falha por um problema elétrico não relacionado a nada.
+- **MAR (*Missing At Random*)**: a ausência está relacionada a **outras variáveis observadas**, mas não ao próprio valor ausente. Homens tendem a não responder uma pergunta sobre peso mais do que mulheres — a ausência depende do gênero, que temos, não do peso em si.
+- **MNAR (*Missing Not At Random*)**: a ausência está relacionada ao **próprio valor que falta**. Pessoas com renda muito alta tendem a não informar a renda. É o caso mais difícil: imputar a média introduz viés sistemático.
+
+Saber diferenciar esses casos ajuda a escolher entre estratégias simples (imputar média ou mediana) e estratégias mais sofisticadas — modelar a própria ausência como informação, criando uma variável indicadora "esse valor era faltante?".
+
+## Ferramentas que automatizam parte da EDA
+
+`ydata-profiling` (antigo `pandas-profiling`) e `sweetviz` geram automaticamente um relatório completo — distribuições, correlações, valores faltantes, alertas de possíveis problemas — a partir de um DataFrame, com poucas linhas de código. São um ótimo ponto de partida, mas não substituem a análise crítica orientada ao problema de negócio específico.
+
+## Aplicação no mercado
+
+Toda pipeline séria de ciência de dados começa com uma EDA sólida — é o que orienta feature engineering, escolha de modelo e a identificação de problemas de qualidade de dados antes que cheguem em produção e causem prejuízo.
+
+<Caixa tipo="dica" titulo="Atividade sugerida">
+EDA completa em um dataset real (por exemplo, um do Kaggle), identificando pelo menos 3 insights acionáveis para a modelagem.
+</Caixa>
+
+<p class="nota">
+  A EDA decide o que vem depois: quais variáveis transformar, quais outliers
+  tratar, como imputar o que falta. As próximas aulas usam essas decisões — a
+  Aula 2 mostra por que a validação tem que vir antes de qualquer transformação.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "Exploratory Data Analysis Tutorial | Basics of EDA with Python",
+      url: "https://youtu.be/05w2322DHUI",
+      tag: "Técnico",
+      fonte: "Great Learning",
+    },
+    {
+      titulo: "How I Do My EDA - Exploratory Data Analysis Tools & Tips",
+      tag: "Intuitivo",
+      fonte: "Data Devotional",
+      nota: "visão prática de um fluxo de trabalho real",
+    },
+    {
+      titulo: "Advance House Price Prediction — Exploratory Data Analysis (Parte 1 e 2)",
+      tag: "Técnico",
+      fonte: "Krish Naik",
+      nota: "skewness, outliers e correlação na prática com Python",
+    },
+    {
+      titulo: "Boxplots are Awesome!!!",
+      tag: "Intuitivo",
+      fonte: "StatQuest",
+      nota: "detecção de outliers via IQR, visualmente",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Uma EDA completa sobre um dataset real, com skewness, outliers e dados faltantes — em construção." />

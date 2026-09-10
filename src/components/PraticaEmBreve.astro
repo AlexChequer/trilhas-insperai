@@ -1,0 +1,65 @@
+---
+// O bloco de prática de uma aula cujo notebook ainda não existe.
+//
+// É o par de Pratica.astro: mesma posição (fecha a leitura), mesma leitura de
+// "acabou, agora vá fazer" — mas sem link, porque o repositório de notebooks
+// ainda não tem o arquivo desta aula. Quando o notebook existir, troque este
+// componente por <Pratica caminho="…" resumo="…" />.
+//
+// Estilo local pelo mesmo motivo de Videos.astro: a trilha de ML/DL Avançado
+// entrou só somando arquivos, sem editar global.css.
+interface Props {
+  /** Uma linha sobre o que o notebook vai cobrir — opcional. */
+  resumo?: string;
+}
+const { resumo } = Astro.props;
+---
+
+<aside class="pratica-breve">
+  <p class="pratica-breve-titulo">Agora rode</p>
+  <p class="pratica-breve-resumo">
+    {resumo ?? "O notebook desta aula ainda está em construção."}
+  </p>
+  <p class="pratica-breve-selo">Em breve</p>
+</aside>
+
+<style>
+  .pratica-breve {
+    background: var(--insper-gradiente);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra-forte);
+    padding: 22px 24px;
+    color: #fff;
+    margin: 40px 0 0;
+  }
+
+  .pratica-breve-titulo {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .pratica-breve-resumo {
+    margin: 8px 0 0;
+    font-size: 1.06rem;
+    line-height: 1.6;
+    color: #fff;
+  }
+
+  .pratica-breve-selo {
+    display: inline-block;
+    margin: 18px 0 0;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+</style>

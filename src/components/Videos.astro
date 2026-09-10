@@ -1,0 +1,182 @@
+---
+// Lista de vídeos de apoio de uma aula — título, link, canal e a marcação
+// [Intuitivo] / [Técnico] que vem do material do coordenador.
+//
+// O estilo mora aqui (e não em global.css) de propósito: este componente entrou
+// junto com a trilha de ML/DL Avançado e a regra da tarefa era só ADICIONAR, sem
+// tocar em arquivo existente. Usa as variáveis de design do :root, então segue o
+// mesmo sistema visual do resto do site.
+export interface ItemVideo {
+  /** O título do vídeo, como aparece no YouTube. */
+  titulo: string;
+  /** O link direto. Sem ele, o item vira "buscar no YouTube por este título". */
+  url?: string;
+  /** "Intuitivo" (pega a ideia) ou "Técnico" (entra na matemática). */
+  tag: "Intuitivo" | "Técnico";
+  /** Canal ou autor — StatQuest, 3Blue1Brown, MIT 6.S191… */
+  fonte?: string;
+  /** Uma linha de contexto: por que este vídeo, o que ele cobre. */
+  nota?: string;
+}
+
+interface Props {
+  itens?: ItemVideo[];
+  titulo?: string;
+  /** Texto mostrado quando a lista está vazia (aula ainda sem material). */
+  vazio?: string;
+}
+
+const { itens = [], titulo = "Vídeos de apoio", vazio } = Astro.props;
+const classeTag = (tag: ItemVideo["tag"]) =>
+  tag === "Intuitivo" ? "videos-tag-intuitivo" : "videos-tag-tecnico";
+---
+
+<aside class="videos">
+  <p class="videos-titulo">{titulo}</p>
+
+  {itens.length === 0 && <p class="videos-vazio">{vazio ?? "Material de apoio a definir."}</p>}
+
+  {
+    itens.length > 0 && (
+      <ul class="videos-lista">
+        {itens.map((v) => (
+          <li class="videos-item">
+            <span class={`videos-tag ${classeTag(v.tag)}`}>{v.tag}</span>
+            <span class="videos-corpo">
+              {v.url ? (
+                <a class="videos-link" href={v.url} target="_blank" rel="noopener">
+                  {v.titulo}
+                </a>
+              ) : (
+                <span class="videos-semlink">
+                  {v.titulo}
+                  <span class="videos-buscar">buscar no YouTube</span>
+                </span>
+              )}
+              {(v.fonte || v.nota) && (
+                <span class="videos-meta">
+                  {v.fonte && <span class="videos-fonte">{v.fonte}</span>}
+                  {v.fonte && v.nota && <span class="videos-sep"> · </span>}
+                  {v.nota && <span class="videos-nota">{v.nota}</span>}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</aside>
+
+<style>
+  .videos {
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    background: var(--superficie);
+    box-shadow: var(--sombra);
+    padding: 20px 22px;
+    margin: 40px 0;
+  }
+
+  .videos-titulo {
+    margin: 0 0 4px;
+    font-family: var(--fonte-titulo);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--insper-azul-aco);
+  }
+
+  .videos-vazio {
+    margin: 8px 0 0;
+    color: var(--texto-suave);
+    font-size: 1rem;
+  }
+
+  .videos-lista {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .videos-item {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+
+  .videos-tag {
+    flex: none;
+    min-width: 74px;
+    text-align: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .videos-tag-intuitivo {
+    background: rgba(22, 163, 74, 0.12);
+    color: var(--verde);
+  }
+
+  .videos-tag-tecnico {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--insper-azul);
+  }
+
+  .videos-corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .videos-link {
+    color: var(--insper-azul);
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1.5;
+  }
+
+  .videos-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .videos-link:focus-visible {
+    outline: 3px solid var(--insper-azul);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  .videos-semlink {
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--texto);
+  }
+
+  .videos-buscar {
+    margin-left: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texto-suave);
+  }
+
+  .videos-meta {
+    font-size: 0.9rem;
+    color: var(--texto-suave);
+    line-height: 1.5;
+  }
+
+  .videos-fonte {
+    font-weight: 600;
+  }
+</style>

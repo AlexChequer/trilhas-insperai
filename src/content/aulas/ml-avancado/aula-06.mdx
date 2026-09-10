@@ -1,0 +1,134 @@
+---
+n: "A6"
+titulo: "Redes Neurais Recorrentes (RNN)"
+ordem: 6
+objetivo: "Entender por que redes feedforward não funcionam bem para sequências, e como a RNN introduz memória para resolver isso."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Uma rede feedforward comum recebe um vetor de tamanho fixo e produz uma saída, sem memória: cada entrada é processada de forma independente. Isso é ótimo para classificar uma imagem — um gato é um gato, independente da imagem anterior —, mas péssimo para dados sequenciais, onde a ordem importa e o significado de um elemento depende do que veio antes.
+
+- Uma frase: "o banco estava cheio" (assento) contra "fui ao banco sacar dinheiro" (instituição). A palavra sozinha não diz nada; o contexto, na ordem certa, define o significado.
+- Uma série temporal: o preço de uma ação hoje depende dos preços dos dias anteriores.
+- Áudio: um fonema só faz sentido dentro da sequência de sons ao redor.
+
+A **RNN (*Recurrent Neural Network*)** resolve isso adicionando um **estado oculto (*hidden state*)** que funciona como uma memória, atualizada a cada novo elemento da sequência e carregada para o próximo passo.
+
+## A arquitetura da RNN, passo a passo
+
+Pense na RNN como uma "caixinha" (célula) que processa a sequência um elemento por vez, mantendo uma memória interna. Ao processar "eu gosto de gatos", palavra por palavra: no instante `t = 1` a rede recebe o vetor de "eu" e um estado oculto anterior `h_0` (normalmente zeros), e produz `h_1`, que resume o que ela entendeu até ali. No instante `t = 2` recebe "gosto" junto com `h_1`, e produz `h_2`. E assim por diante.
+
+A fórmula que descreve isso — o "coração" da RNN — é:
+
+$$
+h_t = \tanh(W_{xh}\, x_t + W_{hh}\, h_{t-1} + b_h)
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$x_t$", significado: "o vetor de entrada no instante t — por exemplo, o vetor que representa a palavra atual" },
+    { simbolo: "$h_{t-1}$", significado: "o estado oculto do passo anterior: a memória acumulada" },
+    { simbolo: "$W_{xh}$", significado: "matriz de pesos que transforma a entrada atual" },
+    { simbolo: "$W_{hh}$", significado: "matriz de pesos que transforma a memória anterior" },
+    { simbolo: "$b_h$", significado: "o viés: um vetor somado para dar mais flexibilidade ao modelo" },
+    { simbolo: "$\\tanh$", significado: "função de ativação (comprime entre −1 e 1) que introduz não-linearidade — sem ela a rede só aprenderia relações lineares" },
+    { simbolo: "$h_t$", significado: "o novo estado oculto: a combinação da entrada atual com a memória anterior" },
+  ]}
+/>
+
+O ponto crucial: `W_xh`, `W_hh` e `b_h` são **os mesmos em todos os instantes** — os pesos são compartilhados. A "mesma célula" é reutilizada a cada passo, e é isso que permite processar sequências de qualquer tamanho com um número fixo de parâmetros.
+
+Se quisermos uma saída num instante — prever a próxima palavra, por exemplo —, aplicamos mais uma transformação sobre o estado oculto:
+
+$$
+y_t = \mathrm{softmax}(W_{hy}\, h_t + b_y)
+$$
+
+## Desenrolando a RNN no tempo
+
+Uma forma útil de visualizar: em vez de um loop, imagine a mesma célula copiada lado a lado, uma para cada instante, conectadas pelo estado oculto.
+
+```text
+x_1 → [RNN] → h_1 → [RNN] → h_2 → [RNN] → h_3 → ...
+        ↑             ↑             ↑
+       x_1           x_2           x_3
+```
+
+Cada `[RNN]` é a mesma célula, com os mesmos pesos — só desenhada várias vezes.
+
+## Backpropagation Through Time (BPTT)
+
+Para treinar qualquer rede usamos backpropagation: calcula-se o erro e propaga-se o gradiente de volta para ajustar os pesos. Na RNN, como a rede é "desenrolada" no tempo, o backpropagation também precisa andar para trás no tempo — daí o nome.
+
+Se a rede errou a previsão em `t = 5`, o erro pode ter sido causado por decisões tomadas em `t = 4`, `t = 3`, ..., `t = 1`. O BPTT calcula o gradiente do erro em relação a cada passo anterior, usando a regra da cadeia. Na prática, isso significa **multiplicar muitas derivadas em sequência** — e é aí que mora o problema.
+
+## O gradiente que some ou explode
+
+Como o BPTT multiplica muitas derivadas em sequência, uma para cada passo de tempo que se volta:
+
+- se essas derivadas forem, em média, **menores que 1**, o produto encolhe até praticamente desaparecer (*vanishing gradient*). A rede não aprende dependências de longo prazo: o sinal de erro não chega mais lá.
+- se forem, em média, **maiores que 1**, o produto explode exponencialmente (*exploding gradient*), os pesos mudam de forma instável e o treinamento "quebra", gerando valores `NaN`.
+
+<Caixa tipo="atencao">
+A analogia: sussurrar uma mensagem para uma fila de 100 pessoas, uma passando para a outra. Depois de poucas pessoas a mensagem original já está distorcida ou perdida. É o que acontece com o gradiente numa RNN longa — e é a razão de a RNN simples ("*vanilla RNN*") não conseguir lembrar o sujeito de uma frase longa até chegar no verbo. Isso motiva diretamente a Aula 7.
+</Caixa>
+
+## Variações de arquitetura
+
+- **Many-to-one**: muitas entradas, uma saída — classificação de sentimento de uma frase inteira.
+- **Many-to-many (mesmo tamanho)**: uma saída para cada entrada — marcar cada palavra com uma classe gramatical.
+- **Many-to-many (tamanhos diferentes)**: tradução, onde entrada e saída têm tamanhos diferentes (Aula 8, encoder-decoder).
+- **One-to-many**: uma entrada, várias saídas — gerar a legenda de uma imagem, palavra por palavra.
+- **RNN Bidirecional (BiRNN)**: processa a sequência da esquerda para a direita **e** da direita para a esquerda, e combina os dois estados. Ajuda quando o contexto futuro também importa — entender "banco" em "fui ao banco perto do rio".
+
+## Aplicação no mercado
+
+Historicamente, RNNs foram usadas em previsão de séries temporais (demanda, vendas, sensores), análise de sentimento, geração de texto simples e tradução automática antes dos Transformers. Hoje, RNN "pura" é raramente usada em produção — mas entendê-la é fundamental, porque LSTM, GRU e até certos conceitos de atenção nasceram para resolver os problemas específicos dela.
+
+## Glossário rápido
+
+- **Estado oculto (*hidden state*)**: o vetor de memória que a RNN carrega de um instante para o outro.
+- **BPTT**: o algoritmo de treinamento que propaga o erro para trás no tempo.
+- **Vanishing gradient**: quando o gradiente fica tão pequeno que a rede para de aprender dependências distantes.
+- **Exploding gradient**: quando o gradiente cresce descontroladamente e quebra o treinamento.
+
+<p class="nota">
+  A RNN introduziu memória na rede, mas a memória vaza com a distância. A Aula 7
+  mostra as "portas" da LSTM e da GRU, feitas exatamente para segurar informação
+  por muitos passos.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "Recurrent Neural Networks (RNNs), Clearly Explained!!!",
+      url: "https://youtu.be/AsNTP8Kwu80",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+    },
+    {
+      titulo: "Lecture 10 | Recurrent Neural Networks",
+      url: "https://youtu.be/6niqTuYFZLQ",
+      tag: "Técnico",
+      fonte: "Stanford CS231n",
+    },
+    {
+      titulo: "Recurrent Neural Networks, Transformers, and Attention (Deep Sequence Modeling)",
+      url: "https://youtu.be/GvezxUdLrEk",
+      tag: "Técnico",
+      fonte: "MIT 6.S191",
+    },
+    {
+      titulo: "Simple RNN — Deep Learning Tutorial",
+      tag: "Intuitivo",
+      fonte: "codebasics",
+      nota: "complemento visual para a ideia de estado oculto",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Implementar uma RNN do zero, desenrolar no tempo e observar o gradiente sumir numa sequência longa — em construção." />
