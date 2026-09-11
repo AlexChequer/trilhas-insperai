@@ -6,6 +6,7 @@ objetivo: "Ir além do .describe() e dos histogramas básicos — extrair da exp
 ---
 
 import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
 import Videos from "@/components/Videos.astro";
 import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
 
@@ -20,6 +21,20 @@ EDA (*Exploratory Data Analysis*) não é só "rodar `.describe()` e fazer uns g
 - entender as relações entre variáveis;
 - formular hipóteses que vão orientar as decisões de feature engineering e a escolha de modelo.
 
+## Sanidade e qualidade dos dados
+
+Antes de qualquer estatística descritiva, duas perguntas decidem se o resto da EDA vai significar alguma coisa — e por isso vêm primeiro, antes até da distribuição de qualquer variável.
+
+**Granularidade: o que é uma linha?** Um cliente? Um cliente-mês? Uma transação? Isso não é burocracia: determina a estratégia de validação (Aula 2), o significado de toda média calculada depois, e até o que conta como linha duplicada. Duas linhas idênticas podem ser um erro de carga ou duas ocorrências legítimas — a resposta é conhecimento de negócio, não estatística.
+
+**Valores sentinela** são, na prática, o problema de qualidade mais perigoso, porque são invisíveis numa EDA superficial. Um valor sentinela é um valor válido do tipo da coluna que um sistema usa para dizer "não tenho esse dado", em vez de deixar o campo vazio: `-999`, `-1`, `9999`, `0`, uma data como `1900-01-01`, um texto como `"desconhecido"`. Nenhum deles aparece em `df.isna().sum()` — e, se ninguém notar, um `-999` de idade entra silenciosamente na média, no `StandardScaler` e no modelo.
+
+<Caixa tipo="dica">
+Como caçar sentinela: pergunte se os valores extremos de cada coluna numérica são fisicamente possíveis, e olhe o histograma. Um sentinela concentrado costuma aparecer como uma barra isolada, longe do resto da distribuição — o `.describe()` sozinho não denuncia isso, mas o histograma sim.
+</Caixa>
+
+**Consistência de tipos e categorias** evita retrabalho mais adiante: um identificador — CEP, CPF, código de produto — lido como número perde os zeros à esquerda e vira algo "ordenável", o que é semanticamente falso; a mesma categoria escrita de formas diferentes ("SP", "S.P.", "São Paulo") fragmenta o sinal entre grafias que deveriam ser uma só; e uma coluna com cardinalidade quase igual ao número de linhas costuma ser um identificador disfarçado de feature — uma das formas mais comuns de vazamento dentro do próprio modelo.
+
 ## Análise univariada: assimetria, curtose e transformações
 
 **Assimetria (*skewness*)** mede o quão "torta" é a distribuição de uma variável em relação a uma distribuição simétrica como a normal. Assimetria positiva é uma cauda longa à direita — muitos valores baixos, poucos muito altos (renda é o exemplo clássico: a maioria ganha pouco, poucos ganham muitíssimo). Assimetria negativa é o oposto. Importa porque muitos modelos, principalmente os lineares, performam melhor quando as variáveis se aproximam da normal; variáveis muito enviesadas podem prejudicar o ajuste.
@@ -28,10 +43,17 @@ EDA (*Exploratory Data Analysis*) não é só "rodar `.describe()` e fazer uns g
 
 **Testes de normalidade** (Shapiro-Wilk, Kolmogorov-Smirnov) avaliam formalmente se uma variável se aproxima de uma distribuição normal — útil para decidir se uma transformação é necessária.
 
+O **Q-Q plot** complementa o teste em vez de substituí-lo: ele compara os quantis observados de uma variável com os quantis teóricos de uma distribuição de referência — normalmente a normal. Se os pontos caem sobre a reta, a variável se parece com a referência; se a curva se afasta da reta numa das pontas, é ali que o desvio mora. A vantagem sobre um p-valor é mostrar **onde** e **como** o desvio acontece, não só se ele existe.
+
+<Caixa tipo="atencao">
+Um teste de normalidade com p-valor pequeno não distingue "quase normal" de "muitíssimo distante da normal" — ele só diz que a diferença foi detectável. Além disso, o poder do teste cresce com o tamanho da amostra: com dezenas de milhares de linhas, comum em ML, qualquer desvio mínimo vira "estatisticamente significativo". A pergunta prática nunca é "é normal?" — é "o desvio é grande o suficiente para afetar a decisão que vou tomar?", e quem responde isso é o tamanho do desvio (skewness, curtose, Q-Q plot), não o p-valor.
+</Caixa>
+
 **Transformações de variáveis** corrigem enviesamento forte:
 
 - **Log**: reduz a influência de valores muito grandes, "compactando" a escala — muito usado em preço, renda e contagens.
-- **Box-Cox**: uma família mais geral de transformações (o log é um caso particular dela) que encontra automaticamente a que melhor aproxima a variável de uma normal.
+- **Box-Cox**: uma família mais geral de transformações (o log é um caso particular dela) que encontra automaticamente a que melhor aproxima a variável de uma normal. Só aceita valores estritamente positivos.
+- **Yeo-Johnson**: a mesma ideia do Box-Cox, mas aceita zero e valores negativos — o caso mais comum em dados reais, onde nem toda variável a transformar é estritamente positiva.
 
 ## Análise bivariada e multivariada
 
@@ -41,11 +63,39 @@ Há três medidas de correlação, e cada uma serve para uma coisa:
 - **Spearman**: relação **monotônica** (quando uma sobe, a outra sobe ou desce de forma consistente, não necessariamente reta). Calculada sobre os *ranks* — as posições ordenadas — e não sobre os valores brutos. Mais robusta a outliers e a relações não-lineares porém monotônicas.
 - **Kendall**: também baseada em *ranks*, mede a proporção de pares "concordantes" contra "discordantes". Costuma ser mais robusta que Spearman em amostras pequenas ou com muitos empates, mas é mais cara de calcular.
 
-**Pairplots** mostram, numa grade, o *scatter plot* entre cada par de variáveis numéricas e a distribuição individual na diagonal — uma visão geral rápida de padrões e relações.
+Essas três medidas só funcionam entre variáveis **numéricas** — e boa parte dos dados de empresa é dominada por categóricas. Para elas existem medidas próprias: **Cramér's V** (categórica × categórica, derivada do qui-quadrado, entre 0 e 1), a **razão de correlação (η)** (categórica × numérica: a fração da variância da numérica que a categoria explica) e a **informação mútua** (funciona para qualquer combinação de tipos e captura qualquer dependência, inclusive não-monotônica). Ignorar essas medidas é o jeito mais comum de uma EDA perder a variável mais preditiva da base só porque ela é texto.
+
+**Pairplots** mostram, numa grade, o *scatter plot* entre cada par de variáveis numéricas e a distribuição individual na diagonal — uma visão geral rápida de padrões e relações. É uma ferramenta de **triagem**, não de conclusão: aponta rapidamente quais pares merecem investigação detalhada, mas em variáveis discretas ou categóricas costuma virar faixas ilegíveis — para essas, prefira boxplot, violinplot ou uma tabela de taxa por categoria.
 
 <Caixa tipo="erro">
 Correlação não implica causalidade. Duas variáveis podem estar correlacionadas por coincidência, por uma terceira variável que influencia ambas (variável confundidora), ou por uma relação temporal que não é causal. Achar uma correlação alta é o começo de uma investigação, não a conclusão dela.
 </Caixa>
+
+O **paradoxo de Simpson** torna esse cuidado concreto: uma tendência presente em **todos** os subgrupos pode desaparecer, ou até se inverter, quando os grupos são agregados. O caso clássico são as admissões de pós-graduação de Berkeley em 1973: agregado, o dado parecia mostrar viés de admissão contra um dos gêneros; aberto por departamento, a diferença sumia ou se invertia na maioria deles, porque cada gênero se candidatou em proporção diferente a departamentos com taxas de aceitação muito diferentes entre si. O departamento era um confundidor forte o bastante para inverter o sinal do agregado.
+
+<Caixa tipo="dica">
+Regra prática: antes de acreditar numa relação bivariada, replique o cálculo dentro dos principais segmentos — categoria, período, canal, safra de entrada. Se o sinal muda de um segmento para o outro, o número agregado sozinho está escondendo a história real.
+</Caixa>
+
+## Comparando grupos: teste t e Cohen's d
+
+Correlação mede associação entre duas variáveis numéricas. Mas uma pergunta muito comum tem outra forma: a média de uma variável difere entre dois grupos? O **teste t** responde exatamente isso — a hipótese nula é que as duas médias são iguais na população, e um p-valor pequeno é evidência contra ela. Existem duas versões: a de Student, que assume variâncias iguais entre os grupos, e a de **Welch**, que não assume. Como variâncias iguais são raras em dados reais, Welch é o padrão recomendado.
+
+O p-valor do teste t sofre do mesmo problema visto nos testes de normalidade: mistura o tamanho real da diferença com o tamanho da amostra, e com `n` grande acaba rejeitando quase sempre, mesmo para diferenças irrelevantes. Quem mede a diferença sem depender do `n` é o **Cohen's d**, o tamanho do efeito: a diferença entre as médias, expressa em unidades de desvio-padrão.
+
+$$
+d = \frac{\bar{x}_1 - \bar{x}_2}{s}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$\\bar{x}_1, \\bar{x}_2$", significado: "as médias dos dois grupos comparados" },
+    { simbolo: "$s$", significado: "o desvio-padrão combinado dos dois grupos — a régua que converte a diferença bruta em número de desvios-padrão" },
+    { simbolo: "$d$", significado: "o tamanho do efeito: por convenção, ~0,2 é pequeno, ~0,5 é médio, ~0,8 é grande" },
+  ]}
+/>
+
+Um p-valor "significativo" com Cohen's d pequeno é o mesmo problema do teste de normalidade com `n` grande: o teste detectou uma diferença real, mas ela pode ser pequena demais para importar na prática. Reportar os dois números — e confiar no tamanho do efeito quando eles discordarem — evita confundir significância estatística com relevância para a decisão de negócio.
 
 ## Detecção de outliers
 
@@ -63,7 +113,40 @@ Existem três tipos de *missingness*, e a distinção orienta a estratégia de t
 - **MAR (*Missing At Random*)**: a ausência está relacionada a **outras variáveis observadas**, mas não ao próprio valor ausente. Homens tendem a não responder uma pergunta sobre peso mais do que mulheres — a ausência depende do gênero, que temos, não do peso em si.
 - **MNAR (*Missing Not At Random*)**: a ausência está relacionada ao **próprio valor que falta**. Pessoas com renda muito alta tendem a não informar a renda. É o caso mais difícil: imputar a média introduz viés sistemático.
 
-Saber diferenciar esses casos ajuda a escolher entre estratégias simples (imputar média ou mediana) e estratégias mais sofisticadas — modelar a própria ausência como informação, criando uma variável indicadora "esse valor era faltante?".
+Saber diferenciar esses casos ajuda a escolher entre estratégias simples (imputar média ou mediana) e estratégias mais sofisticadas.
+
+**A ausência como informação.** Antes de decidir só como tratar o que falta, vale perguntar se a própria ausência prevê o alvo — comparar a taxa do alvo entre quem tem o dado e quem não tem. Se a diferença for grande, criar uma variável indicadora ("esse valor era faltante?") preserva esse sinal, que qualquer imputação apaga.
+
+<Caixa tipo="atencao">
+Esse resultado pode ter uma explicação alternativa: se a ausência já é mais comum num subgrupo que também se comporta diferente no alvo, a variável indicadora pode não estar acrescentando nada além do que essa categoria já entrega sozinha. Vale controlar pela variável suspeita antes de decidir se a indicadora compensa a coluna extra — e, mesmo quando o efeito encolhe, a indicadora costuma valer a pena: custa uma coluna, e o modelo decide se ela serve.
+</Caixa>
+
+## A variável-alvo
+
+Até aqui tratamos todas as colunas do mesmo jeito. Mas o alvo merece uma análise própria, porque quase toda decisão de métrica (Aula 2) e de modelo (Aula 5) já está condicionada pelo que se vê aqui.
+
+Num alvo de classificação, duas perguntas importam: qual é a **proporção** da classe positiva, e quantos exemplos positivos existem em **valor absoluto**. É o segundo número — não o percentual — que determina se o problema é aprendível: 0,5% de 10 milhões de linhas são 50 mil exemplos positivos; 0,5% de 2 mil linhas são 10, o que inviabiliza o treino. Mesmo com desbalanceamento leve, a validação estratificada (Aula 2) deixa de ser opcional.
+
+Ao relacionar uma feature numérica com o alvo, dividir a feature em decis (dez grupos de tamanho igual) revela o **formato** da relação, e não só a força que a correlação já mediu — se ela é uma progressão suave, se tem platôs, se só se separa de verdade num extremo. É exatamente esse formato que orienta como agrupar (*binning*) a variável na Aula 3.
+
+<Caixa tipo="erro">
+Ao comparar a taxa do alvo entre categorias, sempre reporte o `n` junto da taxa. Uma categoria com taxa de 100% e três observações não é um achado — é ruído com maquiagem de estatística.
+</Caixa>
+
+## Treino × teste: drift e adversarial validation
+
+Um modelo falha em produção, com frequência, por algo que já estava visível nos dados: a distribuição de treino deixou de bater com a de produção. Vale nomear três formas disso: **covariate shift**, quando a distribuição das entradas muda mas a relação entrada-alvo continua a mesma; **concept drift**, quando é a própria relação entre entrada e alvo que muda — o caso mais grave, porque o que o modelo aprendeu deixou de valer; e **prior shift**, quando é a proporção das classes que muda.
+
+A **adversarial validation** é uma forma simples de detectar isso antes de colocar o modelo no ar: juntar treino e teste, descartar o alvo original, criar um rótulo binário novo — 0 para linhas do treino, 1 para linhas do teste — e treinar um classificador para prever esse rótulo, avaliando por validação cruzada.
+
+- **AUC perto de 0,5**: o classificador não distingue a origem das linhas. As distribuições são consistentes — sinal verde.
+- **AUC perto de 1,0**: treino e teste são facilmente separáveis. Alguma coisa mudou de um conjunto para o outro — sinal vermelho.
+
+Quando o sinal é vermelho, a mesma técnica aponta o culpado: a importância de feature do classificador mostra qual variável mais separa treino de teste. A partir daí, as saídas costumam ser três: remover a feature instável, reconstruí-la de forma mais robusta, ou reponderar o treino para se parecer mais com o que se espera em produção.
+
+<Caixa tipo="dica">
+Em produção, monitorar drift é literalmente refazer parte desta EDA continuamente e comparar com a linha de base do treino — é o que separa quem já colocou um modelo no ar de quem só o treinou em notebook.
+</Caixa>
 
 ## Ferramentas que automatizam parte da EDA
 
