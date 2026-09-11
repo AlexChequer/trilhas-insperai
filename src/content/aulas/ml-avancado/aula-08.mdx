@@ -1,0 +1,138 @@
+---
+n: "A8"
+titulo: "Embeddings + Encoder-Decoder e Atenção"
+ordem: 8
+objetivo: "Revisar a representação vetorial de dados e entender como transformar uma sequência em outra — e por que a atenção foi um divisor de águas."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Computadores só entendem números. Para uma rede processar palavras, é preciso transformar cada palavra em um vetor. A forma mais ingênua é o **one-hot encoding**: se o vocabulário tem 10.000 palavras, cada palavra vira um vetor de 10.000 posições, com um "1" na posição dela e "0" no resto. Dois problemas: vetores gigantes quase todos zeros, ineficientes; e **nenhuma noção de similaridade** — o vetor de "gato" está tão distante do de "cachorro" quanto do de "aeroporto".
+
+## Embeddings: vetores densos que capturam significado
+
+A solução são os **embeddings**: vetores densos e de dimensão bem menor (100, 300, 768 em vez de 10.000+), onde a posição de cada palavra no espaço vetorial captura seu significado semântico. Palavras com significados parecidos ficam com vetores próximos.
+
+A analogia: um mapa onde cada palavra é uma cidade. Palavras parecidas — rei, rainha, príncipe — ficam em cidades vizinhas; palavras muito diferentes — rei, geladeira — ficam em lados opostos. O embedding são as coordenadas de cada palavra nesse mapa.
+
+## Como os embeddings são aprendidos: Word2Vec
+
+O **Word2Vec** parte de uma ideia simples: "você é conhecido pela companhia que mantém" (a hipótese distribucional) — palavras que aparecem em contextos parecidos tendem a ter significados parecidos. Há duas arquiteturas:
+
+- **CBOW (*Continuous Bag of Words*)**: prever a palavra central a partir das palavras ao redor. Dado "o ___ está latindo", adivinhar a palavra que se encaixa.
+- **Skip-gram**: o oposto — dada a palavra central, prever as palavras do contexto. Dado "cachorro", prever que "latindo", "farejar", "rabo" aparecem por perto.
+
+Em ambos, a rede (rasa, geralmente 1 camada escondida) é treinada nessa tarefa de previsão — mas o objetivo real não é a previsão, e sim o subproduto: os pesos da camada escondida, depois de treinados, viram os embeddings. A previsão é só um pretexto para forçar a rede a aprender representações úteis.
+
+**Negative sampling**: treinar prevendo a palavra certa entre milhares seria caro. O *negative sampling* transforma o problema numa série de classificações binárias baratas — "essa palavra realmente aparece nesse contexto (positivo), ou é uma palavra aleatória sem relação (negativo)?" —, acelerando muito o treino ao atualizar só um pequeno subconjunto de pesos por passo.
+
+## GloVe: estatísticas globais
+
+Enquanto o Word2Vec aprende olhando janelas locais de contexto, o **GloVe (*Global Vectors*)** usa estatísticas **globais** de co-ocorrência: constrói uma matriz contando quantas vezes cada par de palavras aparece junto em todo o corpus, e aprende embeddings que respeitam essas proporções. Na prática, os embeddings de Word2Vec e GloVe costumam ter qualidade parecida — a diferença é de abordagem estatística, não de resultado.
+
+## Embeddings estáticos x contextuais
+
+Word2Vec e GloVe geram **um único vetor fixo por palavra**, não importa o contexto. Isso é um problema para palavras ambíguas: "banco" em "sentei no banco da praça" e "banco" em "fui ao banco sacar dinheiro" recebem o mesmo vetor, com significados completamente diferentes.
+
+Modelos modernos, como o BERT (Aula 9), geram **embeddings contextuais**: o vetor de "banco" muda conforme a frase, porque o modelo "olha" as palavras ao redor antes de decidir a representação final. Como isso é possível tecnicamente aparece já a seguir, com a atenção, e a fundo na Aula 9 com o self-attention.
+
+## Embeddings além de texto
+
+O mesmo conceito — "vetor denso que captura similaridade" — se generaliza:
+
+- **Sistemas de recomendação**: cada usuário e cada produto ganham um embedding, e itens parecidos ficam próximos no espaço. É assim que Netflix e Spotify encontram recomendações.
+- **Embeddings de grafos (ex.: Node2Vec)**: cada nó de um grafo — uma pessoa numa rede social — recebe um vetor que captura sua posição e papel na rede.
+
+## A arquitetura Encoder-Decoder (Seq2Seq)
+
+Na tradução automática, temos uma frase em português (entrada) e queremos gerar a equivalente em inglês (saída) — e os tamanhos podem ser diferentes. A arquitetura **Seq2Seq**, ou **encoder-decoder**, resolve com duas partes:
+
+- **Encoder**: uma RNN (ou LSTM/GRU) que lê a frase de entrada inteira, palavra por palavra, e ao final produz **um único vetor** que resume tudo — o **vetor de contexto**. Na prática, o último estado oculto do encoder.
+- **Decoder**: outra RNN/LSTM/GRU que recebe esse vetor como estado inicial e gera a frase de saída uma palavra por vez, usando cada palavra gerada como entrada para a próxima (geração autoregressiva).
+
+## O gargalo do vetor de contexto fixo
+
+Comprimir uma frase inteira — ou um parágrafo — em **um único vetor de tamanho fixo** é quase impossível sem perder informação, especialmente para sequências longas. É como resumir um livro de 300 páginas em uma frase e depois reescrever o livro só com base nela. Esse gargalo é o que motivou o mecanismo de atenção.
+
+## O mecanismo de atenção
+
+A ideia central: em vez de depender de um único vetor de contexto fixo, o decoder pode "olhar de volta" para **todos** os estados ocultos do encoder a cada passo de geração, decidindo dinamicamente em quais partes da entrada focar naquele momento. Passo a passo, na formulação de *Bahdanau attention*:
+
+**Passo 1 — os scores de atenção.** Para cada estado `h_i` do encoder, calcula-se um score que mede o quão relevante ele é para o passo atual do decoder (estado `s_t`):
+
+$$
+\text{score}(s_t, h_i) = v^\top \tanh(W_1\, s_t + W_2\, h_i)
+$$
+
+**Passo 2 — scores viram pesos (softmax):**
+
+$$
+\alpha_i = \mathrm{softmax}\big(\text{score}(s_t, h_i)\big)
+$$
+
+O softmax transforma os scores numa distribuição de probabilidade — os pesos somam 1. `α_i` é "quanto de atenção, em porcentagem, dar para a palavra `i` da entrada, neste passo do decoder".
+
+**Passo 3 — o vetor de contexto dinâmico** (diferente a cada passo, ao contrário do Seq2Seq clássico):
+
+$$
+c_t = \sum_i \alpha_i\, h_i
+$$
+
+Uma média ponderada de todos os estados do encoder, com o peso de cada um sendo o `α_i`. Palavras mais relevantes para o passo atual contribuem mais.
+
+<Simbolos
+  itens={[
+    { simbolo: "$s_t$", significado: "o estado atual do decoder — o que ele está tentando gerar agora" },
+    { simbolo: "$h_i$", significado: "o estado oculto do encoder na posição i — a representação da i-ésima palavra da entrada" },
+    { simbolo: "$W_1, W_2, v$", significado: "pesos aprendidos que transformam os estados e reduzem o resultado a um número" },
+    { simbolo: "$\\alpha_i$", significado: "o peso de atenção da posição i: entre 0 e 1, e o conjunto soma 1" },
+    { simbolo: "$c_t$", significado: "o vetor de contexto dinâmico do passo t, combinado com o estado do decoder para gerar a próxima palavra" },
+  ]}
+/>
+
+## Visualizando a atenção: mapas de alinhamento
+
+A atenção é **interpretável**: dá para plotar uma matriz onde as linhas são as palavras de saída e as colunas as de entrada, com a intensidade de cada célula representando o peso `α_i`. Isso costuma mostrar padrões intuitivos — ao traduzir, a palavra de saída "gatos" tem peso alto na palavra de entrada "cats", mesmo com a ordem das palavras diferente entre as línguas.
+
+## Aplicação no mercado
+
+Embeddings são a base de praticamente todo produto de IA hoje: busca semântica, recomendação, moderação de conteúdo e RAG (*Retrieval-Augmented Generation*, a técnica por trás de chatbots corporativos que "consultam documentos" antes de responder). A arquitetura seq2seq com atenção viabilizou os saltos de qualidade em tradução automática (Google Translate) e sumarização de documentos, antes da era dos Transformers.
+
+<p class="nota">
+  Se a atenção permite ao decoder olhar para qualquer parte da entrada, será que
+  ainda precisamos da recorrência processando passo a passo? A Aula 9 responde
+  que não — e leva a atenção ao extremo.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "Word Embedding and Word2Vec, Clearly Explained!!!",
+      url: "https://youtu.be/viZrOnJclY0",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+    },
+    {
+      titulo: "Sequence-to-Sequence (seq2seq) Encoder-Decoder Neural Networks, Clearly Explained!!!",
+      url: "https://youtu.be/L8HKweZIOmg",
+      tag: "Técnico",
+      fonte: "StatQuest with Josh Starmer",
+    },
+    {
+      titulo: "Recurrent Neural Networks, Transformers, and Attention",
+      url: "https://youtu.be/GvezxUdLrEk",
+      tag: "Técnico",
+      fonte: "MIT 6.S191",
+    },
+    {
+      titulo: "Attention mechanism explained visually (Bahdanau)",
+      tag: "Intuitivo",
+      nota: "canais como CodeEmporium; e o texto de Jay Alammar em jalammar.github.io",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Treinar um Seq2Seq com e sem atenção numa tradução curta e plotar o mapa de alinhamento — em construção." />

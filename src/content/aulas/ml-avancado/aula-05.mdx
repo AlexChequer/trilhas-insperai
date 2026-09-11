@@ -1,0 +1,97 @@
+---
+n: "A5"
+titulo: "Modelos de Ensemble: Bagging, Boosting e Stacking"
+ordem: 5
+objetivo: "Entender por que combinar modelos costuma superar qualquer modelo individual — a técnica mais usada em produção para dados tabulares."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Combinar vários modelos "razoáveis" — ou até "fracos" — costuma produzir um resultado melhor do que qualquer um deles sozinho, desde que os modelos individuais tenham alguma diversidade entre si, ou seja, errem em lugares diferentes.
+
+Para entender por quê, o conceito central é o **trade-off entre viés e variância**:
+
+- **Viés alto**: o modelo é simples demais e não captura os padrões (underfitting).
+- **Variância alta**: o modelo é sensível demais, e pequenas mudanças nos dados de treino mudam muito suas previsões (overfitting).
+
+Cada técnica de ensemble ataca esse trade-off de um jeito.
+
+## Bagging: reduzindo variância
+
+**Bagging (*Bootstrap Aggregating*)**: treinar vários modelos independentes, cada um numa amostra ligeiramente diferente dos dados — obtida por *bootstrap*, amostragem aleatória com reposição, em que algumas observações se repetem e outras não aparecem — e depois combinar as previsões por votação (classificação) ou média (regressão).
+
+**Random Forest** é o exemplo mais famoso: centenas de árvores de decisão, cada uma numa amostra *bootstrap* diferente e usando apenas um subconjunto aleatório das features em cada divisão. Essa dupla aleatoriedade — nas amostras **e** nas features — deixa as árvores bem diferentes umas das outras, e é essa diversidade que faz a combinação reduzir a variância do modelo final, comparado a uma única árvore (que sozinha tende a ter variância alta).
+
+## Boosting: reduzindo viés
+
+Diferente do bagging, onde os modelos são treinados em paralelo e de forma independente, o **boosting** treina os modelos **sequencialmente**, e cada novo modelo tenta corrigir os erros dos anteriores.
+
+**AdaBoost** (conceito): treina um primeiro modelo simples (uma árvore rasa); observa quais exemplos ele errou; aumenta o peso desses exemplos; treina um segundo modelo, forçado a prestar mais atenção nos casos difíceis; repete; e no final combina todos com um voto ponderado.
+
+**Gradient Boosting** (a evolução mais usada hoje): em vez de reponderar exemplos, cada novo modelo é treinado para prever diretamente o **erro residual** — a diferença entre o valor real e a previsão atual do ensemble. É literalmente um processo de descida de gradiente, mas no espaço das funções, não no espaço dos parâmetros de um único modelo.
+
+## As três implementações do mercado
+
+- **XGBoost**: implementação muito otimizada e popular de gradient boosting, com regularização embutida para reduzir overfitting e eficiente computacionalmente.
+- **LightGBM**: geralmente mais rápido que o XGBoost em datasets grandes, porque cresce as árvores por "folha" — escolhendo sempre a folha que mais reduz o erro — em vez de nível por nível. Pode ser mais propenso a overfitting em datasets pequenos por causa disso.
+- **CatBoost**: tratamento nativo e eficiente de variáveis categóricas, sem encoding manual prévio (lembra da Aula 3?). Muitas vezes a escolha mais simples quando o dataset tem muitas categóricas.
+
+## Stacking e Blending
+
+**Stacking**: treina vários modelos de tipos diferentes (rede neural, XGBoost, regressão logística) nos mesmos dados, e depois treina um **meta-modelo** — geralmente algo simples, como uma regressão logística — que aprende a combinar as previsões dos modelos base da melhor forma. Em vez de uma média simples, o meta-modelo aprende quanto "confiar" em cada modelo base, às vezes de formas diferentes conforme a região do espaço de dados.
+
+**Blending**: versão mais simples do stacking, com média (simples ou ponderada, definida à mão ou por uma validação simples) das previsões dos modelos base, sem treinar um meta-modelo completo.
+
+## Trade-offs práticos
+
+- **Interpretabilidade**: uma única árvore é fácil de interpretar; um ensemble de centenas de árvores já não é diretamente interpretável — por isso o SHAP (Aula 4) se tornou tão importante.
+- **Tempo de treino e tuning**: ensembles, principalmente boosting, têm vários hiperparâmetros para ajustar — número de árvores, profundidade, taxa de aprendizado, regularização. Ferramentas como Optuna (otimização bayesiana) ou GridSearch/RandomSearch automatizam essa busca.
+
+## Deep Learning vs. Ensemble: quando usar cada um
+
+- **Dados tabulares** — a maioria dos problemas de negócio: crédito, fraude, churn, precificação. XGBoost, LightGBM e CatBoost ainda costumam vencer redes neurais, e são mais baratos de treinar e manter.
+- **Dados não-estruturados** — texto, imagem, áudio, vídeo. As arquiteturas do Bloco 2, Transformers principalmente, dominam completamente; árvores e ensembles não capturam bem esse tipo de dado.
+
+## Aplicação no mercado
+
+XGBoost e LightGBM são o padrão de mercado para a grande maioria dos problemas de negócio com dados tabulares. Frequentemente vencem redes neurais nesses cenários e são bem mais baratos e simples de manter em produção — menos infraestrutura de GPU, treino mais rápido, mais fácil de depurar.
+
+<p class="nota">
+  Encerra o Bloco 1. O Bloco 2 muda de terreno: dados sequenciais, onde a ordem
+  importa e nenhum ensemble de árvores dá conta. A Aula 6 começa pela arquitetura
+  que introduziu memória na rede — a RNN.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "StatQuest: Random Forests Part 1 — Building, Using and Evaluating",
+      url: "https://youtu.be/J4Wdy0Wc_xQ",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+      nota: "bagging e Random Forest com a analogia do bootstrap",
+    },
+    {
+      titulo: "XGBoost Part 1 (of 4): Regression",
+      url: "https://youtu.be/OtD8wVaFm6E",
+      tag: "Técnico",
+      fonte: "StatQuest with Josh Starmer",
+      nota: "primeira de uma série de 4 — a mais detalhada sobre o algoritmo",
+    },
+    {
+      titulo: "AdaBoost, Clearly Explained",
+      tag: "Intuitivo",
+      fonte: "StatQuest",
+      nota: "o avô conceitual do gradient boosting",
+    },
+    {
+      titulo: "CatBoost vs XGBoost vs LightGBM explained",
+      tag: "Técnico",
+      nota: "comparação direta das 3 — ponto que mais cai em entrevista",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Random Forest, gradient boosting e um stacking com meta-modelo no mesmo dataset tabular — em construção." />

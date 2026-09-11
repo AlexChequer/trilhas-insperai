@@ -1,0 +1,94 @@
+---
+n: "A4"
+titulo: "Seleção de Features e Redução de Dimensionalidade"
+ordem: 4
+objetivo: "Reduzir o número de variáveis mantendo — ou aumentando — o poder preditivo, essencial quando há muitas features."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+Mais features nem sempre é melhor. Três razões:
+
+- **Maldição da dimensionalidade**: conforme o número de features cresce, a quantidade de dados necessária para o modelo "cobrir" bem o espaço de possibilidades cresce exponencialmente. Com poucos dados e muitas features, o modelo memoriza ruído (overfitting) em vez de aprender padrões.
+- **Custo computacional**: mais features significam mais tempo de treino e mais memória.
+- **Interpretabilidade**: um modelo com 5 features relevantes é muito mais fácil de explicar a um stakeholder do que um com 500.
+
+## Métodos de seleção de features
+
+**Métodos de filtro** avaliam a relevância de cada feature **independentemente do modelo**, com estatísticas simples: correlação com o alvo, teste qui-quadrado (para categóricas), informação mútua (mede quanto saber o valor de uma feature reduz a incerteza sobre o alvo, capturando relações não-lineares). Rápidos, mas não capturam interações entre features.
+
+**Métodos wrapper** testam subconjuntos de features treinando o modelo de verdade e avaliando a performance. O exemplo clássico é o **RFE (*Recursive Feature Elimination*)**: treina com todas as features, remove a(s) menos importante(s), retreina, e repete até sobrar o número desejado. Mais caro que os de filtro, mas considera a interação real entre as features e o modelo usado.
+
+**Métodos embutidos (*embedded*)**: a seleção acontece como parte do próprio treinamento. A importância de features calculada por modelos de árvore (quanto cada feature reduziu a "impureza" nas divisões); e a regularização **LASSO (L1)** em modelos lineares, que zera completamente os coeficientes de features irrelevantes, funcionando como seleção automática durante o ajuste.
+
+## PCA — Análise de Componentes Principais
+
+A intuição geométrica: imagine pontos num gráfico 2D formando uma "nuvem" alongada na diagonal. Se você tivesse que descrever a posição de cada ponto usando **uma única dimensão** — uma reta —, a melhor escolha é a reta que passa ao longo da nuvem, na direção de **maior variância**, porque projetar os pontos nela preserva a maior parte da variação original.
+
+O PCA generaliza isso: encontra um novo conjunto de eixos — os **componentes principais** — ortogonais entre si, ordenados de modo que o primeiro captura a maior variância possível, o segundo a maior variância restante (perpendicular ao primeiro), e assim por diante.
+
+**Variância explicada**: cada componente explica uma porcentagem da variância total. Na prática, usa-se apenas os primeiros K componentes que juntos explicam uma porcentagem alta (ex.: 95%), reduzindo drasticamente as dimensões enquanto se preserva a maior parte da informação.
+
+<Caixa tipo="atencao">
+Os componentes principais são combinações lineares das features originais — algo como "0,7 × renda + 0,3 × idade − 0,1 × dívida". Eles perdem a interpretabilidade direta. PCA é ótimo quando o objetivo é performance ou eficiência computacional, mas não quando a interpretabilidade das features é um requisito do projeto.
+</Caixa>
+
+## t-SNE e UMAP: para visualização, não para features
+
+Diferente do PCA — que é linear e serve tanto para reduzir dimensionalidade "para o modelo" quanto para visualizar —, **t-SNE** e **UMAP** são técnicas **não-lineares**, focadas quase exclusivamente em visualização (reduzir para 2D/3D e plotar). Preservam bem relações de vizinhança local, mas distorcem distâncias globais, e **não devem ser usadas como features de entrada** de um modelo — só para exploração visual.
+
+## Autoencoders: redução não-linear
+
+Um **autoencoder** é uma rede neural treinada para reconstruir a própria entrada, passando por um "gargalo" — uma camada intermediária de dimensão bem menor. Depois de treinado, a representação nesse gargalo (o *bottleneck*, ou espaço latente) é uma versão comprimida e **não-linear** dos dados originais — uma alternativa ao PCA, capaz de capturar relações não-lineares mais complexas. É a ponte com o Bloco 2.
+
+## SHAP: da seleção à explicabilidade
+
+**SHAP (*SHapley Additive exPlanations*)** é uma técnica baseada em teoria dos jogos que calcula, para **cada previsão individual**, quanto cada feature contribuiu — positiva ou negativamente — para aquela previsão específica. Diferente da importância de features "global" de uma árvore, o SHAP explica previsão a previsão: não só "quais features importam em geral", mas "por que o modelo decidiu isso para este caso".
+
+## Aplicação no mercado
+
+Reduzir dimensionalidade é crítico em sistemas de recomendação (milhares de produtos e usuários), detecção de fraude (centenas ou milhares de features) e modelos que rodam em tempo real com baixa latência. O SHAP virou padrão de mercado para explicabilidade em setores regulados — financeiro, saúde —, onde explicar por que um modelo negou um crédito é frequentemente uma exigência legal.
+
+<Caixa tipo="dica" titulo="Atividade sugerida">
+Aplicar PCA em um dataset de alta dimensionalidade e comparar a performance de um modelo com todas as features contra a performance com os componentes principais.
+</Caixa>
+
+<p class="nota">
+  Fecha o ciclo do modelo tabular: explorar, validar, criar e selecionar features.
+  A Aula 5 combina modelos — a técnica que mais vence competições com dados
+  tabulares — e encerra o Bloco 1.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "StatQuest: PCA main ideas in only 5 minutes!!!",
+      url: "https://youtu.be/HMOI_lkzW08",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+      nota: "a intuição geométrica antes da matemática",
+    },
+    {
+      titulo: "StatQuest: Principal Component Analysis (PCA), Step-by-Step",
+      url: "https://youtu.be/FgakZw6K1QQ",
+      tag: "Técnico",
+      fonte: "StatQuest with Josh Starmer",
+      nota: "aprofunda na matemática via SVD",
+    },
+    {
+      titulo: "t-SNE, Clearly Explained",
+      tag: "Intuitivo",
+      fonte: "StatQuest",
+      nota: "por que t-SNE é só visualização, não feature de modelo",
+    },
+    {
+      titulo: "SHAP values explained clearly",
+      tag: "Técnico",
+      nota: "canais como Data Science Simplified e StatQuest",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="RFE, LASSO e PCA no mesmo dataset, comparando performance e interpretabilidade — em construção." />

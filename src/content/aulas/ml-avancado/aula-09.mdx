@@ -1,0 +1,155 @@
+---
+n: "A9"
+titulo: "Transformers: arquitetura técnica completa"
+ordem: 9
+objetivo: "Dominar os componentes técnicos do Transformer — a arquitetura por trás de GPT, BERT e LLaMA."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+É a aula mais densa e mais importante tecnicamente do bloco — a arquitetura por trás de praticamente todo LLM moderno. Duas motivações: RNN/LSTM/GRU processam a sequência passo a passo, o que impede paralelização total no treino; e a atenção (Aula 8) mostrou que dá para "olhar" dinamicamente para qualquer parte da sequência. O Transformer leva a segunda ideia ao extremo — elimina a recorrência e usa **só atenção** para processar a sequência inteira de uma vez, em paralelo. É a proposta do paper "Attention Is All You Need".
+
+## Self-Attention: o coração do Transformer
+
+Na Aula 8, a atenção conectava o decoder aos estados do encoder — atenção "cruzada", entre duas sequências. O **self-attention** é diferente: cada palavra de uma sequência "olha" para todas as outras palavras da **mesma** sequência (inclusive ela mesma) para decidir como atualizar sua própria representação.
+
+Na frase "O animal não atravessou a rua porque ele estava cansado", a palavra "ele" se refere a "animal", não a "rua". O self-attention permite que a rede, ao processar "ele", olhe para todas as outras palavras e aprenda a dar mais peso a "animal".
+
+## Query, Key e Value
+
+Para cada palavra, o Transformer cria **três vetores**, por meio de três transformações lineares diferentes aplicadas ao embedding:
+
+- **Query (Q)** — "o que estou procurando?" — a pergunta que aquela palavra faz às outras.
+- **Key (K)** — "o que eu ofereço?" — o que aquela palavra tem para oferecer quando outras perguntam por ela.
+- **Value (V)** — "qual é o conteúdo real que eu carrego?" — a informação usada se aquela palavra for considerada relevante.
+
+A analogia da biblioteca: você tem uma pergunta (Query). Cada livro tem um resumo na lombada (Key) que você compara com a pergunta. Se casar bem, você pega o livro e lê o conteúdo real (Value).
+
+$$
+Q_i = x_i W_Q \qquad K_i = x_i W_K \qquad V_i = x_i W_V
+$$
+
+Onde `W_Q`, `W_K` e `W_V` são matrizes de peso aprendidas no treinamento, diferentes umas das outras.
+
+## O cálculo do self-attention, passo a passo
+
+**Passo 1 — scores de compatibilidade (Query · Key).** Para cada par de palavras `(i, j)`, o produto escalar entre o Query de `i` e o Key de `j`: mede o quanto `j` é relevante para `i`.
+
+**Passo 2 — escalar (dividir por `√d_k`)**, onde `d_k` é a dimensão dos vetores Key:
+
+$$
+\text{score}(i, j) = \frac{Q_i \cdot K_j}{\sqrt{d_k}}
+$$
+
+Quando a dimensão é grande, o produto escalar tende a ter valores muito grandes em magnitude. Valores grandes fazem o softmax do passo seguinte saturar — gradientes minúsculos, aprendizado travado (o mesmo problema de *vanishing gradient*). Dividir por `√d_k` mantém a escala estável.
+
+**Passo 3 — softmax** nos scores escalados de cada palavra `i` em relação a todas as outras, transformando-os em pesos que somam 1.
+
+**Passo 4 — combinar com os Values**: o novo vetor de `i` é a soma ponderada de todos os Values, usando esses pesos. Em uma linha:
+
+$$
+\text{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{Q K^\top}{\sqrt{d_k}}\right) V
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$Q, K, V$", significado: "as matrizes de Query, Key e Value — uma linha por palavra da sequência" },
+    { simbolo: "$Q K^\\top$", significado: "todos os scores de compatibilidade de uma vez: linha i, coluna j é o quanto i combina com j" },
+    { simbolo: "$d_k$", significado: "a dimensão dos vetores Key; a raiz dela é o fator de escala que estabiliza o softmax" },
+    { simbolo: "$\\mathrm{softmax}$", significado: "aplicado linha a linha, transforma os scores de cada palavra em pesos que somam 1" },
+    { simbolo: "resultado", significado: "para cada palavra, a média ponderada dos Values — a nova representação, já com o contexto misturado" },
+  ]}
+/>
+
+Por que isso resolve dependências de longo alcance: diferente da RNN, onde a informação precisa "passar" por cada instante intermediário e degrada com a distância, no self-attention **qualquer palavra se conecta diretamente a qualquer outra**, em uma única operação matricial, e tudo em paralelo.
+
+## Multi-Head Attention
+
+Em vez de calcular self-attention uma vez, o Transformer calcula **várias vezes em paralelo**, cada uma com seu próprio conjunto de `W_Q`, `W_K`, `W_V` — cada uma é uma "cabeça" (*head*). Diferentes cabeças aprendem a capturar diferentes tipos de relação: uma foca em sintaxe (sujeito-verbo), outra em semântica, outra em correferência (a quem um pronome se refere). É como ter vários especialistas olhando a mesma frase. As cabeças (geralmente 8, 12 ou mais) são concatenadas e passadas por uma transformação linear final:
+
+$$
+\text{MultiHead}(Q, K, V) = \mathrm{Concat}(\text{head}_1, \dots, \text{head}_h)\, W_O
+$$
+
+## Positional Encoding
+
+Detalhe crucial e contraintuitivo: o self-attention **não tem noção de ordem**. Embaralhar as palavras daria os mesmos resultados de atenção entre pares — a operação é uma soma ponderada, que não depende da ordem dos termos. Mas "o cachorro mordeu o homem" e "o homem mordeu o cachorro" têm as mesmas palavras e significados opostos.
+
+A solução: antes do bloco de atenção, somar ao embedding de cada palavra um **vetor de codificação posicional**. O paper original usa funções senoidais:
+
+$$
+PE_{(pos,\, 2i)} = \sin\!\left(\frac{pos}{10000^{\,2i/d}}\right)
+\qquad
+PE_{(pos,\, 2i+1)} = \cos\!\left(\frac{pos}{10000^{\,2i/d}}\right)
+$$
+
+Onde `pos` é a posição da palavra, `i` o índice da dimensão e `d` a dimensão do embedding. A intuição importante: cada posição recebe um padrão único de valores de seno/cosseno, somado ao embedding, de modo que o modelo distinga "gato" na posição 1 de "gato" na posição 5. Modelos mais modernos usam variações aprendidas, mas o princípio — injetar informação de posição de alguma forma — permanece.
+
+## A arquitetura completa
+
+O Transformer original tem **encoder** e **decoder**, cada um com vários blocos idênticos empilhados (6, 12, 24 ou mais).
+
+Cada bloco do **encoder** contém: uma camada de multi-head self-attention; uma **conexão residual** + **layer normalization**; uma rede feed-forward simples (duas camadas densas com uma ativação não-linear no meio), aplicada independentemente a cada posição; outra conexão residual + layer normalization.
+
+Uma **conexão residual** é somar a entrada de uma camada à sua saída (`saída = Camada(x) + x`), o que ajuda o gradiente a fluir por redes muito profundas — problema parecido em espírito com o da Aula 6, mas ligado à profundidade da rede, não ao comprimento da sequência. **Layer normalization** normaliza os valores dentro de cada camada (média ≈ 0, variância ≈ 1), estabilizando o treino.
+
+Cada bloco do **decoder** contém: **masked** multi-head self-attention, com uma máscara que impede uma posição de olhar para posições futuras — ao gerar texto palavra por palavra, o modelo não pode "trapacear" olhando o que ainda não gerou; **cross-attention**, onde o decoder usa suas próprias Queries mas os Keys e Values vêm do encoder (a mesma ideia da atenção de Bahdanau da Aula 8, reimplementada com Q/K/V); uma rede feed-forward; e conexões residuais + layer normalization em cada subcamada.
+
+## As três famílias
+
+- **Encoder-only (ex.: BERT)**: só o encoder. Bom para tarefas que exigem **entender** o texto — classificação, extração de informação, embeddings de frases —, porque olha a sequência inteira nos dois sentidos (não é mascarado).
+- **Decoder-only (ex.: GPT, LLaMA, Claude)**: só o decoder, com self-attention mascarado. Bom para **gerar** texto, palavra por palavra, de forma autoregressiva. É a arquitetura por trás de praticamente todos os LLMs de chat modernos.
+- **Encoder-Decoder (ex.: T5, o Transformer original)**: as duas partes. Bom para transformar uma sequência inteira em outra — tradução, sumarização.
+
+## O custo computacional: O(n²)
+
+No self-attention, cada palavra calcula um score com todas as outras. Se a sequência tem `n` palavras, são `n × n` cálculos: o custo (de computação e memória) cresce **quadraticamente** com o tamanho da sequência — dobrar o texto quadruplica o custo da atenção. É por isso que processar textos muito longos num Transformer é caro, e por que existe uma área inteira de pesquisa em mecanismos de atenção mais eficientes.
+
+## Aplicação no mercado
+
+O Transformer é a arquitetura por trás de todos os LLMs atuais (GPT, Claude, Gemini, LLaMA, Mistral), da busca semântica, da geração de código e até dos Vision Transformers (a mesma ideia de atenção aplicada a imagens divididas em *patches*). É, disparado, o conteúdo mais cobrado em entrevistas técnicas de ML/DL hoje.
+
+<Caixa tipo="dica" titulo="Atividade sugerida">
+Implementar o self-attention do zero em PyTorch, sem usar `nn.MultiheadAttention`, para consolidar o entendimento matemático antes de usar bibliotecas prontas.
+</Caixa>
+
+<p class="nota">
+  Com a arquitetura na mão, sobra o problema prático: esses modelos são grandes
+  demais para re-treinar. A Aula 10 fecha a trilha com o fine-tuning eficiente —
+  LoRA e QLoRA.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "But what is a GPT? Visual intro to Transformers | Deep Learning, Chapter 5",
+      url: "https://youtu.be/wjZofJX0v4M",
+      tag: "Intuitivo",
+      fonte: "3Blue1Brown",
+    },
+    {
+      titulo: "Attention in transformers, visually explained | Deep Learning, Chapter 6",
+      url: "https://youtu.be/eMlx5fFNoYc",
+      tag: "Técnico",
+      fonte: "3Blue1Brown",
+    },
+    {
+      titulo: "Attention Is All You Need (paper original do Transformer)",
+      url: "https://arxiv.org/abs/1706.03762",
+      tag: "Técnico",
+      fonte: "Vaswani et al.",
+      nota: "fonte primária — ler ao menos a Figura 1 e a Seção 3",
+    },
+    {
+      titulo: "Let's build GPT: from scratch, in code, spelled out",
+      tag: "Técnico",
+      fonte: "Andrej Karpathy",
+      nota: "~2h implementando um Transformer do zero em Python",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Implementar self-attention e multi-head do zero, e visualizar os pesos de atenção de cada cabeça — em construção." />

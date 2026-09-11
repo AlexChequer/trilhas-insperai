@@ -1,0 +1,121 @@
+---
+n: "A2"
+titulo: "Validação de Modelos, Métricas e Data Leakage"
+ordem: 2
+objetivo: "Montar uma estratégia de validação correta e escolher a métrica adequada — antes de criar qualquer feature."
+---
+
+import Caixa from "@/components/Caixa.astro";
+import Simbolos from "@/components/Simbolos.astro";
+import Videos from "@/components/Videos.astro";
+import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+
+A causa nº 1 de modelos que funcionam no notebook e falham em produção não é erro de algoritmo — é erro de validação. Esta é possivelmente a aula mais "cara" da trilha em termos de evitar erros graves, e por isso ela vem antes de mexer em features.
+
+## Por que a validação vem antes das features
+
+Qualquer transformação feita nos dados antes de definir corretamente a estratégia de validação corre o risco de "vazar" informação do conjunto de teste para o treino. Isso infla artificialmente as métricas durante o desenvolvimento e faz o modelo parecer muito melhor do que é — até falhar quando encontra dados verdadeiramente novos em produção.
+
+## Estratégias de validação
+
+**Hold-out simples**: dividir o dataset em duas partes (ex.: 80% treino, 20% teste) uma única vez. Simples, mas o resultado pode variar bastante conforme a "fatia" aleatória que caiu no teste — principalmente em datasets pequenos.
+
+**K-fold cross-validation**: dividir os dados em K fatias (ex.: K = 5); treinar o modelo K vezes, cada vez com K−1 fatias para treino e a restante para teste, alternando qual é o teste. A métrica final é a média das K rodadas. Estimativa muito mais robusta que um hold-out único, porque usa todos os dados para treino e para teste, em rodadas diferentes.
+
+**Stratified K-fold**: variação que mantém a proporção das classes em cada fatia — essencial quando as classes são desbalanceadas (ex.: 95% "não fraude", 5% "fraude"). Sem estratificação, alguma fatia poderia ficar quase sem exemplos da classe minoritária, distorcendo a avaliação.
+
+**Group K-fold**: usado quando há grupos de observações que não podem se separar entre treino e teste — várias transações do mesmo cliente, várias imagens do mesmo paciente. Sem isso, o modelo pode "aprender" características daquele cliente no treino e "reconhecê-lo" no teste, dando uma falsa sensação de boa performance que não generaliza para clientes novos.
+
+**Validação temporal (*time series split*)**: para dados sequenciais no tempo, nunca se usa K-fold tradicional, que embaralha os dados — isso deixaria o modelo "ver o futuro". A validação temporal sempre treina com dados passados e testa com dados futuros, geralmente em janelas progressivas: treina com jan–mar, testa em abril; depois treina com jan–abril, testa em maio; e assim por diante.
+
+## Métricas de classificação e a matriz de confusão
+
+Antes das métricas, a **matriz de confusão** organiza os resultados de um classificador binário em quatro categorias: **Verdadeiro Positivo (VP)**, **Falso Positivo (FP)** — previu positivo, era negativo (erro tipo I) —, **Falso Negativo (FN)** — previu negativo, era positivo (erro tipo II) — e **Verdadeiro Negativo (VN)**.
+
+$$
+\text{Acurácia} = \frac{VP + VN}{\text{total}}
+\qquad
+\text{Precisão} = \frac{VP}{VP + FP}
+\qquad
+\text{Recall} = \frac{VP}{VP + FN}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$VP$", significado: "verdadeiros positivos: o modelo previu positivo e acertou" },
+    { simbolo: "$FP$", significado: "falsos positivos: previu positivo, mas era negativo" },
+    { simbolo: "$FN$", significado: "falsos negativos: previu negativo, mas era positivo" },
+    { simbolo: "$VN$", significado: "verdadeiros negativos: previu negativo e acertou" },
+  ]}
+/>
+
+- **Acurácia**: proporção geral de acertos. Enganosa em datasets desbalanceados — um modelo "preguiçoso" que sempre prevê "não fraude" tem 95% de acurácia num dataset com 5% de fraude, sem detectar uma fraude sequer.
+- **Precisão**: das vezes que o modelo disse positivo, quantas ele acertou. Importa quando o custo de um falso positivo é alto — marcar uma transação legítima como fraude incomoda um cliente honesto.
+- **Recall (sensibilidade)**: de todos os positivos reais, quantos o modelo capturou. Importa quando o custo de um falso negativo é alto — deixar passar uma fraude, não detectar uma doença grave.
+- **F1-score**: média harmônica entre precisão e recall — útil quando se quer equilíbrio entre as duas, especialmente em datasets desbalanceados.
+- **AUC-ROC**: capacidade de separar as classes em todos os limiares de decisão, não só em 0,5. Quanto mais perto de 1, melhor. Menos informativa em datasets muito desbalanceados.
+- **AUC-PR (Precision-Recall)**: parecida com a AUC-ROC, mas foca na relação precisão × recall — geralmente mais informativa quando o dataset é muito desbalanceado e a classe positiva é rara.
+
+## Métricas de regressão
+
+- **MAE (*Mean Absolute Error*)**: média do valor absoluto dos erros. Fácil de interpretar (mesma unidade da variável), mas trata todos os erros com o mesmo peso.
+- **RMSE (*Root Mean Squared Error*)**: eleva os erros ao quadrado antes de tirar a média, e depois tira a raiz. Penaliza mais os erros grandes — mais sensível a outliers que o MAE.
+- **MAPE (*Mean Absolute Percentage Error*)**: erro em termos percentuais, bom para comunicar a stakeholders — mas explode quando o valor real está perto de zero.
+- **R² (coeficiente de determinação)**: proporção da variância do alvo que o modelo explica (de −∞ a 1). Cuidado: o R² sempre aumenta quando se adiciona mais variáveis, mesmo irrelevantes — por isso existe o "R² ajustado", que penaliza variáveis desnecessárias.
+
+## Data leakage: o vilão silencioso
+
+**Vazamento temporal**: usar, no treino, informação que só estaria disponível no futuro em relação ao momento da previsão real. Prever cancelamento de um cliente usando "número de reclamações no mês seguinte ao cancelamento" — informação que não existiria na hora de prever.
+
+**Vazamento de target**: uma feature que, direta ou indiretamente, já contém a resposta. Prever se um paciente será internado tendo como feature "número de dias internado" — se foi internado, esse número existe; se não, é zero. A feature entrega a resposta.
+
+**Vazamento via pré-processamento antes do split**: normalizar, ou imputar a média, usando o dataset inteiro (treino + teste) antes de separar os conjuntos. Estatísticas do teste, que deveriam ser desconhecidas no treino, influenciam a transformação aplicada ao treino, contaminando a validação.
+
+<Caixa tipo="erro">
+O vazamento via pré-processamento é o mais sutil dos três, porque não parece um erro: você "só" normalizou os dados. Mas o `StandardScaler` ajustado no dataset inteiro carrega a média e o desvio do conjunto de teste para dentro do treino — e a métrica de validação passa a mentir a seu favor.
+</Caixa>
+
+## Boas práticas para evitar leakage
+
+Usar **Pipelines** — `Pipeline` e `ColumnTransformer` do scikit-learn — resolve o problema de forma quase automática: o pipeline garante que qualquer transformação (normalização, imputação, encoding) seja **ajustada (`fit`) apenas nos dados de treino** e depois **aplicada (`transform`)** ao teste, nunca ajustada usando o teste. É considerada prática essencial de mercado, não um "nice to have".
+
+## Aplicação no mercado
+
+Data leakage é uma das causas mais comuns — e mais caras — de modelos com métricas excelentes no desenvolvimento que falham completamente em produção. Saber identificar e prevenir isso é frequentemente avaliado em entrevistas técnicas e é requisito essencial em auditorias de modelo em setores regulados: financeiro, saúde, seguros.
+
+<p class="nota">
+  Com a validação e a métrica definidas, dá para mexer nos dados sem medo de
+  enganar a si mesmo. A Aula 3 entra em feature engineering — e o cuidado com
+  vazamento volta, agora no *target encoding*.
+</p>
+
+<Videos
+  itens={[
+    {
+      titulo: "Machine Learning Fundamentals: Cross Validation",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+    },
+    {
+      titulo: "ROC and AUC, Clearly Explained!",
+      tag: "Intuitivo",
+      fonte: "StatQuest with Josh Starmer",
+      nota: "complementa a explicação de precisão, recall e AUC",
+    },
+    {
+      titulo: "Data Leakage Explained Visually | How Models Cheat Without You Realizing",
+      url: "https://youtu.be/xzCXqYlV2HE",
+      tag: "Técnico",
+      nota: "direto ao ponto sobre os tipos de vazamento",
+    },
+    {
+      titulo: "Target Leakage in Machine Learning",
+      url: "https://youtu.be/dWhdWxgt5SU",
+      tag: "Técnico",
+      fonte: "Yuriy Guts · AI Ukraine Conference",
+      nota: "um caso real de mercado, mais avançado",
+    },
+  ]}
+/>
+
+<PraticaEmBreve resumo="Montar validação temporal e por grupo, e reproduzir um vazamento de pré-processamento passo a passo — em construção." />
