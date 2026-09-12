@@ -17,3 +17,6 @@ dist/
 # claude
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Gerado pelo `vercel link` — contém os ids do projeto.
+.vercel/
