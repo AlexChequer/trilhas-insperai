@@ -5,9 +5,9 @@ sessão deve olhar._
 
 ## Resumo
 
-- **Duas trilhas no ar:** Trainees (Aulas 1–10) e **Deploy de Agentes (Aulas
-  1–5)**, esta desde 10/8/2026 — ver [[#Trilha de Agentes — Aulas 1 a 5]].
-  ML/DL Avançado segue sem arco, aparecendo como "em breve" no hub.
+- **As três trilhas no ar:** Trainees (Aulas 1–10), **Deploy de Agentes (Aulas
+  1–5)** desde 10/8/2026 — ver [[#Trilha de Agentes — Aulas 1 a 5]] — e
+  **ML/DL Avançado**, que ganhou arco e Aula 1 em 11/9/2026 pela Bianca.
 - **Aulas 1 a 10 de trainees: COMPLETAS** — 25 visualizações funcionando.
 - **Aulas 11, 12 e 13:** aparecem no arco da home como "em breve"; ainda sem
   página `.mdx`. As 11 e 12 dependem do conteúdo do Bloco 5, que está **em
@@ -24,7 +24,10 @@ sessão deve olhar._
   há pontos onde outra escolha mudaria o resultado.
 - **Infra pronta:** Astro + MDX + KaTeX + Plotly, layout de documentação com
   **barra no topo** (seções + busca) e lateral por seção. Ver [[Sistema de Design]].
-- **Deploy:** **no ar na Vercel** (push na `main` = deploy automático).
+- **Deploy:** no ar na Vercel, publicado pelo **GitHub Actions** desde
+  14/9/2026 — a integração Git da Vercel foi desconectada porque bloqueava
+  deployment de commit de colaborador. Push na `main` continua sendo o gatilho.
+  Ver [[Deploy]]. **O token expira em 12/9/2027.**
 
 ## Aulas
 

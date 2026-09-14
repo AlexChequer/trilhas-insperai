@@ -526,3 +526,109 @@ sem tentar, o conserto não é esconder a resposta (eles achariam de qualquer
 jeito) — é a Aula 8 passar a exigir o notebook feito como pré-requisito, ou o
 Alex olhar o resultado em aula. Se em algum momento virar nota, aí sim vale
 reabrir o Classroom, quando a turma já tiver git na mão.
+
+## 12–14 de setembro de 2026 — quem publica o site deixa de ser a Vercel
+
+A Bianca entrou como colaboradora da trilha de ML/DL Avançado, abriu os PRs #6 e
+#7, e a partir do merge deles **nenhum deploy saiu**. O site ficou quatro dias
+mostrando uma versão sem a trilha nova, com a `main` já correta. Ela reportou três
+problemas; este era o urgente.
+
+### O diagnóstico: era o autor do commit
+
+| commit | autor | Vercel |
+| --- | --- | --- |
+| `67a1842` · 10/9 17:22 | AlexChequer | ✅ |
+| `4fadd8d` · 11/9 02:43 | biancarh | ❌ blocked |
+| `7021b9c` · 11/9 03:32 | biancarh | ❌ blocked |
+
+Correlação perfeita com quem assina. É o bloqueio de **"Git author not
+authorized"**: em conta Hobby, a Vercel recusa deployment cujo autor no Git não
+esteja vinculado à conta. E a pegadinha que faz PR não resolver — **o merge commit
+é assinado por quem clica em "Merge"**, então PR dela mergeado por ela continua
+sendo commit dela.
+
+As três hipóteses que a Bianca levantou foram descartadas com evidência, e ficam
+registradas para ninguém reinvestigar: **não era limite de plano** (deploy do dono
+nove horas antes passou; limite não escolhe por autor), **não era Deployment
+Protection** (aquilo controla quem vê, não o build, e não marcaria commit status
+como `failure`) e **não era integração quebrada** (ela criou deployment e reportou
+status em todos os commits — quebrada, não teria criado nenhum).
+
+### A saída, com as restrições do Alex
+
+Ele pediu explicitamente: **sem me envolver a cada merge, e sem pagar**. Isso
+eliminou as duas saídas óbvias — ele clicar em Merge sempre (envolve) e adicionar
+a Bianca ao time na Vercel (exige Pro, ~US$ 20/mês por pessoa).
+
+Sobrou **publicar pelo GitHub Actions com um token**. O bloqueio é só da
+integração Git; deploy por CLI é autenticado pelo token, não pelo autor. Sai de
+graça: 2.000 min/mês de Actions cobrem um build de ~2 min.
+
+Cloudflare Pages e GitHub Pages foram considerados e descartados: a primeira é
+migração de verdade (conta e domínio novos), e Pages em repositório privado exige
+plano pago — o repo teria que virar público.
+
+**Um ganho que não era o objetivo:** publicar passou a depender do `verificar`
+passar. Antes a Vercel publicava em paralelo ao CI, e build quebrado ia ao ar.
+
+### O que custou dois dias: a cópia do token
+
+Três tokens seguidos voltaram como inválidos. As teorias erradas, na ordem, para
+não se repetirem:
+
+1. **Escopo de projeto.** O token com escopo `trilha-trainees` (mais seguro, e
+   preferível) **não serve** — o `vercel pull` falha com "Could not retrieve
+   Project Settings". Provei rodando o mesmo `pull` com os mesmos ids pela sessão
+   local da CLI, que funcionou: a única variável diferente era a autenticação. Tem
+   que ser escopo da conta inteira, o que é mais largo do que gostaríamos.
+2. **Interpolação de `--token=` no YAML.** Troquei para `VERCEL_TOKEN` no
+   ambiente achando que espaço ou quebra de linha partia o comando. **Não era** —
+   o erro voltou igual, só que nomeando a variável de ambiente. A mudança ficou
+   porque é o padrão documentado e a mensagem de erro é mais clara.
+3. **A causa real: sujeira na cópia.** O que resolveu foi
+   `pbpaste | tr -d '\r\n '`, validando com `vercel whoami` **antes** de gravar o
+   secret. A receita está no [[Deploy]].
+
+Lição que vale além deste caso: **valide o segredo antes de guardá-lo.** Duas
+tentativas foram gastas porque "cadastrei o token" e "o token funciona" pareciam a
+mesma coisa. E o `read -rs` não funciona pelo prompt `!` do Claude Code — não há
+stdin interativo, o `read` bate em EOF e a cadeia `&&` morre em silêncio.
+
+### O estado final
+
+Integração Git **desconectada** em 14/9. O Actions é agora o único caminho
+automático — se o token ou o workflow caírem, nada publica sozinho e o resgate é
+o `vercel deploy` manual documentado no [[Deploy]].
+
+**O token expira em 12/9/2027.** Está anotado no [[Deploy]] com o sintoma e a
+receita, porque daqui a um ano ninguém vai ligar "deploy parou" a "token venceu".
+
+**O que faria mudar de ideia:** se a entidade puser a Vercel num plano pago, a
+integração Git com os colaboradores no time volta a ser a solução mais simples e
+sem token guardado em repositório — e aí vale desfazer isto.
+
+### As outras duas pendências que vieram junto
+
+**Acesso da Bianca ao `notebooks-insperai`.** Ela tinha o notebook da Aula 1
+pronto e commitado local, sem conseguir empurrar: o repo tinha um colaborador só.
+Escolhido **dar acesso de escrita**, e não receber PR de fork — ela já tem push no
+repositório do site, que é o de maior risco por ser o que publica; o de notebooks
+não tem deploy, não tem CI e é só leitura para os trainees. Fork+PR faria dela a
+única pessoa nesse fluxo, com uma volta a mais por notebook.
+
+**As duas divergências de padrão que ela documentou** não eram decisões abertas —
+as regras já existiam no CLAUDE.md do outro repositório, e ela não tinha como
+saber:
+
+- **`seaborn.load_dataset()` → `dados/`.** O invariante 5 é explícito e dá o
+  motivo: nada de baixar dado dentro do notebook, porque é lento, depende de rede
+  e **já falhou em sala**. O `load_dataset()` baixa do repositório `seaborn-data`
+  em tempo de execução — mesmo modo de falha.
+- **Demo e atividade no mesmo arquivo: mantém um só.** Já decidido em 10/8, com a
+  razão registrada: duas versões seriam dois arquivos por aula para manter em
+  sincronia. A Aula 3 provou que um arquivo aguenta lacuna, teste e `<details>`.
+
+A correção que ela fez no `!pip install` comentado (que quebrava o
+ydata-profiling em qualquer ambiente sem a lib, inclusive o Colab) é boa e é
+exatamente o que o portão existe para pegar.
