@@ -53,15 +53,40 @@ $$
 - **Precisão**: das vezes que o modelo disse positivo, quantas ele acertou. Importa quando o custo de um falso positivo é alto — marcar uma transação legítima como fraude incomoda um cliente honesto.
 - **Recall (sensibilidade)**: de todos os positivos reais, quantos o modelo capturou. Importa quando o custo de um falso negativo é alto — deixar passar uma fraude, não detectar uma doença grave.
 - **F1-score**: média harmônica entre precisão e recall — útil quando se quer equilíbrio entre as duas, especialmente em datasets desbalanceados.
-- **AUC-ROC**: capacidade de separar as classes em todos os limiares de decisão, não só em 0,5. Quanto mais perto de 1, melhor. Menos informativa em datasets muito desbalanceados.
-- **AUC-PR (Precision-Recall)**: parecida com a AUC-ROC, mas foca na relação precisão × recall — geralmente mais informativa quando o dataset é muito desbalanceado e a classe positiva é rara.
+
+**AUC-ROC e AUC-PR.** O modelo não produz só "0" ou "1" — produz uma probabilidade, e o rótulo final depende de um limiar de decisão (por padrão, 0,5). As duas curvas a seguir avaliam o modelo em **todos os limiares possíveis**, em vez de um só.
+
+A curva **ROC** plota TPR (que é o próprio recall) contra FPR a cada limiar:
+
+$$
+TPR = \frac{VP}{VP + FN}
+\qquad
+FPR = \frac{FP}{FP + VN}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$TPR$", significado: "taxa de verdadeiros positivos — é exatamente o recall" },
+    { simbolo: "$FPR$", significado: "taxa de falsos positivos: quantos negativos reais o modelo classificou como positivo, sobre o total de negativos reais" },
+  ]}
+/>
+
+A curva **PR (Precision-Recall)** plota precisão contra recall a cada limiar — as mesmas duas métricas já vistas acima.
+
+**Por que a ROC engana em dataset desbalanceado.** O problema mora no FPR: ele tem VN no denominador, e quando a classe negativa é enorme (95% dos dados, por exemplo), até um modelo que produz muitos falsos positivos em número absoluto tem FPR minúsculo — está dividindo por uma quantidade gigante de negativos. A curva ROC, e a AUC-ROC que ela resume, podem parecer ótimas mesmo quando o modelo é praticamente inútil na prática.
+
+A precisão, por outro lado, tem FP e VP no denominador — os dois ligados à classe positiva, a rara, sem nenhum VN envolvido. Isso a torna sensível exatamente ao que importa quando a classe positiva é escassa: "das vezes que o modelo gritou positivo, quantas eram reais?". É por isso que **AUC-PR costuma ser mais informativa que a AUC-ROC quando a classe positiva é rara** — fraude, doença rara, defeito de fabricação.
+
+<Caixa tipo="dica">
+Regra prática: dataset desbalanceado com interesse na classe minoritária → prefira AUC-PR (ou *average precision*). AUC-ROC continua útil quando as classes são mais equilibradas, ou quando falso positivo e falso negativo têm custo e prevalência parecidos.
+</Caixa>
 
 ## Métricas de regressão
 
 - **MAE (*Mean Absolute Error*)**: média do valor absoluto dos erros. Fácil de interpretar (mesma unidade da variável), mas trata todos os erros com o mesmo peso.
 - **RMSE (*Root Mean Squared Error*)**: eleva os erros ao quadrado antes de tirar a média, e depois tira a raiz. Penaliza mais os erros grandes — mais sensível a outliers que o MAE.
 - **MAPE (*Mean Absolute Percentage Error*)**: erro em termos percentuais, bom para comunicar a stakeholders — mas explode quando o valor real está perto de zero.
-- **R² (coeficiente de determinação)**: proporção da variância do alvo que o modelo explica (de −∞ a 1). Cuidado: o R² sempre aumenta quando se adiciona mais variáveis, mesmo irrelevantes — por isso existe o "R² ajustado", que penaliza variáveis desnecessárias.
+- **R² (coeficiente de determinação)**: proporção da variância do alvo que o modelo explica (de −∞ a 1). Três valores de referência valem a pena guardar: **R² = 1** é previsão perfeita; **R² = 0** significa que o modelo é tão bom quanto chutar a média do alvo para todo mundo, sempre; e **R² negativo** — que existe, e não é raro — significa que o modelo é **pior** do que simplesmente chutar essa média. Cuidado: o R² sempre aumenta quando se adiciona mais variáveis, mesmo irrelevantes — por isso existe o "R² ajustado", que penaliza variáveis desnecessárias.
 
 ## Data leakage: o vilão silencioso
 
@@ -69,7 +94,7 @@ $$
 
 **Vazamento de target**: uma feature que, direta ou indiretamente, já contém a resposta. Prever se um paciente será internado tendo como feature "número de dias internado" — se foi internado, esse número existe; se não, é zero. A feature entrega a resposta.
 
-**Vazamento via pré-processamento antes do split**: normalizar, ou imputar a média, usando o dataset inteiro (treino + teste) antes de separar os conjuntos. Estatísticas do teste, que deveriam ser desconhecidas no treino, influenciam a transformação aplicada ao treino, contaminando a validação.
+**Vazamento via pré-processamento antes do split**: normalizar, imputar a média, ou **selecionar features** usando o dataset inteiro (treino + teste) antes de separar os conjuntos. Estatísticas do teste, que deveriam ser desconhecidas no treino, influenciam a transformação aplicada ao treino, contaminando a validação. A seleção de features é a versão mais traiçoeira: escolher as variáveis "mais correlacionadas com o alvo" olhando todos os dados pode inflar bastante a métrica de validação — mesmo quando não existe absolutamente nenhuma relação real entre as features e o alvo —, porque a correlação usada para escolher já "espiou" o teste.
 
 <Caixa tipo="erro">
 O vazamento via pré-processamento é o mais sutil dos três, porque não parece um erro: você "só" normalizou os dados. Mas o `StandardScaler` ajustado no dataset inteiro carrega a média e o desvio do conjunto de teste para dentro do treino — e a métrica de validação passa a mentir a seu favor.
@@ -77,7 +102,7 @@ O vazamento via pré-processamento é o mais sutil dos três, porque não parece
 
 ## Boas práticas para evitar leakage
 
-Usar **Pipelines** — `Pipeline` e `ColumnTransformer` do scikit-learn — resolve o problema de forma quase automática: o pipeline garante que qualquer transformação (normalização, imputação, encoding) seja **ajustada (`fit`) apenas nos dados de treino** e depois **aplicada (`transform`)** ao teste, nunca ajustada usando o teste. É considerada prática essencial de mercado, não um "nice to have".
+Usar **Pipelines** — `Pipeline` e `ColumnTransformer` do scikit-learn — resolve o problema de forma quase automática: o pipeline garante que qualquer transformação (normalização, imputação, encoding, seleção de features) seja **ajustada (`fit`) apenas nos dados de treino** e depois **aplicada (`transform`)** ao teste, nunca ajustada usando o teste — e isso vale dentro de cada fold da validação cruzada, automaticamente. O `ColumnTransformer` complementa aplicando tratamentos diferentes a colunas numéricas e categóricas dentro do mesmo pipeline. É considerada prática essencial de mercado, não um "nice to have".
 
 ## Aplicação no mercado
 
