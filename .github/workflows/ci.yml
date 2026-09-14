@@ -70,6 +70,9 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Pelo ambiente, e não por --token= na linha de comando: interpolação de
+      # secret com espaço ou quebra de linha chega truncada e vira "not valid".
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -81,12 +84,12 @@ jobs:
       - run: npm ci
       - run: npm i -g vercel@latest
 
-      - run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-      - run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel pull --yes --environment=preview
+      - run: vercel build
 
       - name: Publicar a prévia
         id: publicar
-        run: echo "url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
+        run: echo "url=$(vercel deploy --prebuilt)" >> "$GITHUB_OUTPUT"
 
       # Um comentário só, reescrito a cada push — em vez de um por commit.
       - name: Comentar o endereço no PR
@@ -114,6 +117,9 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Pelo ambiente, e não por --token= na linha de comando: interpolação de
+      # secret com espaço ou quebra de linha chega truncada e vira "not valid".
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -127,13 +133,13 @@ jobs:
 
       # pull traz as variáveis de ambiente e as configurações do projeto, para o
       # build daqui sair igual ao que a Vercel faria do lado dela.
-      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel pull --yes --environment=production
+      - run: vercel build --prod
 
       # --prebuilt: sobe o resultado pronto, não o código. Ela não builda de novo.
       - name: Publicar
         id: publicar
-        run: echo "url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
+        run: echo "url=$(vercel deploy --prebuilt --prod)" >> "$GITHUB_OUTPUT"
 
       - name: Resumo
         run: |
