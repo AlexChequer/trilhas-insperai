@@ -1,8 +1,20 @@
 name: CI
 
-# A Vercel publica sozinha a cada push na main. Este workflow existe para que um
-# build quebrado seja pego ANTES do merge, e não depois de estar no ar: marque-o
-# como required status check em Settings → Branches → Branch protection.
+# Este workflow checa E publica.
+#
+# A publicação saiu da integração Git da Vercel e veio para cá porque aquela
+# recusa deployment cujo autor do commit não esteja vinculado à conta Vercel —
+# em conta Hobby, isso é todo mundo menos o dono. Os merges da Bianca voltavam
+# como "Deployment was blocked" e o site ficou quatro dias parado enquanto a main
+# já tinha a trilha nova. Deploy por CLI é autenticado pelo token, não pelo autor
+# do commit, então não esbarra nessa checagem.
+#
+# Efeito colateral bem-vindo: antes a Vercel publicava em paralelo ao CI, e um
+# build quebrado ia ao ar do mesmo jeito. Agora publicar depende de verificar.
+#
+# Precisa de três secrets no repositório: VERCEL_TOKEN, VERCEL_ORG_ID e
+# VERCEL_PROJECT_ID. E da integração Git desligada em Vercel → Settings → Git,
+# senão ela continua criando um deployment bloqueado a cada push.
 on:
   push:
     branches: [main]
@@ -42,3 +54,98 @@ jobs:
       # silencioso em produção. Ver scripts/checar-links.mjs.
       - name: Links internos
         run: npm run checar-links
+
+  # ---------------------------------------------------------------------------
+  # A prévia de cada PR, que era o que a Vercel dava antes.
+  # Só para branch deste repositório, que é o caso de todos os PRs até hoje: PR
+  # vindo de fork não recebe os secrets, e isso é proteção, não limitação.
+  previa:
+    name: Prévia do PR
+    needs: verificar
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Pelo ambiente, e não por --token= na linha de comando: interpolação de
+      # secret com espaço ou quebra de linha chega truncada e vira "not valid".
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm i -g vercel@latest
+
+      - run: vercel pull --yes --environment=preview
+      - run: vercel build
+
+      - name: Publicar a prévia
+        id: publicar
+        run: echo "url=$(vercel deploy --prebuilt)" >> "$GITHUB_OUTPUT"
+
+      # Um comentário só, reescrito a cada push — em vez de um por commit.
+      - name: Comentar o endereço no PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: previa-vercel
+          message: |
+            **Prévia deste PR:** ${{ steps.publicar.outputs.url }}
+
+            Sai do commit `${{ github.event.pull_request.head.sha }}` e é
+            refeita a cada push nesta branch.
+
+  # ---------------------------------------------------------------------------
+  # Produção. Só na main, e só depois do verificar passar.
+  publicar:
+    name: Publicar em produção
+    needs: verificar
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Fora do concurrency do topo de propósito: cancelar um deploy pela metade é
+    # pior que deixar dois entrarem em fila.
+    concurrency:
+      group: publicar-producao
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Pelo ambiente, e não por --token= na linha de comando: interpolação de
+      # secret com espaço ou quebra de linha chega truncada e vira "not valid".
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm i -g vercel@latest
+
+      # pull traz as variáveis de ambiente e as configurações do projeto, para o
+      # build daqui sair igual ao que a Vercel faria do lado dela.
+      - run: vercel pull --yes --environment=production
+      - run: vercel build --prod
+
+      # --prebuilt: sobe o resultado pronto, não o código. Ela não builda de novo.
+      - name: Publicar
+        id: publicar
+        run: echo "url=$(vercel deploy --prebuilt --prod)" >> "$GITHUB_OUTPUT"
+
+      - name: Resumo
+        run: |
+          {
+            echo "### Publicado"
+            echo "- commit: \`${{ github.sha }}\`"
+            echo "- quem empurrou: @${{ github.actor }}"
+            echo "- endereço: ${{ steps.publicar.outputs.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

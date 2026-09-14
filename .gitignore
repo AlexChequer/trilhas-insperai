@@ -17,3 +17,8 @@ dist/
 # claude
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Gerado pelo `vercel link` — os ids do projeto e, no `vercel pull`, as
+# variáveis de ambiente de produção. Nada daí entra no repositório.
+.vercel/
+.env*
