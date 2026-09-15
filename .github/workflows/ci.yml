@@ -62,6 +62,10 @@ jobs:
   previa:
     name: Prévia do PR
     needs: verificar
+    # O `vercel deploy` espera a Vercel terminar, e já ficou horas preso em
+    # "Building…" quando o deployment não saía do lugar do lado dela. Falhar em
+    # 10 min diz a mesma coisa e não queima os 2.000 min/mês do plano free.
+    timeout-minutes: 10
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
@@ -107,6 +111,10 @@ jobs:
   publicar:
     name: Publicar em produção
     needs: verificar
+    # O `vercel deploy` espera a Vercel terminar, e já ficou horas preso em
+    # "Building…" quando o deployment não saía do lugar do lado dela. Falhar em
+    # 10 min diz a mesma coisa e não queima os 2.000 min/mês do plano free.
+    timeout-minutes: 10
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Fora do concurrency do topo de propósito: cancelar um deploy pela metade é
