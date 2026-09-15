@@ -467,7 +467,7 @@ difícil é"* —, junto com a vontade de gerir quem entregou e quem não.
 **O que a pesquisa achou, e que mudou a resposta.** A org `InsperAI-Trainee` já
 existe no GitHub, com repos no padrão do GitHub Classroom (`mlp-AlexChequer`,
 `mnist-challenge-AlexChequer`), um pipeline de entrega funcionando em
-`.github/workflows/submit.yml` e o servidor `challenge.insperai.com.br` ainda
+um pipeline de entrega automatizada, e o servidor de leaderboard ainda
 respondendo. E o dado mais útil: os notebooks semanais de 2026.1 **não tinham
 nada** — nenhum `assert`, nenhum `### START CODE HERE`, nenhum CI. Só o desafio
 do MNIST era corrigido.
@@ -489,13 +489,10 @@ dia precisar de sinal sem exigir git, o meio-termo é o notebook imprimir um
 código de conclusão que eles colam num Google Form (~2h) — anotado aqui para não
 se reinventar a discussão.
 
-**Achado de segurança, para quem for reusar o pipeline do MNIST:** o
-`submit.yml` traz a `SUBMISSION_API_KEY` **em texto puro no arquivo**, enquanto o
-README afirma que a Action "inherits org-level secrets". Não herda. Os repos são
-privados, mas cada trainee tinha esse arquivo, então a chave circulou pela turma
-inteira — e o `github_actor` vai no corpo do POST como dado do cliente, então
-com a chave dá para submeter no nome de qualquer um. Rotacionar, mover para
-secret de org e derivar o autor do contexto do Actions. Não testei a chave.
+**Achado de segurança, antes de reusar o pipeline de entrega de 2026.1:** ele
+tem problemas de credencial e de autenticação que precisam ser resolvidos antes
+de qualquer reaproveitamento. O detalhe está fora do vault, de propósito — este
+repositório é público. Falar com o Alex.
 
 ### O notebook em si
 
