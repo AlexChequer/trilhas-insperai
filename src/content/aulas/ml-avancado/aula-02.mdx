@@ -8,7 +8,7 @@ objetivo: "Montar uma estratégia de validação correta e escolher a métrica a
 import Caixa from "@/components/Caixa.astro";
 import Simbolos from "@/components/Simbolos.astro";
 import Videos from "@/components/Videos.astro";
-import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+import Pratica from "@/components/Pratica.astro";
 
 A causa nº 1 de modelos que funcionam no notebook e falham em produção não é erro de algoritmo — é erro de validação. Esta é possivelmente a aula mais "cara" da trilha em termos de evitar erros graves, e por isso ela vem antes de mexer em features.
 
@@ -143,4 +143,7 @@ Data leakage é uma das causas mais comuns — e mais caras — de modelos com m
   ]}
 />
 
-<PraticaEmBreve resumo="Montar validação temporal e por grupo, e reproduzir um vazamento de pré-processamento passo a passo — em construção." />
+<Pratica
+  caminho="ml-avancado/aula-02-validacao-metricas-leakage.ipynb"
+  resumo="As cinco estratégias de validação, as métricas enganando ao vivo e os três vazamentos acontecendo de verdade — mais 5 exercícios para você resolver."
+/>
