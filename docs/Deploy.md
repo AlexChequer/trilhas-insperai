@@ -23,6 +23,17 @@ Precisa de três secrets no repositório — `VERCEL_TOKEN`, `VERCEL_ORG_ID` e
 `npx vercel link` (atenção: `repo.json`, não `project.json`, quando o link é de
 repositório).
 
+## O repositório é público de propósito (desde 15/9/2026)
+
+**Não é só preferência: é o que faz o deploy funcionar.** A Vercel recusa
+deployment cujo autor do commit não esteja vinculado à conta, e a mensagem dela
+diz o porquê em letras miúdas — *"The Hobby Plan does not support collaboration
+for **private** repositories"*. Repositório público, a restrição some.
+
+Se algum dia isto voltar a ser privado, os deploys de todo colaborador que não
+seja o dono da conta Vercel voltam a ser bloqueados. Verificado em 15/9 com um
+commit de autor sem acesso nenhum: prévia publicou em 2s.
+
 ## Por que saiu da integração Git da Vercel
 
 Ela **recusa deployment cujo autor do commit não esteja vinculado à conta
@@ -40,9 +51,17 @@ controla quem *vê*, não o build) e não era integração quebrada (ela criava
 deployment e reportava status em todos os commits). A correlação era só com o
 autor.
 
-Deploy por CLI é autenticado pelo **token**, não pelo autor, e passa. Sai de
-graça: os 2.000 minutos/mês de Actions do plano free cobrem de sobra um build de
-~2 min.
+Sai de graça: os 2.000 minutos/mês de Actions do plano free cobrem de sobra um
+build de ~2 min — e, em repositório público, Actions é ilimitado.
+
+**Atenção a uma coisa que eu afirmei errado na época:** achei que deploy por CLI
+fosse autenticado só pelo token e portanto imune à checagem de autor. **Não é.**
+A CLI lê o metadado do Git do diretório onde roda e anexa o autor do commit ao
+deployment, e a Vercel bloqueia do mesmo jeito. A migração para o Actions pareceu
+resolver porque todos os commits daquele dia eram do dono da conta; o primeiro
+merge de outra pessoa depois dela voltou a travar. **Quem resolveu foi tornar o
+repositório público.** O Actions continua valendo pelo resto (publicar depende do
+CI passar, prévia por PR), mas não era a cura.
 
 **O custo assumido:** o token alcança todos os projetos da conta na Vercel (o
 escopo de projeto único não serve — ver o Log), e vive nos secrets de um

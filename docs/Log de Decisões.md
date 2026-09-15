@@ -630,3 +630,54 @@ saber:
 A correção que ela fez no `!pip install` comentado (que quebrava o
 ydata-profiling em qualquer ambiente sem a lib, inclusive o Colab) é boa e é
 exatamente o que o portão existe para pegar.
+
+## 15 de setembro de 2026 — o repositório do site fica público, e é isso que conserta o deploy
+
+Adendo à entrada anterior, e uma correção do que eu tinha concluído lá.
+
+**O que eu errei.** Registrei que publicar pelo Actions resolvia o bloqueio,
+porque deploy por CLI seria autenticado pelo token e não pelo autor do commit.
+**Está errado.** A CLI da Vercel lê o metadado do Git do diretório onde roda e
+anexa o autor ao deployment; a checagem continua valendo. A migração pareceu
+funcionar porque todos os commits daquele dia eram do Alex. No primeiro merge da
+Bianca depois disso, o deploy voltou a travar — e travou **pendurado**, não com
+erro: o `vercel deploy` fica esperando para sempre em "Building…" quando o
+deployment não sai do lugar do lado de lá. Dois runs ficaram horas presos até ela
+cancelar na mão. Daí o `timeout-minutes: 10`.
+
+**A causa real estava na segunda frase da mensagem de erro**, que eu não tinha
+lido com atenção: *"The Hobby Plan does not support collaboration for **private**
+repositories."* Não era um bug nem um limite temporário — o plano Hobby não
+suporta colaborador em repositório privado, e o site tem cinco.
+
+**A decisão: tornar o repositório público.** Das três saídas (público, tirar o
+metadado de Git do deploy, ou pagar Pro a ~US$ 20/mês), é a única gratuita que é
+*suportada* em vez de contornada. E um site acadêmico aberto não tinha por que
+ser repositório fechado. De brinde, minutos de Actions passam a ser ilimitados.
+
+**Verificado, não suposto** — depois do que aconteceu acima, não dava para
+afirmar de novo sem testar. Abri um PR com um commit vazio assinado por
+`teste@example.invalid`, alguém sem acesso nenhum na Vercel. Antes seria
+bloqueado; publicou `Ready` em 2 segundos.
+
+**O que mudou no vault antes de abrir**, e vale saber que foi deliberado:
+
+- Os detalhes da falha de credencial do pipeline de 2026.1 saíram. O valor da
+  chave nunca esteve aqui, mas o roteiro estava — onde ela mora, o endereço do
+  servidor e por que a submissão é falsificável. Ficou a lição e o ponteiro. A
+  rotação em si depende de quem opera aquele servidor.
+- A seção "Incoerências no arco dele (para não copiar)" do
+  [[Comparativo com o ANN-DL]] virou "Onde escolhemos uma ordem diferente da
+  dele". O conteúdo é o mesmo e continua factual; o enquadramento é que não
+  sobrevive a sair de anotação interna — uma entidade de alunos não aponta
+  defeito na eletiva do Insper em repositório público. A razão nova é honesta e
+  é a nossa restrição de verdade: aula com professor pode apresentar e amarrar
+  depois, site lido sozinho não pode.
+
+O texto antigo dos dois segue no histórico do git, que é público junto. Como não
+há credencial dentro de nenhum, foi aceito em vez de reescrever a história e
+quebrar o clone de cinco pessoas.
+
+**O que faria mudar de ideia:** se o repositório precisar voltar a ser privado
+por algum motivo, os deploys de colaborador voltam a ser bloqueados no mesmo dia
+— e aí a escolha vira Pro ou tirar o metadado de Git do deploy.
