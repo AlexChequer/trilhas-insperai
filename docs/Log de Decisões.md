@@ -364,9 +364,10 @@ trilha de agentes, que já cobrem embeddings, Transformers e o que é um modelo 
 linguagem — com mais profundidade. Quem escrever a A11 vai reescrever pior o que
 já existe. Precisa de decisão antes de alguém trabalhar à toa.
 
-**Também registrei incoerências no arco dele**, para não copiarmos: convolucional
-aparece duas vezes (subpágina da aula 10 e aula 11 inteira), e métricas de LLM são
-ensinadas na aula 9 enquanto LLMs só aparecem na 16.
+**Também registrei três pontos em que escolhemos ordem diferente da dele** —
+convolucional concentrado em duas aulas em vez de espalhado, e métrica sempre
+depois do objeto que ela mede. Não são defeitos do curso dele: aula com professor
+pode apresentar e amarrar depois, site lido sozinho não pode.
 
 **Uma correção que saiu daqui:** ao conferir os números, vi que os docs diziam "17
 visualizações" na trilha de agentes quando são **16**. O arco (4+3+3+4+2) sempre

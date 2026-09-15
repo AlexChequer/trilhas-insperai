@@ -164,17 +164,24 @@ está subdimensionada. Hoje o `desc` não deixa claro qual das duas.
 A A2 fala de normalizar e padronizar — o *como* — sem que exista antes um lugar
 onde se olhe a cara do dado. É o mesmo buraco da seção 1, visto pela ordem.
 
-## Incoerências no arco dele (para não copiar)
+## Onde escolhemos uma ordem diferente da dele
 
-A comparação vale nos dois sentidos:
+Três pontos em que os arcos divergem. **Não são defeitos do curso dele** — são
+restrições diferentes. Uma eletiva com professor em sala pode apresentar um
+assunto e amarrá-lo depois, porque tem alguém para fazer a ponte na hora e
+responder a dúvida quando ela nasce. Um site lido sozinho não tem esse recurso, e
+é isso que puxa as nossas escolhas.
 
-1. **Convolucional aparece duas vezes.** É subpágina da aula 10 (Deep Learning →
-   convolutional) *e* a aula 11 inteira (Convolutional Neural Networks).
-2. **Métricas de LLM na aula 9; LLMs só na 16.** Ensina a medir o objeto sete
-   aulas antes de apresentá-lo.
+1. **Convolucional em dois lugares.** No arco dele o assunto aparece como
+   subpágina da aula 10 (Deep Learning → convolutional) e como a aula 11 inteira.
+   Concentramos em A9 e A10, porque quem lê sem professor precisa saber para onde
+   voltar quando a dúvida aparece.
+2. **Métrica antes do objeto medido.** Ele ensina métricas de LLM na aula 9 e
+   apresenta LLMs na 16 — ordem que funciona quando alguém contextualiza em aula.
+   No nosso caso a métrica vem sempre depois do objeto.
 3. **"Neural Networks" (4) antes de "Perceptron" (5) e "MLP" (6)** — o todo antes
-   da unidade. O nosso caminho (A4 "Do Neurônio à Rede" → A5 "MLP") vai da peça
-   para o conjunto, que é mais fácil de seguir sem professor.
+   da unidade. Fazemos o contrário (A4 "Do Neurônio à Rede" → A5 "MLP"), da peça
+   para o conjunto, que é mais fácil de seguir sem alguém a quem perguntar.
 
 ## O que fazer, em ordem de valor
 
