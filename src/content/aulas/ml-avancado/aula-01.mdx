@@ -8,7 +8,7 @@ objetivo: "Ir além do .describe() e dos histogramas básicos — extrair da exp
 import Caixa from "@/components/Caixa.astro";
 import Simbolos from "@/components/Simbolos.astro";
 import Videos from "@/components/Videos.astro";
-import PraticaEmBreve from "@/components/PraticaEmBreve.astro";
+import Pratica from "@/components/Pratica.astro";
 
 Toda pipeline séria de ciência de dados começa aqui. EDA malfeita é uma das causas mais comuns de modelos que "funcionam no notebook, mas falham em produção" — porque problemas nos dados que passariam despercebidos numa exploração superficial acabam corrompendo o modelo de formas sutis. Esta aula é sobre o que olhar, e o que cada coisa que se olha decide mais adiante.
 
@@ -195,4 +195,7 @@ EDA completa em um dataset real (por exemplo, um do Kaggle), identificando pelo 
   ]}
 />
 
-<PraticaEmBreve resumo="Uma EDA completa sobre um dataset real, com skewness, outliers e dados faltantes — em construção." />
+<Pratica
+  caminho="ml-avancado/aula-01-eda-avancada.ipynb"
+  resumo="A EDA inteira desta aula rodando na base titanic, célula por célula — mais uma atividade em diamonds para você aplicar sozinho."
+/>
