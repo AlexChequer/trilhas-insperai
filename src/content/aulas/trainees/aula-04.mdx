@@ -14,6 +14,7 @@ import Pergunta from "@/components/Pergunta.astro";
 import Simbolos from "@/components/Simbolos.astro";
 import Quiz from "@/components/Quiz.astro";
 import QuizBloco from "@/components/QuizBloco.astro";
+import Pratica from "@/components/Pratica.astro";
 
 "Rede neural" soa como uma categoria diferente de coisa — algo que começa onde a regressão linear termina. Não é. A unidade básica de uma rede faz exatamente a conta que você já sabe fazer desde a Aula 1. Esta aula acrescenta a essa conta uma única peça nova, a **ativação**, e mostra que sem ela a rede inteira — por mais fundo que você empilhe — desaba numa reta.
 
@@ -289,3 +290,8 @@ Aperte o play e espere. A rede tem 100 e poucos parâmetros e não separa a espi
 />
 
 </QuizBloco>
+
+<Pratica
+  caminho="trainees/aula-04-do-neuronio-a-rede.ipynb"
+  resumo="Você monta a rede em PyTorch e vê o colapso acontecer no número: com ReLU ela passa dos 0,97 nos dígitos, e tirando a ativação as duas camadas caem exatamente na acurácia da regressão logística."
+/>

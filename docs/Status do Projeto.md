@@ -268,12 +268,15 @@ dois logos. Resolve com um arquivo e uma linha no layout.
 
 ## Próximos passos
 
-- **Notebooks:** a Aula 0 e as Aulas 1, 2 e 3 de trainees já têm notebook, mais
-  um **laboratório de revisão das A1+A2** no fim da página da Aula 2, em
+- **Notebooks:** a Aula 0 e as Aulas 1, 2, 3 e 4 de trainees já têm notebook,
+  mais um **laboratório de revisão das A1+A2** no fim da página da Aula 2, em
   [notebooks-insperai](https://github.com/AlexChequer/notebooks-insperai) — ver
   [[Notebooks das Aulas]]. A A3 estreia o **formato de exercício** (o trainee
   implementa, com testes no notebook) — o Alex precisa julgá-lo antes de eu
-  escalar. Faltam as Aulas 4 a 10.
+  escalar. A **A4 é do próprio Alex** e usa um terceiro formato, mais leve
+  (`TODO` com dica, sem `verificar()` e sem gabarito embutido) — e é o primeiro
+  notebook em PyTorch. Convergir os dois formatos continua em aberto. Faltam as
+  Aulas 5 a 10.
 - **Trilha de Agentes:** falta o Alex julgar as 5 aulas, e faltam as Aulas 6
   (N8N) e 7 (prompt engineering) — bloqueadas por não haver material no
   repositório de origem.
@@ -284,8 +287,7 @@ dois logos. Resolve com um arquivo e uma linha no layout.
 - **Páginas novas**: setup de ambiente, Aula 0, recursos, projetos, e a seção
   "Antes de começar" na sidebar — decididas, ainda não começadas.
 - **Notebook por aula** — princípio e candidatos em [[Notebooks das Aulas]]. O
-  repositório existe desde 10/8, com quatro notebooks dentro; o que falta são as
-  Aulas 3 a 10.
+  repositório existe desde 10/8; o que falta são as Aulas 5 a 10.
 - **Lacunas frente ao site 2026.1** (busca, tema escuro, rodapé) — lista
   priorizada em [[Comparativo com o Site 2026.1]].
 
