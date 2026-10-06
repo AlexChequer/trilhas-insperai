@@ -15,6 +15,7 @@ import Pergunta from "@/components/Pergunta.astro";
 import Simbolos from "@/components/Simbolos.astro";
 import Quiz from "@/components/Quiz.astro";
 import QuizBloco from "@/components/QuizBloco.astro";
+import Pratica from "@/components/Pratica.astro";
 
 Na Aula 4 você montou um neurônio e descobriu que, sem ativação, empilhá-los não leva a lugar nenhum. Agora eles viram uma rede de verdade. São três perguntas para responder: que formato dar à rede, como fazer a última camada devolver a resposta no formato certo para o problema, e — a mais difícil — como corrigir pesos que estão lá no começo quando o erro só é conhecido no fim.
 
@@ -311,3 +312,8 @@ Guarde essa imagem. É <Termo id="overfitting">overfitting</Termo>, o mesmo fen�
 />
 
 </QuizBloco>
+
+<Pratica
+  caminho="trainees/aula-05-backpropagation.ipynb"
+  resumo="Você faz o backpropagation com números, linha por linha: primeiro num neurônio só, depois na rede que sugere o tamanho de roupa do Igor. Treina com os 8 clientes da loja e confere as suas derivadas com as do PyTorch."
+/>
