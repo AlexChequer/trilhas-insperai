@@ -681,3 +681,25 @@ quebrar o clone de cinco pessoas.
 **O que faria mudar de ideia:** se o repositório precisar voltar a ser privado
 por algum motivo, os deploys de colaborador voltam a ser bloqueados no mesmo dia
 — e aí a escolha vira Pro ou tirar o metadado de Git do deploy.
+
+## 6 de outubro de 2026 — o notebook da A5 fica simples
+
+A primeira versão do notebook da A5 fazia o backpropagation na mão: derivadas
+num neurônio só, depois forward e backward linha por linha numa rede 1→2→3 com
+softmax (o exemplo do Igor, tamanho de roupa) e a conferência com o PyTorch. O
+Alex achou complicado demais e pediu uma coisa direta: o trainee monta uma rede
+simples, num contexto simples, sem o Igor.
+
+A versão nova segue o formato da A4 (PyTorch, `TODO` com dica, sem gabarito
+embutido): prever se um aluno passa na prova pelas horas de estudo e de sono.
+A regra escondida é um canto ("estudou ≥ 4h **e** dormiu ≥ 6h"), de propósito:
+uma reta só não separa, e é isso que justifica a camada escondida. O trainee
+monta `2 → 8 ReLU → 1 sigmoide` e escreve o laço de treino (ida, perda,
+`backward`, `step`). Isso bate com o roteiro, que pede para **não** desenvolver
+a regra da cadeia, e com o erro comum que ele aponta: o desafio que apaga o
+`perda.backward()` mostra a perda parada, porque o backprop calcula a culpa e o
+passo é que ajusta os pesos.
+
+**O que faria mudar de ideia:** se os trainees chegarem à A6 sem saber dizer o
+que o `backward()` faz, a conta na mão volta, como desafio opcional e não como
+o corpo do notebook.

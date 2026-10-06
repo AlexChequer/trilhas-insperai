@@ -275,9 +275,10 @@ dois logos. Resolve com um arquivo e uma linha no layout.
   implementa, com testes no notebook) — o Alex precisa julgá-lo antes de eu
   escalar. A **A4 é do próprio Alex** e usa um terceiro formato, mais leve
   (`TODO` com dica, sem `verificar()` e sem gabarito embutido) — e é o primeiro
-  notebook em PyTorch. A **A5** (backpropagation na mão) segue a linha da A4,
-  com lacunas `...` conferidas por `confere()`; a conversão para o formato do
-  portão fica para depois. Convergir os formatos continua em aberto. Faltam as
+  notebook em PyTorch. A **A5** segue o formato da A4 (PyTorch, `TODO` com
+  dica): o trainee monta uma rede pequena e escreve o laço de treino. A primeira
+  versão (backprop na mão, com o exemplo do Igor) foi trocada a pedido do Alex
+  por ser complicada demais. Convergir os formatos continua em aberto. Faltam as
   Aulas 6 a 10.
 - **Trilha de Agentes:** falta o Alex julgar as 5 aulas, e faltam as Aulas 6
   (N8N) e 7 (prompt engineering) — bloqueadas por não haver material no
