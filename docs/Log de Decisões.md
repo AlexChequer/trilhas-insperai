@@ -704,20 +704,26 @@ passo é que ajusta os pesos.
 que o `backward()` faz, a conta na mão volta, como desafio opcional e não como
 o corpo do notebook.
 
-## 7 de outubro de 2026 — a A6 ganha a leitura da curva e os números do MNIST
+## 7 de outubro de 2026 — a A6 segue a ordem do roteiro detalhado
 
-O roteiro detalhado da A6 que o Alex escreveu para a aula ao vivo trazia, além
-do que a página já cobria, três coisas que faltavam no material de leitura: a
-leitura da curva de loss (o 2,30 como checagem da primeira loss e os cinco
-formatos da curva com o que fazer em cada um), a conta do momentum e a divisão
-do Adam pelo tamanho típico do gradiente, e os resultados medidos no MNIST com
-a rede 784-128-10 (learning rate, batch size e otimizador). A página ganhou a
-seção "Lendo a curva de loss" e os números entraram junto das ideias que eles
-confirmam, em vez de numa seção de resultados à parte.
+O Alex escreveu um roteiro detalhado da A6 (PDF "A6 — Treinando na Prática +
+Projeto 1") e pediu que a página seguisse a mesma lógica dele. A página foi
+reorganizada na ordem do roteiro: do passo de treino ao treino (com parâmetro
+versus hiperparâmetro), epoch/batch/iteração (dentro do lote, embaralhar, o
+loop em código, por que lotes), batch size como hiperparâmetro, otimizadores
+(SGD e suas três limitações, momentum com a conta, Adam com a divisão pelo
+tamanho típico do gradiente, a regra prática), learning rate e a curva de loss
+(o 2,30, os cinco formatos, como escolher, validação só o necessário),
+"A rede treinando no MNIST" (a demo da aula virou texto, com os resultados
+medidos) e o desafio (botões, o que esperar, como trabalhar).
 
-Os números são os do roteiro, medidos em CPU com 50.000 imagens de treino e
-10.000 de validação. Ficaram em listas, e não em tabelas, porque nenhuma aula
-usa tabela e o CSS do site não estiliza uma.
+Duas adaptações conscientes: o vocabulário continua o do site (loss, learning
+rate, epoch), e não o da aula ao vivo (perda, taxa, culpa), para não quebrar a
+continuidade com as Aulas 1 a 5; e os números ficaram em listas, não em
+tabelas, porque nenhuma aula usa tabela e o CSS do site não estiliza uma. Os
+quizzes e as duas visualizações ficaram com os mesmos ids, para não apagar as
+respostas salvas no navegador dos trainees. Todo número da página está no
+roteiro; os únicos que não estão são os dos quizzes que já existiam.
 
 **O que faria mudar de ideia:** se o notebook do desafio for refeito com outra
 rede ou outra divisão de validação, os números da página precisam ser
