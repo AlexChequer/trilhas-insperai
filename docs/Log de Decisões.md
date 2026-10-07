@@ -703,3 +703,22 @@ passo é que ajusta os pesos.
 **O que faria mudar de ideia:** se os trainees chegarem à A6 sem saber dizer o
 que o `backward()` faz, a conta na mão volta, como desafio opcional e não como
 o corpo do notebook.
+
+## 7 de outubro de 2026 — a A6 ganha a leitura da curva e os números do MNIST
+
+O roteiro detalhado da A6 que o Alex escreveu para a aula ao vivo trazia, além
+do que a página já cobria, três coisas que faltavam no material de leitura: a
+leitura da curva de loss (o 2,30 como checagem da primeira loss e os cinco
+formatos da curva com o que fazer em cada um), a conta do momentum e a divisão
+do Adam pelo tamanho típico do gradiente, e os resultados medidos no MNIST com
+a rede 784-128-10 (learning rate, batch size e otimizador). A página ganhou a
+seção "Lendo a curva de loss" e os números entraram junto das ideias que eles
+confirmam, em vez de numa seção de resultados à parte.
+
+Os números são os do roteiro, medidos em CPU com 50.000 imagens de treino e
+10.000 de validação. Ficaram em listas, e não em tabelas, porque nenhuma aula
+usa tabela e o CSS do site não estiliza uma.
+
+**O que faria mudar de ideia:** se o notebook do desafio for refeito com outra
+rede ou outra divisão de validação, os números da página precisam ser
+recalculados junto, ou deixam de bater com o que o trainee vê na tela.

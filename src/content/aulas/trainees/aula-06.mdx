@@ -2,7 +2,7 @@
 n: "A6"
 titulo: "Treinando na Prática"
 ordem: 6
-objetivo: "O loop de treino por dentro — epoch, batch e iteração —, os otimizadores que decidem o passo, e o lançamento do desafio do MNIST."
+objetivo: "O loop de treino por dentro — epoch, batch e iteração —, os otimizadores que decidem o passo, como ler a curva de loss, e o lançamento do desafio do MNIST."
 ---
 
 import VizEmbed from "@/components/VizEmbed.astro";
@@ -66,6 +66,15 @@ A primeira é prática: 60 mil imagens não cabem na memória de uma GPU de uma 
 A segunda é que o ruído **ajuda**. O tremor que o lote pequeno introduz sacode o modelo para fora de mínimos ruins e de regiões planas onde o gradiente quase some. Um treino perfeitamente liso pode estacionar num lugar medíocre e não ter como sair; um treino ruidoso tende a escapar. É um caso raro em que a imprecisão é um recurso, não um defeito — e é por isso que "batch pequeno" continua sendo a escolha padrão mesmo quando há memória de sobra.
 </Pergunta>
 
+Dá para ver esse efeito no MNIST de verdade. Uma MLP com uma camada oculta de 128 neurônios, treinada com SGD, learning rate 0,1 e **3 epochs em todos os casos**, mudando só o batch size (acerto medido em 10.000 imagens que a rede não viu no treino):
+
+- **batch 8**: 6.250 iterações por epoch, **97,2%** de acerto, 6,8 s por epoch;
+- **batch 64**: 782 iterações por epoch, **94,8%**, 3,1 s por epoch;
+- **batch 512**: 98 iterações por epoch, **89,9%**, 2,4 s por epoch;
+- **batch 50.000** (o conjunto de treino inteiro): 1 iteração por epoch, **33,7%**.
+
+Com os mesmos epochs, o lote menor chegou mais longe porque deu mais passos, e pagou em tempo. O lote do tamanho do dataset deu **3 passos no treino inteiro** e quase não saiu do lugar. Lote grande não é proibido: ele só pede compensação, com mais epochs ou um learning rate maior. Na dúvida, comece com 32 ou 64.
+
 <Quiz
   id="a6-epoch-vs-iteracao"
   pergunta="Você tem 50.000 exemplos de treino e usa batch size 100. Quantas atualizações de pesos acontecem em 4 epochs?"
@@ -115,12 +124,46 @@ $$
 
 A metáfora é uma bola pesada descendo a tigela: ela não para a cada irregularidade do terreno, e atravessa regiões planas por inércia. Onde o gradiente vive mudando de sinal, as oscilações se cancelam; onde ele aponta sempre para o mesmo lado, a velocidade se soma e o passo cresce.
 
+Vale fazer a conta, com $\beta = 0{,}9$. Primeiro, um gradiente que aponta **sempre para o mesmo lado**, valendo 1 em todo passo. A velocidade vai de 1 para $0{,}9 \times 1 + 1 = 1{,}9$, depois 2,71, depois 3,44, e se aproxima de **10**. O passo fica até 10 vezes maior que o do SGD com o mesmo learning rate: o fator é $1 \div (1 - \beta)$.
+
+Agora um gradiente que **alterna**: +1, −1, +1, −1. A velocidade vai de 1 para −0,1, depois 0,91, depois −0,18, e se acomoda em torno de ±0,53. O passo **cai pela metade**.
+
+É exatamente o que acontece num vale estreito e comprido, o mesmo da escala desigual da Aula 2. A parte do gradiente que atravessa o vale troca de sinal a cada passo, porque o passo bate numa parede e volta para a outra: essa parte se cancela. A parte que aponta para o fundo do vale tem sempre o mesmo sinal: essa se soma. O zigue-zague diminui e o avanço acelera.
+
+<Caixa tipo="atencao">
+Como o passo com momentum pode ficar até 10 vezes maior, um learning rate que funcionava no SGD puro pode ficar alto demais. No MNIST, com batch 64 e 5 epochs, o SGD puro com learning rate 0,01 chegou a 90,6% de acerto; ligar o momentum, **com o mesmo 0,01**, levou a 96,3%. E o momentum com 0,01 empatou com o SGD puro com 0,1 (96,1%): é o fator de 10 aparecendo na prática.
+</Caixa>
+
 O **Adam** junta essa ideia a uma segunda: adaptar o tamanho do passo **por parâmetro**, olhando o histórico de gradientes de cada um. Parâmetro que vem recebendo gradiente grande e errático anda com mais cautela; parâmetro que vem recebendo gradiente pequeno e consistente ganha passo maior. É por isso que o <Termo id="adam">Adam</Termo> chega mais fundo que o SGD no gráfico acima, sobretudo quando as features estão em escalas diferentes.
 
-A regra prática é curta: **comece com Adam.** Ele é o padrão, funciona bem sem ajuste fino, e é o que vocês vão usar no MNIST. Entender por dentro por que funciona é uma boa curiosidade, não um pré-requisito.
+Por dentro, ele guarda duas médias para cada parâmetro:
+
+$$
+m \leftarrow \beta_1\,m + (1-\beta_1)\,g, \qquad v \leftarrow \beta_2\,v + (1-\beta_2)\,g^2, \qquad w \leftarrow w - \alpha\,\frac{m}{\sqrt{v} + \epsilon}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$m$", significado: "a média dos gradientes recentes. Dá a direção, e é o momentum de antes com outra escala" },
+    { simbolo: "$v$", significado: "a média dos gradientes ao quadrado. Dá o tamanho típico do gradiente daquele parâmetro, sem se importar com o sinal" },
+    { simbolo: "$\\beta_1,\\ \\beta_2$", significado: "quanto de memória cada média tem. Os padrões são 0,9 e 0,999, e quase ninguém mexe neles" },
+    { simbolo: "$\\epsilon$", significado: "um número minúsculo (10⁻⁸) que só existe para não dividir por zero" },
+    { simbolo: "$\\alpha$", significado: "o learning rate. O padrão do Adam é 0,001, e é a única coisa que se ajusta na prática" },
+  ]}
+/>
+
+O coração da ideia é a divisão por $\sqrt{v}$. Pegue dois parâmetros, um que recebe gradientes na casa de 50 e outro na casa de 0,002, com learning rate 0,001. No SGD, o primeiro anda 0,05 e o segundo anda 0,000002 por passo: uma diferença de **25 mil vezes**. No Adam, cada gradiente é dividido pelo seu próprio tamanho típico, e os dois andam perto de **0,001**. O tamanho do passo passa a ser mais ou menos o learning rate, e o gradiente decide principalmente o **sentido**.
+
+E o quadrado em $v$ guarda uma segunda vantagem. Um parâmetro cujo gradiente oscila entre +50 e −50 tem $m$ perto de zero, porque os sinais se cancelam, mas $v$ grande. Resultado: anda pouco, que é o certo para quem está oscilando. O amortecimento do momentum vem junto.
+
+A versão completa tem um ajuste a mais: como $m$ e $v$ começam em zero, nos primeiros passos eles sairiam pequenos demais, e o Adam divide cada um por um fator que corrige isso. A ideia não muda.
+
+A regra prática é curta: **comece com Adam.** Ele é o padrão, funciona bem sem ajuste fino, e é o que vocês vão usar no MNIST. Entender por dentro por que funciona é uma boa curiosidade, não um pré-requisito. No mesmo teste do MNIST da caixa anterior, o Adam com o learning rate padrão de 0,001 chegou a **97,2%**, o melhor dos quatro, sem ajuste nenhum.
 
 <Caixa tipo="erro">
 Adam **não** salva learning rate ruim. Ele ajuda muito, e é bem mais tolerante que o SGD — mas se você puser $\alpha = 10$, ele diverge igual. O que o Adam adapta é o passo **relativo** de cada parâmetro; a escala geral continua sendo a que você escolheu. Se o erro explodir com Adam, a primeira coisa a mexer continua sendo o learning rate, exatamente como na Aula 1.
+
+E o valor bom muda de um otimizador para outro. No MNIST, o learning rate 0,1 levou o SGD a 94,8% em 3 epochs; o mesmo 0,1 deixou o Adam preso em **75%**, e com 1,0 ele ficou em 11%, o nível de quem chuta. Como no Adam o passo já tem mais ou menos o tamanho do learning rate, 0,1 é um passo enorme. A faixa boa do Adam nessa rede foi de 0,001 a 0,01. **Nunca leve o learning rate de um otimizador para outro.**
 </Caixa>
 
 <Quiz
@@ -146,6 +189,65 @@ Adam **não** salva learning rate ruim. Ele ajuda muito, e é bem mais tolerante
     },
   ]}
 />
+
+## Lendo a curva de loss
+
+O learning rate é o hiperparâmetro que mais muda o resultado, e a curva de loss mostra em poucos segundos se ele está errado. Dá para ler essa curva com dois sinais: o primeiro número e o formato.
+
+### O primeiro número: 2,30
+
+Uma rede recém-criada não sabe nada. Com pesos sorteados, ela chuta perto de 10% para cada um dos 10 dígitos. A loss é a cross-entropy da Aula 3, então a loss desse chute é fácil de prever:
+
+$$
+\text{loss inicial} \approx -\ln\left(\tfrac{1}{10}\right) = 2{,}30
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$\\tfrac{1}{10}$", significado: "a probabilidade que a rede sem treino dá à classe certa: um chute uniforme entre 10 dígitos" },
+    { simbolo: "$-\\ln$", significado: "a cross-entropy de um exemplo: quanto menor a probabilidade dada à classe certa, maior a loss" },
+  ]}
+/>
+
+Então **a primeira loss que o treino imprime tem que ser perto de 2,30**, e a acurácia, perto de 10%. Se vier muito diferente, há algo errado antes de o treino começar. O caso clássico é esquecer de dividir os pixels por 255: a primeira loss sai 25,9, e o SGD com learning rate 0,1 fica preso em 11% de acerto.
+
+### O formato da curva
+
+Depois do primeiro número, olhe o formato. São cinco casos, e cada um tem uma resposta:
+
+- **Sobe para valores enormes ou vira NaN.** Learning rate alto demais: divida por 10.
+- **Dá um salto e depois fica parada perto de 2,30, com acurácia perto de 10%.** Learning rate tão alto que a rede morreu: divida por 10 e recomece do zero.
+- **Cai rápido, mas serrilhada, com a acurácia subindo e descendo entre epochs.** Learning rate um pouco alto: divida por 2 a 10.
+- **Cai rápido no começo e segue caindo devagar.** Learning rate adequado: mantenha.
+- **Cai quase em linha reta, bem devagar.** Learning rate baixo demais: multiplique por 10.
+
+O segundo caso merece explicação, porque parece que a rede simplesmente parou. No MNIST, com SGD e learning rate 10, a loss dos quatro primeiros lotes foi 2,31, depois 25, depois 294, depois 2.454. Um passo gigante joga os pesos para longe, e os neurônios da camada oculta passam a dar valor negativo para qualquer imagem. A <Termo id="relu">ReLU</Termo> desliga todos eles, e neurônio desligado tem gradiente zero: nunca mais é corrigido. No fim do epoch, nenhum dos 128 neurônios ocultos ligava, e a rede respondia o mesmo dígito para todas as imagens.
+
+<Pergunta pergunta="A rede morreu depois de uma loss de 2.454. Por que a curva volta e fica parada justamente em 2,30, e não num número enorme?">
+Porque, sem nenhum neurônio oculto ligado, a saída da rede deixa de depender da imagem: só sobram os vieses da última camada. O treino ainda consegue ajustar esses vieses, e o melhor que eles podem fazer é dar a cada dígito a probabilidade da frequência dele no dataset, perto de 10% para todos.
+
+E a loss de dar 10% para a classe certa é exatamente $-\ln(0{,}1) = 2{,}30$. A curva voltou para o número do chute porque a rede **voltou a ser um chute**, só que agora sem conserto. A acurácia confirma: 11%, que é a frequência do dígito mais comum. É por isso que, nesse caso, não basta baixar o learning rate: é preciso recomeçar com pesos novos.
+</Pergunta>
+
+### Escolher o learning rate
+
+Teste em **potências de 10**: 0,1, 0,01, 0,001, 0,0001. De 0,001 para 0,002 quase nada muda; de 0,001 para 0,01 muda tudo. Rode um epoch de cada, compare as curvas, fique com o maior learning rate que ainda cai de forma estável e, só então, refine por perto.
+
+Foi o que aconteceu no MNIST com SGD e batch 64, acerto depois de 1 e de 3 epochs:
+
+- **0,001**: 53,7% e 73,0%. A curva desce quase em linha reta: não está quebrada, só lenta.
+- **0,01**: 84,7% e 89,3%. Ainda devagar.
+- **0,1**: 91,4% e 94,8%. Cai rápido e estável.
+- **1,0**: 86,0% e 96,5%. Está no limite: cai com saltos, e em outra execução a acurácia despencou de 95,0% para 83,1% de um epoch para o seguinte.
+- **10**: 9,9% e 11,0%. Explode e a rede morre.
+
+<Caixa tipo="nota" titulo="Loss e acurácia não são a mesma coisa">
+A loss é o que o otimizador diminui; a acurácia é o que você quer no fim. A loss enxerga a confiança: acertar dando 51% ou 99% à classe certa conta igual na acurácia, e muito diferente na loss (0,67 contra 0,01). Por isso as duas podem discordar por um tempo, e vale acompanhar as duas. E a loss de cada lote oscila, porque cada lote é uma amostra diferente: para ver a tendência, olhe a média do epoch.
+</Caixa>
+
+<Caixa tipo="atencao" titulo="Diferença pequena pode ser só sorte">
+Os pesos iniciais e a ordem dos lotes são sorteados, então treinar duas vezes dá dois resultados. A mesma rede, com Adam e 5 epochs, variou entre 96,9% e 97,2% só trocando a semente do sorteio. **Diferença menor que 0,3 ponto não quer dizer nada.** No desafio, antes de comemorar uma mudança, confira se o ganho é maior que isso.
+</Caixa>
 
 ## O desafio: MNIST
 
@@ -181,8 +283,8 @@ Começar o MNIST na véspera é o erro mais caro desta lista, e o mais comum. Tr
 
 <p class="nota">
   Com isto você consegue explicar o loop de treino sem tropeçar em epoch e
-  iteração, escolher otimizador e batch size com um motivo, e tem o MNIST na
-  mão. A Aula 7 é a que vai te dizer o que fazer quando o treino roda mas o
+  iteração, escolher otimizador e batch size com um motivo, ler na curva de loss
+  se o learning rate está certo, e tem o MNIST na mão. A Aula 7 é a que vai te dizer o que fazer quando o treino roda mas o
   resultado não presta — e é ela que mais vai render no desafio.
 </p>
 
