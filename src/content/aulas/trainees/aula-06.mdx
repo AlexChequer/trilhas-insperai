@@ -441,7 +441,11 @@ Os dígitos acima são **desenhados aqui**, no mesmo formato do MNIST (28×28, t
 A restrição do desafio é **usar apenas MLP**: só camadas totalmente conectadas, nada de convolução. Isso é intencional, e não é para dificultar: é para vocês sentirem na pele o limite de tratar uma imagem como 784 números soltos, sem nenhuma noção de que o pixel 32 fica ao lado do pixel 33. Quando a Aula 9 apresentar as CNNs, o ganho vai ser óbvio porque vocês terão passado por isso.
 
 <Caixa tipo="atencao" titulo="Logística do desafio">
-Prazo, formato de entrega, critério de avaliação e o funcionamento do leaderboard são combinados **em aula** e valem o que estiver no comunicado oficial — esta página não é a fonte dessa informação. O que já está definido: é uma competição **individual**, o modelo é **MLP apenas**, o desafio corre fora do horário de aula, em paralelo às aulas seguintes, e o notebook de partida sai junto com o lançamento.
+Prazo, formato de entrega, critério de avaliação e o funcionamento do leaderboard são combinados **em aula** e valem o que estiver no comunicado oficial — esta página não é a fonte dessa informação. O que já está definido: é uma competição **individual**, o modelo é **MLP apenas**, o desafio corre fora do horário de aula, em paralelo às aulas seguintes, e o notebook de partida está logo abaixo.
+</Caixa>
+
+<Caixa tipo="dica" titulo="Notebook de partida">
+O notebook do desafio já vem pronto e executado: **[abrir no Colab](https://colab.research.google.com/github/gabrielca5/InsperAI26.1/blob/main/handout/docs/aula-06/mnist-mlp-handout.ipynb)**. Ele carrega o MNIST, treina uma MLP, mostra as curvas de treino e validação, os erros da rede e gera o arquivo de submissão do Kaggle, com uma seção explicando como a competição funciona. Roda no Colab e no próprio Kaggle sem mudanças. O texto está em inglês.
 </Caixa>
 
 Sobre usar IA no desafio, o recado é direto e sem rodeio: **podem usar.** Ninguém vai fiscalizar. O que mede se você entendeu é a provinha semanal e a apresentação — e nas duas você está sozinho com o que sabe. Dá para delegar a escrita do código; não dá para delegar a decisão. Arquitetura, learning rate, lote e a hora de parar são escolhas suas. Todo mundo vai conseguir um código que roda: o que separa o primeiro do último no leaderboard são as escolhas.
