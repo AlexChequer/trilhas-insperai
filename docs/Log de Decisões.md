@@ -789,8 +789,10 @@ O gráfico é **SVG**, não canvas como as outras viz 2D: assim as cores saem
 direto dos tokens de `global.css` pelo CSS, e o texto do gráfico usa a fonte do
 site sem truque.
 
-O cenário "bom" (512 + dropout 0,5, 50.000 imagens) ainda não tinha rodado
-quando a viz foi feita; entra como mais uma entrada em `CENARIOS`.
+O cenário "bom" (512 + dropout 0,5, 50.000 imagens) entrou depois, quando o
+treino terminou: 0,084 de loss de validação e 98,3% no epoch 30 (roteiro 0,081 e
+98,4%), com a menor loss de validação no epoch 15. O texto da página segue com
+os números do roteiro e cita os da viz.
 
 **O que faria mudar de ideia:** se o Alex preferir que página e viz mostrem os
 mesmos números, o caminho é trocar os do texto pelos da nova execução (e não o
