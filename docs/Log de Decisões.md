@@ -766,3 +766,42 @@ notebook da aula e for rodado com outra versão do PyTorch ou outra divisão, os
 números da página precisam ser recalculados junto. E se o Alex quiser o gráfico
 das 30 epochs na tela, o caminho é uma viz com os dados pré-computados, não uma
 imagem colada.
+
+## 13 de outubro de 2026 — o gráfico das 30 epochs vira viz, com dados de uma nova execução
+
+A entrada anterior deixou dito: se o Alex quisesse o gráfico das 30 epochs na
+tela, o caminho seria uma viz com dados pré-computados. Foi o que se fez:
+`CurvasTreinoValidacao`, na seção "O treino-base em 30 epochs", com o treino-base
+e os cenários de underfitting e overfitting numa viz só (o cenário é o controle
+principal; loss/acurácia e "até o epoch N" são os secundários).
+
+**A decisão:** os históricos epoch a epoch não estavam no roteiro, só os números
+de alguns epochs. Os experimentos foram **rodados de novo** (mesmo código e
+divisão, PyTorch em CPU) e a viz usa esses históricos, embutidos no componente
+com 4 casas, sem fetch. A nova execução não reproduz o roteiro ao milésimo no
+treino-base: menor loss de validação 0,085 (roteiro 0,086), ainda no epoch 10;
+0,120 no epoch 30 (roteiro 0,118). Em vez de reescrever o texto com os números
+novos, a página mantém os do roteiro e avisa, logo antes da viz, que ela é uma
+nova execução e por que os números mudam um pouco. Underfitting e overfitting
+batem com o roteiro.
+
+O gráfico é **SVG**, não canvas como as outras viz 2D: assim as cores saem
+direto dos tokens de `global.css` pelo CSS, e o texto do gráfico usa a fonte do
+site sem truque.
+
+O cenário "bom" (512 + dropout 0,5, 50.000 imagens) entrou depois, quando o
+treino terminou: 0,084 de loss de validação e 98,3% no epoch 30 (roteiro 0,081 e
+98,4%), com a menor loss de validação no epoch 15. O texto da página segue com
+os números do roteiro e cita os da viz.
+
+**O que faria mudar de ideia:** se o Alex preferir que página e viz mostrem os
+mesmos números, o caminho é trocar os do texto pelos da nova execução (e não o
+contrário, porque o roteiro não tem os históricos completos).
+
+## 13 de outubro de 2026 — a viz das curvas troca o MNIST pelo churn
+
+Os números do MNIST na viz davam spoiler do desafio do Projeto 1. A viz passou a
+usar a base de churn de telecom que a aula usa (IBM Telco, 7.032 clientes,
+`aula-07/dados/churn.json`), com os mesmos cenários do deck (`base`, `sub_taxa`,
+`l2_0`, `l2_0.01`), e os parágrafos da página que apresentam a viz citam esses
+números.
