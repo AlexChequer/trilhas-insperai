@@ -798,3 +798,10 @@ os números do roteiro e cita os da viz.
 mesmos números, o caminho é trocar os do texto pelos da nova execução (e não o
 contrário, porque o roteiro não tem os históricos completos).
 
+## 13 de outubro de 2026 — a viz das curvas troca o MNIST pelo churn
+
+Os números do MNIST na viz davam spoiler do desafio do Projeto 1. A viz passou a
+usar a base de churn de telecom que a aula usa (IBM Telco, 7.032 clientes,
+`aula-07/dados/churn.json`), com os mesmos cenários do deck (`base`, `sub_taxa`,
+`l2_0`, `l2_0.01`), e os parágrafos da página que apresentam a viz citam esses
+números.

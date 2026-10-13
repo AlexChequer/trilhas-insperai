@@ -110,12 +110,12 @@ irem para a página — é instrução que o aluno vai colar no terminal.
 7. **Dropout** — a mesma rede 1→12→12→1 treinada com cinco taxas. Em 0 ela decora
    (gap 0,19), em 0,05 a faixa fecha, em 0,30 ela para de aprender.
 7b. **CurvasTreinoValidacao** — as curvas de loss (ou acurácia) de treino e
-   validação do MNIST, epoch a epoch, em três cenários: o treino-base de 30
-   epochs, underfitting (2 neurônios) e overfitting (512 neurônios, 5.000
-   imagens). Slider "até o epoch N" com ▶, marcador da menor loss de validação
-   e a faixa da distância. Dados reais de uma nova execução dos experimentos do
-   roteiro (13/10/2026); falta o cenário "bom" (512 + dropout 0,5), que ainda
-   não tinha rodado.
+   validação na base de churn de telecom (IBM Telco, 7.032 clientes), epoch a
+   epoch, em quatro cenários: o treino-base de 50 epochs, treinou pouco
+   (learning rate 0,00001), overfitting (512 neurônios) e bom (512 + L2).
+   Slider "até o epoch N" com ▶, marcador da menor loss de validação e a faixa
+   da distância. Dados reais de `aula-07/dados/churn.json` (13/10/2026), e não
+   do MNIST, para não dar spoiler do desafio.
 
 **A8 · Claude Code**
 8. **RevisaoCodigo** — dois códigos de ML gerados por IA que rodam e estão

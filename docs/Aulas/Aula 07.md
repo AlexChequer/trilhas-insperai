@@ -53,17 +53,17 @@ melhores pesos. Detalhes e adaptações em [[Log de Decisões]].
 `CurvasTreinoValidacao` entrou em "O treino-base em 30 epochs" e serve também
 aos três cenários (é a visualização 2 da lista acima, numa viz só, não lado a
 lado: o controle principal troca o cenário). O que se mexe: o cenário
-(treino-base 30 epochs · underfitting · overfitting), loss ou acurácia, e o
-slider "até o epoch N" com ▶. O que se vê: as duas curvas, a faixa entre elas,
-o marcador da menor loss de validação e, no painel, acurácias, distância em
-pontos e o diagnóstico com as frases do roteiro.
+(treino-base 50 epochs · treinou pouco · overfitting · bom), loss ou acurácia,
+e o slider "até o epoch N" com ▶. O que se vê: as duas curvas, a faixa entre
+elas, o marcador da menor loss de validação e, no painel, acurácias, distância
+em pontos e um diagnóstico por cenário.
 
-Os números são de uma **nova execução** dos experimentos do roteiro (PyTorch,
-CPU; `Trilha de Trainees/aula-07/dados/mnist.json`), embutidos no componente.
-O treino-base dá 0,085 de menor loss de validação no epoch 10 (o roteiro diz
-0,086) e 0,120 no epoch 30 (o roteiro, 0,118); a página diz isso logo antes da
-viz. Underfitting e overfitting batem com o roteiro. **Pendente:** o cenário
-"bom" (512 neurônios + dropout 0,5, 50.000 imagens, `full_512_d0.5`) ainda não
-tinha terminado de rodar; quando existir, é uma entrada a mais em `CENARIOS` e
-um botão. Ver [[Log de Decisões]].
-
+Os dados são da **base de churn de telecom** que a aula usa (IBM Telco, 7.032
+clientes, 46 entradas, treino 4.500 / validação 1.250 / teste 1.282, 26,6%
+cancelaram; `Trilha de Trainees/aula-07/dados/churn.json`), embutidos no
+componente, e não do MNIST, para não dar spoiler do desafio do Projeto 1. Os
+cenários são os mesmos do deck (`demos/curvas.js`): `base` (46-128-2, 50
+epochs, menor loss de validação 0,425 no epoch 7), `sub_taxa` (learning rate
+0,00001), `l2_0` (512 neurônios, 100 epochs) e `l2_0.01` (512 + L2). Os
+parágrafos da página antes e depois da viz citam esses números. Ver
+[[Log de Decisões]].

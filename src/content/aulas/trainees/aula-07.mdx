@@ -238,7 +238,7 @@ A resposta à pergunta da Aula 6 aparece quando o treino-base dela — a MLP de 
 
 O que a Aula 6 viu era isso: o começo do overfitting. O ponto mais baixo da validação é a hora de parar — a ideia do early stopping, mais abaixo.
 
-A visualização abaixo traz as curvas medidas, epoch a epoch. Ela vem de uma nova execução do mesmo treino, e por isso os números mudam um pouco: a menor loss de validação sai 0,085, também no epoch 10, e a do epoch 30 fica em 0,120. O desenho é o mesmo. Arraste **até o epoch N** para ver as curvas aparecerem como apareceriam durante o treino, e repare na faixa entre as duas — ela é a distância que o painel mede:
+A visualização abaixo mostra o mesmo diagnóstico medido em outra base: 7.032 clientes de uma operadora de telecom (a base IBM Telco), em que a rede usa 46 entradas para prever quem cancela o plano — 26,6% cancelaram. O treino-base dela é uma rede 46-128-2, com 4.500 clientes de treino e 1.250 de validação, treinada por 50 epochs. O desenho se repete: a menor loss de validação, 0,425, sai cedo, no epoch 7; depois disso o treino segue caindo e a validação sobe, até 0,467 no epoch 50. Arraste **até o epoch N** para ver as curvas aparecerem como apareceriam durante o treino, e repare na faixa entre as duas — ela é a distância que o painel mede:
 
 <VizEmbed titulo="troque o cenário e ache o epoch em que a validação se descola do treino">
   <CurvasTreinoValidacao />
@@ -252,7 +252,7 @@ Três treinos medidos, cada um com o desenho de um diagnóstico. Os números sã
 - **Overfitting** — 512 neurônios, 5.000 imagens: 0,0004, 0,290, 100% e 94,4%. Treino no chão, validação longe e subindo. A distância entre as duas cresce com os epochs.
 - **Bom** — 512 neurônios, dropout 0,5, 50.000 imagens: 0,004, 0,081, 99,9% e 98,4%. Validação baixa e estável, com distância pequena para o treino.
 
-Os três estão na visualização acima: troque o cenário para **Underfitting**, **Overfitting** e **Bom** e compare o desenho com o do treino-base. No **Bom**, a nova execução termina com 0,084 de loss de validação e 98,3% de acurácia, perto do roteiro.
+Os mesmos três desenhos estão na visualização acima, medidos no churn: troque o cenário e compare com o do treino-base. Em **Treinou pouco**, o learning rate é 0,00001 e, no epoch 50, as duas curvas ainda caem coladas, com 77,8% de acurácia de validação — pouco acima dos 74,6% de quem chuta que ninguém cancela. Em **Overfitting**, 512 neurônios sem regularização por 100 epochs terminam com loss 0,16 no treino e 0,67 na validação. Em **Bom**, a mesma rede com L2 ($\lambda = 0{,}01$) termina com 0,41 e 0,43, e 79,2% de acurácia de validação. No churn, o treino curto vem de um learning rate baixo, e não de uma rede pequena, e o remédio do overfitting é o L2, e não o dropout — mas as curvas contam a mesma história.
 
 ### Uma distância pequena é normal
 
