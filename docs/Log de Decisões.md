@@ -728,3 +728,41 @@ roteiro; os únicos que não estão são os dos quizzes que já existiam.
 **O que faria mudar de ideia:** se o notebook do desafio for refeito com outra
 rede ou outra divisão de validação, os números da página precisam ser
 recalculados junto, ou deixam de bater com o que o trainee vê na tela.
+
+## 13 de outubro de 2026 — a A7 segue a ordem do roteiro detalhado
+
+O Alex escreveu um roteiro detalhado da A7 (PDF "A7 — Análise de Modelos") e a
+página foi reorganizada na ordem dele, como a A6: overfitting e underfitting
+(generalizar, as duas falhas, o polinômio da A2 com os quatro graus e o piso do
+ruído, viés e variância com os 500 sorteios, a MLP no MNIST de 2 a 2.048
+neurônios e a surpresa de a rede maior não piorar, "alto comparado a quê?"),
+treino/validação/teste (os 30 chutadores, os três conjuntos, como dividir, os
+seis casos de vazamento e o caso das cópias medido no MNIST, as duas
+perguntas), curvas de aprendizado (como montar, o treino-base em 30 epochs, os
+três cenários, a distância pequena, a loss que sobe com a acurácia parada, erro
+contra quantidade de dados, curva serrilhada), L1 e L2 (o passo do L2 com o
+2,0 × 0,998, o L1, o polinômio de grau 15 com λ, L2 e L1 no MNIST, como escolher
+o λ, o PyTorch), dropout e early stopping (com os números e o trecho de código)
+e "Do sintoma ao remédio" (a ordem das perguntas, a lista sintoma → o que
+tentar, o que a regularização rendeu no MNIST completo, onde o modelo erra). A
+seção de código do roteiro entrou só como o trecho do early stopping; os erros
+comuns viraram caixas e o banco de perguntas deu a `<Pergunta>` da paciência e
+dois quizzes novos (`a7-peso-l2`, `a7-vazamento-pacientes`).
+
+As adaptações conscientes são as mesmas da A6: vocabulário do site (loss,
+learning rate, epoch, gradiente, penalidade) em vez do da aula ao vivo (perda,
+taxa, época, culpa, multa); números em listas, não em tabelas; os seis quizzes e
+as duas visualizações (`ComplexidadeErro`, `Dropout`) com os mesmos ids. O
+gráfico das 30 epochs do roteiro não virou imagem nem viz nova: entrou como os
+números que ele mostra (0,086 no epoch 10, 0,118 no 30). O aviso de que "viés"
+aqui não é o $b$ do neurônio abre a página. Todo número do texto está no
+roteiro; as exceções são os dos quizzes que já existiam e o que as próprias
+visualizações mostram na tela (13 pontos, graus de 0 a 12, a rede minúscula do
+dropout), que o texto apresenta como outro exemplo, sem misturar com os do
+MNIST.
+
+**O que faria mudar de ideia:** se o código da seção 6 do roteiro virar o
+notebook da aula e for rodado com outra versão do PyTorch ou outra divisão, os
+números da página precisam ser recalculados junto. E se o Alex quiser o gráfico
+das 30 epochs na tela, o caminho é uma viz com os dados pré-computados, não uma
+imagem colada.

@@ -35,3 +35,15 @@ baratos e que mais rendem no MNIST).
 - Usar o conjunto de teste para escolher hiperparâmetro.
 - Achar que qualquer gap treino/validação é overfitting (um gap pequeno é normal).
 - Empilhar todas as regularizações e não saber qual ajudou.
+
+## Roteiro detalhado (13/10/2026)
+
+O Alex escreveu o roteiro detalhado da aula (PDF "A7 — Análise de Modelos",
+7/10/2026) e a página passou a seguir a ordem dele: overfitting e underfitting
+→ treino, validação e teste → curvas de aprendizado → L1 e L2 → dropout e early
+stopping → do sintoma ao remédio. Os números de MNIST da página são os medidos
+no roteiro (mesma rede e divisão da A6: 50.000 de treino, 10.000 de validação).
+As duas visualizações continuam as mesmas. Erros comuns que entraram como
+caixa, além dos três acima: diminuir a rede para combater overfitting,
+regularizar demais, esquecer o `modelo.eval()`, early stopping sem restaurar os
+melhores pesos. Detalhes e adaptações em [[Log de Decisões]].

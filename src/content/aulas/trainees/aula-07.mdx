@@ -2,7 +2,7 @@
 n: "A7"
 titulo: "Análise de Modelos"
 ordem: 7
-objetivo: "A aula de diagnóstico: como saber se o modelo está bom, o que está errado quando não está, e o que fazer a respeito."
+objetivo: "Diagnosticar overfitting e underfitting pelas curvas de treino e validação, separar os dados do jeito certo e escolher a regularização adequada."
 ---
 
 import VizEmbed from "@/components/VizEmbed.astro";
@@ -15,72 +15,184 @@ import Simbolos from "@/components/Simbolos.astro";
 import Quiz from "@/components/Quiz.astro";
 import QuizBloco from "@/components/QuizBloco.astro";
 
-Na Aula 2 apareceu um polinômio de grau 15 que passava exatamente por todos os pontos — e a gente disse que aquela imagem voltaria com nome. É esta aula. Aqui você aprende a olhar para um treino que rodou até o fim e dizer o que aconteceu: se o modelo é simples demais, se decorou, ou se está bom. É a aula mais útil do bloco para o MNIST, porque ela é sobre o que fazer **depois** de o código funcionar.
+A Aula 6 terminou com uma pergunta no ar. Treinando a rede do MNIST por 20 epochs, a loss de treino caiu de 0,027 no epoch 10 para 0,005 no epoch 20 — mas a loss de validação **subiu**, de 0,086 para 0,103, e a acurácia ficou parada em 97,6%. O treino continuava melhorando e o modelo não. Esta aula inteira responde o que estava acontecendo ali.
 
-## Simples demais, ou decorou
+Ela é a aula de diagnóstico: olhar um treino que rodou até o fim e dizer se o modelo está bom, o que está errado quando não está, e qual remédio aplicar. É a mais útil do bloco para o MNIST, porque é sobre o que fazer **depois** de o código funcionar.
 
-Existem dois jeitos de um modelo ir mal, e eles são opostos.
+<Caixa tipo="atencao" titulo="Uma palavra com dois sentidos">
+Nesta aula aparece a palavra **viés**, e ela não é o <Termo id="vies">viés</Termo> das Aulas 4 e 5. Lá, viés é o termo $b$ do neurônio, o número somado no fim da conta $w \cdot x + b$. Aqui, viés é o erro sistemático de um modelo simples demais. São coisas diferentes com o mesmo nome — em inglês, o segundo sentido também se chama _bias_.
+</Caixa>
 
-**Underfitting** é o modelo simples demais para o padrão que existe nos dados. Uma reta tentando descrever uma curva: ela erra no treino e erra igual em qualquer dado novo. O sintoma é os dois erros serem **altos e parecidos**.
+## Overfitting e underfitting
 
-**Overfitting** é o modelo decorar o conjunto de treino — inclusive o ruído dele. O polinômio de grau 15 passa por cima de cada ponto e acerta tudo no treino; num ponto novo, ele erra feio, porque o que ele memorizou foram os acidentes daquela amostra, não a relação. O sintoma é o erro de treino **baixo** e o de validação **alto**.
+Um modelo pode falhar de dois jeitos opostos: aprender de menos ou decorar o treino. O diagnóstico sai sempre da mesma comparação — o erro no treino contra o erro em dados novos.
 
-Os dois têm nomes que aparecem muito: **bias** é o erro de ser simples demais, **variance** é o de ser sensível demais ao conjunto em que treinou. E há uma tensão real entre eles — reduzir um costuma aumentar o outro, e o trabalho é achar o meio.
+### Generalizar é o objetivo
 
-Antes de arrastar, vale saber exatamente o que os dois gráficos abaixo mostram, porque é neles que a aula inteira se apoia.
+O objetivo nunca foi acertar o treino. É acertar exemplos que o modelo **não viu**. Isso se chama **generalizar**.
 
-À esquerda está o **ajuste**: 13 pontos e a curva que o modelo traçou tentando passar por eles. À direita está o **erro em função da complexidade**, com duas curvas que medem coisas diferentes:
+Pense em dois alunos. Um decora a lista de exercícios; o outro entende a matéria. Na prova, com questões novas, só o segundo vai bem. E existe um terceiro aluno, o do underfitting, que não sabe nem a lista.
 
-- A **azul** é o erro nos 13 pontos **que o modelo usou para se ajustar**. Ela só desce: quanto mais flexível o modelo, mais perto ele consegue chegar de pontos que ele já viu. No limite, ele passa exatamente por todos e o erro vai a zero — sem que isso signifique nada.
-- A **vermelha** é o erro em 60 pontos **que ele nunca viu**, sorteados da mesma relação. Essa é a única que estima o que vai acontecer na vida real, e ela tem formato de **U**: desce enquanto o modelo ganha forma útil, e volta a subir quando ele começa a se ajustar ao ruído específico dos 13.
+### As duas falhas
 
-O fundo desse U é o melhor modelo disponível — e repare no detalhe que decide tudo: **a curva azul não tem fundo nenhum.** Se você escolher olhando o treino, vai escolher sempre o grau mais alto. É por isso que existe um conjunto de validação, e é por isso que ele é o juiz.
+**Underfitting** é o modelo simples demais para o padrão que existe nos dados. É o aluno que não aprendeu a matéria:
 
-**Arraste o grau do polinômio** de 0 a 12 e acompanhe as três faixas coloridas do gráfico da direita:
+- erro no treino **alto**;
+- erro na validação **alto, parecido com o do treino**;
+- outro nome: **viés alto**.
 
-<VizEmbed titulo="arraste a complexidade e veja as duas curvas se separarem">
+**Overfitting** é o modelo que decorou o treino, inclusive o ruído. É o aluno que decorou o gabarito da lista:
+
+- erro no treino **muito baixo**;
+- erro na validação **bem maior que o do treino**;
+- outro nome: **variância alta**.
+
+### O polinômio da Aula 2
+
+Na Aula 2 você viu que $x^2$ e $x^3$ podem entrar como features novas, e que mais grau dá mais liberdade para a curva. O exemplo aqui: 20 pontos tirados de uma onda suave, com ruído, ajustados por polinômios de quatro graus. Os erros são MSE, e cada valor é a mediana de 500 sorteios diferentes dos 20 pontos:
+
+- **grau 1**: erro 0,223 no treino e 0,283 na validação. É uma reta e não acompanha a onda.
+- **grau 3**: 0,050 no treino e 0,082 na validação. Acompanha a onda.
+- **grau 9**: 0,029 no treino e 0,747 na validação. Passa mais perto dos pontos e oscila entre eles.
+- **grau 15**: 0,011 no treino e **acima de 100.000** na validação. Passa quase em cima de cada ponto e dispara entre eles.
+
+Três coisas para tirar daí:
+
+- **O erro de treino só cai com o grau**, de 0,223 até 0,011. Quem olha só o treino sempre escolhe o modelo mais complexo.
+- **O erro de validação cai e depois sobe.** O melhor modelo está no meio.
+- **Existe um piso.** O ruído colocado nos dados tem MSE 0,0625, e nenhum modelo consegue menos que isso em dados novos. O grau 3 chega a 0,082, perto do piso.
+
+Decorar ruído é exatamente isto: os pontos não caem em cima da onda, e o grau 15 trata cada desvio como se fosse padrão.
+
+A visualização abaixo refaz a experiência com outro sorteio, menor, e deixa você percorrer os graus de 0 a 12. À esquerda está o ajuste; à direita, as duas curvas de erro: a **azul** mede nos pontos que o modelo usou para se ajustar, a **vermelha** em pontos que ele nunca viu. **Arraste o grau** e repare que a azul só desce, enquanto a vermelha desce e volta a subir:
+
+<VizEmbed titulo="arraste o grau e veja as duas curvas se separarem">
   <ComplexidadeErro />
 </VizEmbed>
 
-O que você acabou de percorrer tem nome nas três faixas:
+O fundo do U da curva vermelha é o melhor modelo disponível. E a curva azul não tem fundo nenhum: se você escolher olhando o treino, vai escolher sempre o grau mais alto.
 
-- **Underfitting** (grau 0 a 2): as duas curvas altas e **juntas**. O modelo erra no que viu e erra igual no que não viu — falta capacidade, e mais dados não resolveriam.
-- **O ponto certo** (grau 3 a 5): as duas baixas e próximas. A validação está no fundo do U.
-- **Overfitting** (grau 7 em diante): a azul continua descendo, a vermelha sobe, e a distância entre elas cresce. No grau 12 o modelo passa por praticamente todos os 13 pontos e o erro em dado novo é **quarenta vezes maior** que o de treino.
+### Viés e variância
 
-A assimetria entre os dois problemas vale ser notada: underfitting é fácil de perceber (o resultado é ruim em tudo) e overfitting é traiçoeiro, porque olhando só o treino ele parece o melhor modelo que você já fez.
+Agora um experimento mental: sortear outros 20 pontos da mesma onda e treinar de novo. O que muda na resposta do modelo?
+
+- **Viés** é o erro que se repete em todo sorteio. O modelo erra sempre para o mesmo lado, porque não consegue representar o padrão.
+- **Variância** é o quanto a resposta muda de um sorteio para o outro. O modelo depende demais de quais pontos caíram.
+
+Medido no mesmo exemplo: a previsão de cada polinômio em $x = 0{,}25$, onde o valor verdadeiro é 1,00, ao longo dos 500 sorteios.
+
+- **grau 1**: previsão típica 0,48, e 80% dos sorteios caem entre 0,27 e 0,72. Erra sempre para baixo: **viés alto**.
+- **grau 3**: típica 0,99, entre 0,84 e 1,13. No alvo e concentrado.
+- **grau 9**: típica 0,98, entre 0,67 e 1,29. No alvo na média, mais espalhado.
+- **grau 15**: típica 0,99, entre −3,44 e 4,89. No alvo na média, com um espalhamento enorme: **variância alta**.
+
+A imagem é a de um tiro ao alvo. Viés são tiros agrupados longe do centro. Variância são tiros espalhados em volta do centro. Aumentar a complexidade reduz o viés e aumenta a variância; diminuir faz o contrário. O melhor modelo fica no ponto em que a soma dos dois é a menor. Para quem quiser a conta:
+
+$$
+\text{erro esperado} = \text{viés}^2 + \text{variância} + \text{ruído}
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "viés", significado: "o erro que se repete em todo sorteio: o 0,48 do grau 1, quando o certo era 1,00" },
+    { simbolo: "variância", significado: "o quanto a previsão pula de um sorteio para outro: o −3,44 a 4,89 do grau 15" },
+    { simbolo: "ruído", significado: "o piso que ninguém remove — o 0,0625 do exemplo, que já estava nos dados" },
+  ]}
+/>
+
+### A MLP no MNIST
+
+O mesmo experimento numa rede de verdade. Uma camada oculta, treinando em só 5.000 imagens do MNIST por 50 epochs, para o efeito aparecer rápido. O que muda é o número de neurônios ocultos, e os números são a acurácia no treino e na validação:
+
+- **2 neurônios**: 63,8% e 61,6%;
+- **8 neurônios**: 95,9% e 89,7%;
+- **32 neurônios**: 99,8% e 91,8%;
+- **128 neurônios**: 100% e 93,4%;
+- **512 neurônios**: 100% e 94,4%;
+- **2.048 neurônios**: 100% e 95,2%.
+
+Com 2 neurônios é underfitting: treino e validação baixos e juntos. De 128 neurônios em diante a rede decora o treino — 100% nas 5.000 imagens e cerca de 5 a 7 pontos a menos na validação.
+
+E aqui está a surpresa: **aumentar a rede não piorou a validação. Melhorou.** A curva em U do polinômio não apareceu. Em redes neurais, o tamanho raramente é o problema. O overfitting aparece na distância entre treino e validação e ao longo dos epochs, como a seção de curvas mostra. Na prática, costuma valer mais uma rede grande com regularização do que uma rede encolhida.
+
+Com mais dados, a distância diminui. A rede de 128 neurônios treinada nas 50.000 imagens fica com 99,98% no treino e 97,8% na validação.
 
 <Caixa tipo="erro">
-Nem todo gap entre treino e validação é <Termo id="overfitting">overfitting</Termo>. Um gap **pequeno** é normal e esperado: o modelo viu os dados de treino e não viu os de validação, então vai naturalmente um pouco melhor nos primeiros. O que caracteriza overfitting é o gap **crescer** enquanto o erro de validação **para de cair ou sobe**. Se as duas curvas estão baixas e a distância entre elas é pequena e estável, está tudo certo — perseguir gap zero costuma levar a um modelo pior.
+Diminuir a rede para combater overfitting. É o reflexo de quem viu o polinômio, e no MNIST ele leva para o lado errado: a rede maior foi **sempre** melhor na validação. O caminho é regularizar, que é o assunto das duas seções de regularização mais abaixo.
 </Caixa>
+
+### Alto comparado a quê?
+
+Para chamar um erro de alto é preciso uma referência: o desempenho de uma pessoa, um modelo simples ou o piso do ruído. No MNIST as melhores redes passam de 99,7%, então 95% **no treino** é sinal de underfitting. Num problema ruidoso, como prever o preço de um apartamento, um erro que parece alto pode já ser o piso.
 
 ## Treino, validação e teste
 
-Para diagnosticar qualquer coisa você precisa de um erro medido em dado que o modelo **não** viu. Medir no treino não serve: um modelo que decorou tem erro de treino ótimo, e é justamente o pior caso.
+Cada conjunto responde a uma pergunta diferente: o treino ajusta os pesos, a validação escolhe entre modelos e o teste dá a nota final, uma única vez.
 
-O reflexo é separar em dois conjuntos, treino e teste. Só que dois não bastam, e a razão é sutil. Você vai treinar dezenas de modelos — graus diferentes, arquiteturas diferentes, learning rates diferentes — e escolher um olhando o resultado. Se esse resultado vem do teste, você acabou de **usar o teste para decidir**: a escolha foi ajustada àquele conjunto específico, e o número que ele te dá deixou de ser uma estimativa honesta. Você não treinou no teste, mas contaminou ele mesmo assim.
+### Por que medir no treino é se enganar
 
-Daí a divisão em três:
+O modelo já viu as respostas do treino. A nota ali mede memória, não aprendizado. No polinômio de grau 15, o erro de treino era 0,011 e o de validação passava de 100.000. Na MLP com 5.000 imagens, 100% no treino e 94% na validação. É uma prova com as mesmas questões da lista.
 
-- **Treino** — onde o modelo ajusta os pesos.
-- **Validação** — onde **você** toma decisões: comparar modelos, escolher hiperparâmetro, decidir quando parar.
-- **Teste** — onde se mede **uma vez**, no fim, para saber o que esperar na vida real.
+### Por que dois conjuntos não bastam
+
+Com só treino e teste, o caminho natural é treinar 30 configurações e ficar com a melhor no teste. Nesse momento o teste passou a participar da escolha, e a nota dele deixou de ser honesta.
+
+Uma simulação mostra o efeito. Trinta modelos que só chutam, com acerto real de 10%, são avaliados no mesmo conjunto. A nota do melhor dos trinta, em média:
+
+- com **100 exemplos**: 16,5%;
+- com **1.000 exemplos**: 12,0%;
+- com **10.000 exemplos**: 10,6%.
+
+O acerto real de todos é 10%. Nenhum dos trinta é melhor que os outros: o campeão só teve sorte naquele conjunto. Escolher o melhor entre muitos **infla a nota**, e quanto menor o conjunto e mais tentativas, maior a inflação. A saída é um terceiro conjunto, que não participa de escolha nenhuma.
+
+### Os três conjuntos
+
+- **Treino** — ajusta os pesos e os vieses. Quem usa é o otimizador, a cada iteração.
+- **Validação** — escolhe hiperparâmetros, compara modelos e decide quando parar. Quem usa é você, quantas vezes quiser.
+- **Teste** — estima o desempenho em dados novos. Quem usa é você, **uma vez, no fim**.
+
+A analogia é lista de exercícios, simulado e prova. E a validação também fica otimista depois de muitas tentativas — é exatamente por isso que o teste existe. Você vai encontrar a validação com outros nomes: _dev set_, _hold-out_ e _cross-validation set_, que é o termo do curso do Andrew Ng.
 
 <Caixa tipo="erro">
-Usar o conjunto de <Termo id="teste">teste</Termo> para escolher hiperparâmetro é o erro mais silencioso da lista, porque nada quebra e o número até melhora. É a mesma família do erro da Aula 2 — calcular a média e o desvio da normalização usando o dataset inteiro em vez de só o treino. Nos dois casos, informação que deveria estar fora vazou para dentro, e o resultado fica bom demais para ser verdade.
+Usar o conjunto de teste para escolher hiperparâmetro. Nada quebra e o número até melhora — por isso o erro é silencioso: a nota do teste deixa de valer. Na simulação acima, o melhor de 30 chutadores tirou 16,5% quando o real era 10%. No desafio do MNIST o mesmo vale para o ranking: quem submete muitas vezes está ajustando o modelo ao ranking, e transformou o ranking em validação.
 </Caixa>
 
-Esse é o **vazamento de dados**, e ele acontece de formas bem menos óbvias que essa. Alguns exemplos concretos: normalizar antes de dividir os conjuntos; ter o mesmo paciente em treino e em teste com exames diferentes; usar, para prever se um cliente vai cancelar, uma coluna que só é preenchida depois de o cliente cancelar. Sempre que um resultado vier surpreendentemente bom, <Termo id="vazamento-de-dados">vazamento</Termo> é a primeira hipótese a investigar — antes de comemorar.
+### Como dividir
 
-<Pergunta pergunta="Se eu nunca posso olhar o teste, como sei que ele não está simplesmente com dados mais difíceis que os da validação?">
-Você não sabe com certeza — e é por isso que a forma de dividir importa tanto quanto a existência da divisão.
+- **Proporções comuns**: 60/20/20 ou 70/15/15 em conjuntos pequenos. Com milhões de exemplos, algo como 98/1/1.
+- **O que importa é o tamanho absoluto da validação.** Com 10.000 imagens e acerto perto de 97,5%, a margem de erro é de cerca de 0,16 ponto. Com 1.000 imagens, sobe para 0,5 ponto.
+- **Embaralhar antes de dividir.** Se os dados estiverem em ordem, a validação pode ficar só com uma classe.
+- **Estratificar quando há classe rara**: manter a mesma proporção de classes nos três conjuntos.
+- **Fixar a semente da divisão.** Senão cada execução valida em imagens diferentes, e os números deixam de ser comparáveis.
+- **Dados com data**: treinar no passado e validar no futuro, sem embaralhar.
+- **Conjunto muito pequeno**: existe a validação cruzada (_k-fold_), que reveza os pedaços.
 
-A garantia vem de como os três conjuntos são construídos: eles precisam ser amostras da **mesma** distribuição, sorteadas ao acaso. Dividir 60/20/20 aleatoriamente costuma bastar. Onde isso falha é quando a divisão é feita por algum critério escondido — separar por data e o comportamento mudar no meio do caminho, ou separar por região e as regiões serem diferentes entre si.
+No desafio do MNIST: o treino são as 50.000 imagens, a validação são as 10.000 que cada um separa e o teste é o ranking.
 
-E há um segundo detalhe: quanto menor o conjunto, mais o resultado dele varia por sorte. Uma validação de 50 exemplos dá um número instável, que muda bastante se você sortear de novo. Quando o dado é pouco, a saída é **validação cruzada**: dividir o treino em k partes, treinar k vezes deixando uma de fora por vez, e tirar a média. Custa k vezes mais treino e devolve um número em que dá para confiar.
+### Vazamento de dados
 
-Olhar o teste uma única vez, no fim, é o que preserva o valor dele. Se o resultado vier muito abaixo da validação, isso já é informação — em geral significa que você escolheu demais em cima da validação.
-</Pergunta>
+**Vazamento** (_data leakage_) é quando o modelo treina com informação que não teria na hora de prever de verdade. O sintoma é validação ótima e resultado real ruim. Seis formas comuns:
+
+1. **Quase-duplicatas nos dois conjuntos.** A mesma imagem, ou uma cópia levemente alterada, cai no treino e na validação.
+2. **Pré-processar com o conjunto todo.** Calcular a média e o desvio do feature scaling da Aula 2 usando também a validação e o teste. O certo é calcular no treino e aplicar nos outros.
+3. **Feature que contém a resposta.** Prever se o cliente cancelou o plano usando a coluna "data do cancelamento".
+4. **Vazamento no tempo.** Embaralhar uma série de datas e treinar com o futuro para prever o passado.
+5. **O mesmo indivíduo nos dois lados.** Várias fotos da mesma pessoa divididas ao acaso entre treino e validação.
+6. **Escolher hiperparâmetros olhando o teste.** É o vazamento que passa por você.
+
+O caso 1 foi medido no MNIST. Partindo de 2.000 imagens, foram criadas 5 versões de cada — a original e quatro deslocadas 1 pixel —, num total de 10.000 imagens. Depois, duas formas de dividir:
+
+- **sorteando as 10.000 cópias (errado)**: 97,3% na validação e 95,1% no teste oficial;
+- **sorteando as 2.000 originais e só depois copiando (certo)**: 94,6% na validação e 94,9% no teste oficial.
+
+Na divisão errada, 99,75% das imagens de validação tinham uma irmã no treino, e a validação ficou 2,2 pontos acima da realidade. Na divisão certa, validação e teste contam a mesma história. Isso importa no desafio: quem criar imagens extras para treinar tem que **dividir primeiro e aumentar só o treino**.
+
+Duas perguntas evitam quase todo vazamento:
+
+- Na hora de prever de verdade, eu teria essa informação?
+- Eu dividi os dados antes de fazer qualquer outra coisa?
+
+Resultado bom demais é sinal para desconfiar antes de comemorar.
 
 <Quiz
   id="a7-teste-contaminado"
@@ -106,70 +218,230 @@ Olhar o teste uma única vez, no fim, é o que preserva o valor dele. Se o resul
   ]}
 />
 
-## Ler uma learning curve
+## Curvas de aprendizado
 
-Na prática o diagnóstico é quase sempre visual: você põe o erro de treino e o de validação no mesmo gráfico ao longo do treino e olha o desenho. Três formatos cobrem quase tudo:
+A loss de treino e a de validação no mesmo gráfico, epoch por epoch, são o diagnóstico mais rápido que existe. O formato das duas curvas diz qual é o problema.
 
-- **As duas altas e juntas** → _underfitting_. O modelo não tem forma suficiente. Aumente a capacidade (mais camadas, mais neurônios, mais features), treine mais tempo, ou reduza a regularização.
-- **Treino baixa, validação alta, e o gap crescendo** → _overfitting_. Regularize, consiga mais dados, ou diminua o modelo.
-- **As duas baixas e juntas** → está bom. Se ainda não for suficiente para o seu objetivo, o caminho é outro: mais dados ou features melhores, não mais capacidade.
+### Como montar
 
-Uma leitura extra, que economiza tempo: se o erro de <Termo id="validacao">validação</Termo> parou de cair há muitas epochs e o de treino continua descendo, você já passou do ponto — o melhor modelo ficou para trás. Isso tem remédio, e é o mais barato de todos, logo abaixo.
+- Ao fim de cada epoch, meça a loss e a acurácia no treino e na <Termo id="validacao">validação</Termo>.
+- No eixo horizontal, o epoch. No vertical, a loss. Duas linhas.
+- **Meça as duas do mesmo jeito.** A média dos lotes durante o epoch sai mais alta que a loss medida no fim, porque os pesos melhoraram no caminho, e com dropout ligado a diferença fica maior ainda. Medir o treino durante o epoch e a validação no fim deixa as curvas incomparáveis: o sintoma é o treino sair pior que a validação nos primeiros epochs.
 
-## Penalizar peso grande: L1 e L2
+### O treino-base em 30 epochs
 
-A primeira família de <Termo id="regularizacao">regularizações</Termo> ataca o problema na raiz: um modelo que decora costuma fazer isso com pesos **grandes**, que produzem as curvas violentas necessárias para passar por cada ponto. Então proíba pesos grandes — não com uma regra, mas com um custo:
+A resposta à pergunta da Aula 6 aparece quando o treino-base dela — a MLP de 128 neurônios, Adam, learning rate 0,001, lote 64, 50.000 imagens de treino e 10.000 de validação — é levado até 30 epochs:
+
+- **até o epoch 10, as duas curvas caem.** A rede está aprendendo padrões que valem para qualquer dígito. A menor loss de validação, **0,086**, é a do epoch 10;
+- **depois do epoch 10, o treino continua caindo e a validação sobe**, até 0,118 no epoch 30. A rede passou a aprender particularidades das 50.000 imagens de treino.
+
+O que a Aula 6 viu era isso: o começo do overfitting. O ponto mais baixo da validação é a hora de parar — a ideia do early stopping, mais abaixo.
+
+### Os três cenários
+
+Três treinos medidos, cada um com o desenho de um diagnóstico. Os números são loss de treino, loss de validação, acurácia de treino e acurácia de validação:
+
+- **Underfitting** — 2 neurônios, 5.000 imagens: 1,07, 1,16, 63,8% e 61,6%. As duas curvas altas e coladas. Treinar mais quase não ajuda.
+- **Overfitting** — 512 neurônios, 5.000 imagens: 0,0004, 0,290, 100% e 94,4%. Treino no chão, validação longe e subindo. A distância entre as duas cresce com os epochs.
+- **Bom** — 512 neurônios, dropout 0,5, 50.000 imagens: 0,004, 0,081, 99,9% e 98,4%. Validação baixa e estável, com distância pequena para o treino.
+
+### Uma distância pequena é normal
+
+O treino quase sempre sai um pouco melhor que a validação. No cenário bom acima, a diferença é de 1,5 ponto. O que preocupa é a distância **crescendo** e a validação **piorando**.
+
+<Caixa tipo="erro">
+Achar que qualquer diferença entre treino e validação é <Termo id="overfitting">overfitting</Termo>. O modelo viu o treino e não viu a validação, então vai naturalmente um pouco melhor no primeiro: no MNIST, uma diferença de 1,5 a 2 pontos é normal. Um pouco de overfitting é inevitável, e o que decide é a validação, não a distância para o treino.
+</Caixa>
+
+<Pergunta pergunta="A validação deu melhor que o treino. Isso pode acontecer?">
+Pode. As duas causas comuns são medir o treino com o dropout ainda ligado e ter uma validação pequena.
+
+A primeira é um erro de código: a rede mede o treino com parte dos neurônios desligada e a validação com todos. Se resolve medindo as duas com o dropout desligado, o `modelo.eval()` que aparece na seção de dropout. A segunda se resolve com uma validação maior.
+</Pergunta>
+
+### A loss sobe e a acurácia não cai
+
+Isto confunde muita gente e aparece no próprio treino-base. Do epoch 10 para o 30, a loss de validação subiu de 0,086 para 0,118 — mas a acurácia foi de 97,56% para **97,79%**.
+
+A loss pune a confiança errada. Com mais epochs a rede fica mais confiante em tudo, inclusive nos erros. Um erro em que a rede dá 0,1% para a classe certa custa $-\ln(0{,}001) = 6{,}9$. Um erro com 40% para a classe certa custa 0,9. Poucos erros muito confiantes puxam a loss média para cima sem mudar o número de acertos.
+
+Então, achar que loss de validação subindo significa menos acertos é um engano: a acurácia pode continuar igual ou até subir. O que olhar são as duas. A competição mede acurácia; a loss avisa antes que algo está mudando.
+
+### Erro contra quantidade de dados
+
+Existe uma segunda curva de aprendizado, a do curso do Andrew Ng: em vez dos epochs, o eixo horizontal é o **tamanho do treino**. Medida com a rede de 128 neurônios, com acurácia no treino, acurácia na validação e erro na validação:
+
+- **500 imagens**: 100%, 86,2% e 13,8%;
+- **1.000 imagens**: 100%, 88,6% e 11,4%;
+- **2.000 imagens**: 100%, 90,9% e 9,1%;
+- **5.000 imagens**: 100%, 93,4% e 6,6%;
+- **10.000 imagens**: 99,8%, 95,0% e 5,0%;
+- **50.000 imagens**: 99,98%, 97,7% e 2,3%.
+
+**Com variância alta, mais dados ajudam.** É o caso aqui: cada vez que o treino dobra, o erro de validação cai entre 15% e 30%. **Com viés alto, mais dados não ajudam**: o modelo já não consegue acertar nem o treino, e dar mais exemplos a uma reta não a transforma em curva. Mais dados resolve variância, não viés — e, quando existe a opção, é o melhor remédio contra overfitting.
+
+### Curva de validação serrilhada
+
+Validação que sobe e desce muito entre epochs costuma ser um de dois casos: conjunto de validação pequeno ou <Termo id="learning-rate">learning rate</Termo> alto, que foi assunto da Aula 6.
+
+## Regularização L1 e L2
+
+**Regularizar** é colocar na função de custo uma penalidade — uma multa — por peso grande. A rede só mantém um peso grande quando ele realmente reduz o erro.
+
+### A ideia
+
+Overfitting anda junto com pesos grandes: para passar em cima de cada ponto, a curva precisa de coeficientes enormes. No polinômio, o maior coeficiente do grau 3 fica perto de 3; o do grau 15 passa de 200.000.
+
+O custo novo é a loss nos dados **mais** $\lambda$ vezes o tamanho dos pesos. O otimizador passa a ter dois objetivos que brigam: errar pouco e manter os pesos pequenos. O $\lambda$ (lambda) é o hiperparâmetro que diz quanto a penalidade pesa. Só os pesos entram na penalidade; os vieses costumam ficar de fora.
+
+### L2: penalidade pelo quadrado do peso
 
 $$
-J_{\text{reg}} = J + \lambda \sum_j w_j^2 \quad (\text{L2}) \qquad\qquad J_{\text{reg}} = J + \lambda \sum_j |w_j| \quad (\text{L1})
+J = \text{loss} + \lambda \sum_j w_j^2
 $$
 
 <Simbolos
   itens={[
-    { simbolo: "$J$", significado: "a função de custo de sempre — o erro nas previsões, e nada mais" },
-    { simbolo: "$\\sum_j w_j^2$", significado: "a soma dos pesos ao quadrado. Peso grande contribui muito; peso perto de zero quase não conta" },
-    { simbolo: "$\\sum_j |w_j|$", significado: "a soma dos módulos. Aqui todo peso contribui na mesma proporção, por menor que seja" },
-    { simbolo: "$\\lambda$", significado: "o quanto essa penalidade pesa em relação ao erro. É você quem escolhe: em 0 não há regularização nenhuma" },
+    { simbolo: "$J$", significado: "o custo que o otimizador passa a diminuir: a loss mais a penalidade" },
+    { simbolo: "loss", significado: "a de sempre — a cross-entropy das previsões, que mede só o erro" },
+    { simbolo: "$\\sum_j w_j^2$", significado: "a soma dos pesos ao quadrado. Peso 10 paga 100, peso 1 paga 1, peso 0,1 paga 0,01" },
+    { simbolo: "$\\lambda$", significado: "quanto a penalidade pesa em relação à loss. Em 0, não há regularização nenhuma" },
   ]}
 />
 
-Agora o treino tem dois objetivos concorrentes: errar pouco **e** manter os pesos pequenos. O gradient descent negocia entre os dois, e quem decide o câmbio é o $\lambda$.
+O que muda no passo: a derivada da penalidade é $2\lambda w$, e o passo do gradient descent vira
 
-A diferença entre as duas é o que cada penalidade faz com um peso já pequeno. A **L2** encolhe todo mundo suavemente e proporcionalmente — quanto menor o peso, menor o empurrão, então nada chega exatamente a zero. A **L1** empurra com força constante, independente do tamanho, então pesos pouco úteis são zerados de vez. Isso é seleção de feature de graça: os pesos que sobraram diferentes de zero são as features que o modelo julgou valer a pena.
+$$
+w \leftarrow w\,(1 - 2\,\alpha\,\lambda) - \alpha\,g
+$$
 
-Nos extremos, o $\lambda$ se comporta como o grau do polinômio, ao contrário: **$\lambda = 0$** é o modelo sem freio, livre para decorar; **$\lambda$ enorme** esmaga todos os pesos para perto de zero e o modelo vira quase uma constante — <Termo id="underfitting">underfitting</Termo> puro. O bom valor fica no meio, e você acha ele olhando a validação.
+<Simbolos
+  itens={[
+    { simbolo: "$w$", significado: "um peso qualquer da rede" },
+    { simbolo: "$\\alpha$", significado: "o learning rate" },
+    { simbolo: "$(1 - 2\\alpha\\lambda)$", significado: "a fração que o peso conserva a cada passo, antes de receber a correção. Um pouco menos que 1" },
+    { simbolo: "$g$", significado: "o gradiente da loss para esse peso, o mesmo de sempre, calculado pelo backprop" },
+  ]}
+/>
+
+A leitura: **a cada passo o peso encolhe uma fração fixa** antes de receber a correção. Por isso o outro nome do L2 é **weight decay**. Um exemplo: peso 2,0, learning rate 0,1, $\lambda = 0{,}01$ e gradiente zero. O peso vai para $2{,}0 \times 0{,}998 = 1{,}996$. Um peso que não ajuda a reduzir o erro vai murchando; um peso que ajuda é reposto pelo gradiente.
+
+E como a penalidade é o quadrado, quem paga mais é o peso grande. O L2 ataca os pesos grandes e quase não mexe nos pequenos. O resultado são pesos pequenos e espalhados, raramente zero.
+
+### L1: penalidade pelo valor absoluto
+
+$$
+J = \text{loss} + \lambda \sum_j |w_j|
+$$
+
+<Simbolos
+  itens={[
+    { simbolo: "$\\sum_j |w_j|$", significado: "a soma dos pesos sem o sinal: o tamanho de cada um, sem elevar ao quadrado" },
+    { simbolo: "$\\lambda$", significado: "o mesmo botão do L2: quanto a penalidade pesa" },
+  ]}
+/>
+
+O que muda no passo: a derivada da penalidade é $\lambda$ com o sinal do peso. É um empurrão de **tamanho fixo** em direção ao zero, não importa o tamanho do peso. O resultado é que os pesos pequenos chegam a zero, ou muito perto disso, e ficam lá. O modelo fica **esparso**.
+
+Daí sai seleção de features de graça: se todos os pesos que saem de uma entrada zeram, aquela entrada foi descartada. É o que aconteceria com uma coluna inútil no conjunto de dados.
+
+### L1 e L2 lado a lado
+
+A diferença em números, com learning rate 0,1 e $\lambda = 0{,}01$, num passo:
+
+- **peso 2,0**: o L2 tira 0,004; o L1 tira 0,001;
+- **peso 0,01**: o L2 tira 0,00002; o L1 tira 0,001.
+
+O L2 tira proporcionalmente ao peso, então nunca chega a zero. O L1 tira sempre o mesmo tanto, então zera o peso pequeno em poucos passos. Resumindo:
+
+- **L2** — encolhe todos os pesos, mais os grandes. O modelo final tem pesos pequenos e espalhados. Outros nomes: _weight decay_, _ridge_. É o padrão em redes neurais.
+- **L1** — zera muitos pesos. O modelo final é esparso. Outro nome: _lasso_. Serve quando se quer descobrir quais entradas importam.
+
+### O polinômio de grau 15 com L2
+
+É o mesmo polinômio que explodia no começo da aula. Só a penalidade muda. Para cada $\lambda$, o erro no treino, o erro na validação e o maior coeficiente:
+
+- **λ = 0**: 0,011, acima de 100.000, e 222.000;
+- **λ = 0,000001**: 0,025, 3,55 e 72;
+- **λ = 0,0001**: 0,032, 0,337 e 8,5;
+- **λ = 0,01**: 0,042, 0,113 e 2,7;
+- **λ = 1**: 0,138, 0,192 e 1,1;
+- **λ = 100**: 0,485, 0,519 e 0,12.
+
+Com $\lambda = 0{,}01$ o grau 15 se comporta quase como o grau 3, que tinha erro de validação 0,082 — e não foi preciso diminuir o modelo. Com $\lambda = 100$ os coeficientes são esmagados e o erro de treino sobe para 0,485: $\lambda$ grande demais vira underfitting. Repare que o erro de treino sempre piora com a penalidade. É o preço. O que se quer é a validação melhorar.
+
+### L2 na MLP do MNIST
+
+Rede de 512 neurônios, 5.000 imagens, 50 epochs. Para cada $\lambda$, a acurácia no treino, a acurácia na validação, a loss de validação e a soma dos pesos ao quadrado:
+
+- **λ = 0**: 100%, 94,4%, 0,290 e 1.313;
+- **λ = 0,00001**: 100%, 94,7%, 0,242 e 546;
+- **λ = 0,0001**: 100%, 95,2%, 0,183 e 297;
+- **λ = 0,001**: 99,3%, 94,3%, 0,195 e 136;
+- **λ = 0,01**: 91,5%, 89,6%, 0,399 e 35;
+- **λ = 0,1**: 68,4%, 67,3%, 1,30 e 6.
+
+O melhor $\lambda$ ficou em 0,0001: 0,8 ponto a mais na validação e uma loss bem menor. A partir de 0,01 a penalidade domina e a rede cai em underfitting — treino e validação descem juntos. A última coluna mostra a penalidade funcionando: quanto maior o $\lambda$, menores os pesos.
+
+### L1 na mesma rede
+
+Para cada regularização, a fração de pesos praticamente zero (valor absoluto menor que 0,001), quantos dos 784 pixels foram descartados (todos os pesos de saída do pixel praticamente zero) e a acurácia de validação:
+
+- **nenhuma**: 1,7% dos pesos, 0 pixels, 94,4%;
+- **L2 com λ = 0,0001**: 35%, 169 pixels, 95,2%;
+- **L1 com λ = 0,00001**: 80%, 253 pixels, 95,1%;
+- **L1 com λ = 0,0001**: 88%, 258 pixels, 94,3%.
+
+Com L1, 80% dos pesos zeraram e a acurácia **subiu**: a rede passou a ignorar 253 pixels. Dos 784 pixels, 125 estão sempre em branco nessas 5.000 imagens; o L1 descartou esses e mais 128 que pouco ajudavam. Sem regularização nenhum pixel é descartado, porque os pesos dos pixels em branco têm gradiente zero e ficam no valor sorteado no início. Com L1 e $\lambda = 0{,}0001$, 263 dos 512 neurônios ocultos ficaram com todos os pesos de entrada praticamente zero.
+
+### Como escolher o λ
+
+- $\lambda = 0$ é sem regularização. $\lambda$ pequeno demais não muda nada. $\lambda$ grande demais dá <Termo id="underfitting">underfitting</Termo>.
+- Teste em potências de 10 e decida pela validação, como o learning rate na Aula 6.
+- O valor de $\lambda$ não é comparável entre códigos: depende de a penalidade ser soma ou média e de ter ou não um fator ½.
+
+<Caixa tipo="erro">
+Regularizar demais, ou regularizar um modelo que já está em underfitting. Só piora: com $\lambda = 0{,}01$, a rede de 512 neurônios caiu de 94,4% para 89,6% na validação. E não leve o $\lambda$ de um código para outro — o valor depende de como a penalidade foi escrita.
+</Caixa>
+
+### No PyTorch
+
+- A penalidade pode ser somada à loss à mão, o que deixa a conta visível.
+- O atalho para o L2 é o argumento `weight_decay` do otimizador, por exemplo `torch.optim.Adam(..., weight_decay=0.0001)`. Ele equivale a uma penalidade de metade desse valor vezes a soma dos quadrados, e inclui os vieses — então o número não bate com o $\lambda$ das listas acima.
+- Com Adam, a versão recomendada é o **AdamW**, que aplica o encolhimento separado do resto do passo.
+- O L1 não tem atalho: soma-se à loss.
 
 ## Dropout e early stopping
 
-As outras duas regularizações não mexem na função de custo, e são as que mais rendem no MNIST pelo esforço que dão.
+São as duas <Termo id="regularizacao">regularizações</Termo> mais baratas de aplicar: o dropout é uma linha a mais no modelo, e o early stopping é uma regra no loop de treino.
 
-**Dropout**: a cada passagem do treino, desligue neurônios ao acaso. Parece sabotagem, e funciona por uma razão específica: se qualquer neurônio pode sumir a qualquer momento, a rede não consegue depender de um caminho único — ela é forçada a espalhar o que aprendeu por várias rotas redundantes. É como uma equipe em que qualquer pessoa pode faltar sem aviso: ninguém pode ser o único a saber alguma coisa. Na hora de prever, a rede volta inteira.
+### Dropout
 
-**Arraste a taxa** abaixo. Em zero você vê a rede decorando; suba um pouco e a faixa entre as curvas fecha; suba demais e a rede para de aprender:
+**Dropout**: a cada passo de treino, desligue ao acaso uma fração dos neurônios da camada. A saída deles vira zero, e o sorteio muda a cada lote.
+
+Funciona porque nenhum neurônio pode depender de um colega específico: a rede é obrigada a espalhar o que aprendeu. É como um time que treina toda semana com jogadores diferentes faltando — ninguém vira insubstituível. Outra leitura: é como treinar muitas redes menores e tirar a média delas.
+
+- **A taxa de dropout** é a fração desligada. Valores comuns: de 0,2 a 0,5 nas camadas ocultas. Nunca na camada de saída.
+- **Treino e avaliação são diferentes.** Na avaliação todos os neurônios ficam ligados. Para a escala bater, durante o treino as saídas que sobraram são multiplicadas por $1 \div (1 - \text{taxa})$: com taxa 0,5, metade é desligada e a outra metade dobra.
+- **No PyTorch**: `nn.Dropout(0.5)` depois da ativação. `modelo.train()` liga o dropout e `modelo.eval()` desliga.
+- **Efeito colateral**: o treino fica mais lento e pede mais epochs.
+
+A visualização abaixo é uma rede minúscula treinada aqui no navegador, então os números dela não são os do MNIST — mas o desenho é o mesmo. **Arraste a taxa**: em zero a rede decora, com uma faixa larga entre as curvas; suba um pouco e a faixa fecha; suba demais e a rede para de aprender.
 
 <VizEmbed titulo="arraste a taxa de dropout e veja a faixa fechar">
   <Dropout />
 </VizEmbed>
 
-Repare no que aconteceu com a taxa boa: o erro de **treino piorou** e o de validação melhorou. Esse é o negócio que toda regularização propõe, e vale internalizar — você abre mão de desempenho no treino, de propósito, para ganhar em dado novo. Quem só olha o erro de treino conclui que a regularização estragou o modelo.
+No MNIST, com 512 neurônios, a acurácia de validação ao fim do treino (50 epochs com 5.000 imagens, 30 epochs com 50.000) foi:
 
-### Early stopping
+- **taxa 0**: 94,4% com 5.000 imagens; 97,9% com 50.000, com loss de validação 0,124;
+- **taxa 0,2**: 94,7%; 98,3%, com loss 0,098;
+- **taxa 0,5**: 95,0%; 98,4%, com loss 0,081.
 
-A regularização mais barata que existe, e a mais fácil de esquecer. A ideia: **overfitting também acontece por tempo de treino.** Nos primeiros epochs a rede aprende o padrão geral, e os dois erros caem juntos. Passado certo ponto, o padrão já foi extraído e o que sobra para aprender são as particularidades daqueles exemplos — o erro de treino continua caindo e o de validação começa a subir. O melhor modelo ficou para trás, e treinar mais só o afasta.
-
-O procedimento é literalmente isto:
-
-1. Meça o erro de **validação** ao fim de cada epoch.
-2. Sempre que ele bater um novo mínimo, **guarde uma cópia dos pesos** daquele momento.
-3. Se ele passar N epochs sem melhorar (esse N se chama _paciência_, e 5 a 20 são valores comuns), pare.
-4. Entregue os pesos guardados no passo 2, **não** os do fim do treino.
-
-O passo 4 é o que as pessoas erram: elas param o treino no momento certo e mesmo assim entregam os últimos pesos, que já são piores. Parar cedo e salvar o melhor são duas coisas.
-
-Volte ao gráfico acima e olhe a **linha verde**: ela marca o epoch em que a validação chegou ao menor valor, e tudo à direita dela é treino que só piorou o modelo. Repare que a linha **se move** quando você mexe na taxa de dropout — com regularização mais forte, o momento de parar chega mais tarde, porque a rede demora mais para começar a decorar. O painel diz, em número, quanto você ganharia entregando os pesos daquele epoch em vez dos últimos.
+O ganho é de cerca de meio ponto — no ranking do desafio, é o que separa o meio da tabela do topo. Com taxa 0,8 e 5.000 imagens a acurácia foi 94,8%: dropout demais começa a atrapalhar.
 
 <Caixa tipo="erro">
-Ligar <Termo id="dropout">dropout</Termo>, L2, early stopping e aumento de dados tudo de uma vez, ver melhorar e não saber o que ajudou. Isso não é só desleixo metodológico: você fica sem saber em que direção continuar, e provavelmente está pagando o custo de três regularizações para colher o benefício de uma. Mude **uma coisa por vez**, anote o erro de validação de cada tentativa, e mantenha só o que rendeu.
+Esquecer o `modelo.eval()` antes de medir a validação. O dropout continua ligado, e a medida sai com parte da rede desligada: com taxa 0,5, a acurácia saiu **94,0%** em vez de 95,0%. O sintoma é a validação mudar a cada medição do mesmo modelo.
 </Caixa>
 
 <Quiz
@@ -196,11 +468,105 @@ Ligar <Termo id="dropout">dropout</Termo>, L2, early stopping e aumento de dados
   ]}
 />
 
+### Early stopping
+
+**Early stopping** é acompanhar a validação a cada epoch, parar quando ela deixa de melhorar e ficar com os pesos do melhor epoch.
+
+- **Por que é regularização**: limita por quanto tempo a rede pode se ajustar ao treino. Os pesos começam pequenos e crescem com os epochs, então parar cedo tem efeito parecido com o do L2.
+- **Paciência**: quantos epochs sem melhora se tolera antes de parar. A validação oscila, então parar na primeira piora é cedo demais. Valores comuns: de 3 a 5.
+- **Guardar o recorde**: toda vez que a validação bate o melhor valor, salva-se uma cópia dos pesos. No fim, restaura-se essa cópia.
+
+O trecho que faz isso, dentro do laço de epochs:
+
+```python
+if historico[-1]["perda_val"] < melhor_perda:
+    melhor_perda, sem_melhora = historico[-1]["perda_val"], 0
+    melhor_pesos = copy.deepcopy(modelo.state_dict())  # guarda o recorde
+else:
+    sem_melhora += 1
+    if sem_melhora >= paciencia:
+        break                                           # para de treinar
+```
+
+E, depois do laço, `modelo.load_state_dict(melhor_pesos)` devolve a rede ao recorde.
+
+No treino-base de 30 epochs, com paciência 3, o treino **para sozinho no epoch 13 e devolve os pesos do epoch 10**: economizou 17 dos 30 epochs. Tem um detalhe que vale contar. Os pesos do epoch 10 têm a menor loss (0,086), mas a acurácia deles é 97,56% — quem foi até o epoch 30 terminou com 97,79%. A lição é monitorar a métrica que será cobrada: se o ranking mede acurácia, vale acompanhar a acurácia de validação também. E essas diferenças de 0,2 ponto estão no limite do ruído — na Aula 6, trocar só a semente já mudava 0,3 ponto.
+
+<Caixa tipo="erro">
+Fazer early stopping sem restaurar os melhores pesos. O treino para na hora certa e mesmo assim entrega os pesos do **último** epoch, não do melhor — e o resultado fica igual ao de treinar sem parar. Parar cedo e guardar o recorde são duas coisas.
+</Caixa>
+
+Volte à visualização do dropout e olhe a **linha verde**: ela marca o epoch em que a validação chegou ao menor valor. Tudo à direita dela é treino que não melhorou o modelo.
+
+<Pergunta pergunta="Early stopping com paciência 3. As losses de validação por epoch foram 0,50, 0,40, 0,35, 0,36, 0,34, 0,35, 0,36 e 0,37. Em que epoch o treino para, e de qual epoch são os pesos finais?">
+O recorde é **0,34, no epoch 5**. O 0,36 do epoch 4 não derrubou o treino: foi uma piora só, e a paciência tolera até três.
+
+Depois do recorde, os epochs 6, 7 e 8 não melhoram. Com três epochs seguidos sem melhora, o treino **para no epoch 8** e devolve os pesos do **epoch 5**.
+</Pergunta>
+
+O early stopping é de graça, economiza tempo e funciona junto com qualquer outra técnica. O limite: ele usa a validação para decidir, então a nota de validação do modelo escolhido fica um pouco otimista. É mais um motivo para o teste existir.
+
+### Combinando as técnicas
+
+As técnicas se somam, mas entram uma por vez. O ponto de partida para o desafio: **rede maior, dropout entre 0,2 e 0,5 e early stopping**.
+
+O **aumento de dados** também regulariza: criar imagens novas deslocando ou girando um pouco as originais. Depende de a regra do desafio permitir, e exige o cuidado com vazamento visto acima — dividir primeiro, aumentar só o treino.
+
+<Caixa tipo="erro">
+Ligar todas as regularizações de uma vez — dropout, L2, early stopping, aumento de dados —, ver melhorar e não saber o que ajudou. Você fica sem saber em que direção continuar. Mude **uma coisa por vez**, anote a acurácia de validação de cada tentativa e mantenha só o que rendeu.
+</Caixa>
+
+## Do sintoma ao remédio
+
+O diagnóstico segue sempre a mesma ordem: primeiro ver se o modelo acerta o treino, depois ver se acerta a validação. Esta seção serve de cola para o desafio.
+
+### A ordem das perguntas
+
+1. **O treino está bom?** Se não está, é underfitting. Aumente a rede, treine por mais epochs, confira o learning rate e tire regularização. Repita até o treino ficar bom.
+2. **A validação está perto do treino?** Se não está, é overfitting. Mais dados, dropout, L2 e early stopping. Depois volte à pergunta 1, porque regularizar pode derrubar o treino.
+3. **As duas estão boas?** Aí sim use o <Termo id="teste">teste</Termo>, uma vez.
+
+Quando a divisão é bem feita, validação e teste contam a mesma história: o modelo de 512 neurônios com dropout 0,5 fez 98,4% na validação e 98,5% no teste oficial; o treino-base de 30 epochs fez 97,8% na validação e 97,9% no teste.
+
+### Sintoma, diagnóstico e o que tentar
+
+- **Treino e validação baixos e próximos** → underfitting. Tente, nesta ordem: rede maior, mais epochs, conferir o learning rate, menos regularização.
+- **Treino perto de 100% e validação bem abaixo** → overfitting. Dropout, early stopping, L2, mais dados.
+- **Loss de validação sobe e acurácia fica igual** → confiança excessiva. Early stopping ou dropout. Não é emergência.
+- **Validação muito melhor que o ranking** → <Termo id="vazamento-de-dados">vazamento</Termo> ou validação gasta. Confira a divisão e o pré-processamento.
+- **Validação oscila muito entre epochs** → learning rate alto ou validação pequena. Reduza o learning rate, aumente a validação.
+- **Treino pior que validação** → medição com o dropout ligado. Use `modelo.eval()` antes de medir.
+
+### O que a regularização rendeu no MNIST completo
+
+Com as 50.000 imagens de treino e 30 epochs, acurácia de validação ao fim do treino:
+
+- **128 neurônios**: 97,8%;
+- **512 neurônios**: 97,9%;
+- **512 neurônios com dropout 0,2**: 98,3%;
+- **512 neurônios com dropout 0,5**: 98,4%;
+- **512 e 256 neurônios**: 98,2%;
+- **512 e 256 neurônios com dropout 0,5**: 98,3%.
+
+Do treino-base até a melhor configuração, o erro caiu de 2,2% para 1,6% — cerca de um quarto dos erros a menos. O dropout rendeu mais que só aumentar a rede, e a segunda camada não ajudou quando o dropout já estava ligado (diferenças de 0,1 ponto aqui são ruído). Com os dados completos os ganhos são de décimos, e é nesses décimos que o ranking se decide.
+
+### Onde o modelo erra
+
+Olhar os erros um a um costuma dizer mais que o número da acurácia. No treino-base de 10 epochs, com 97,56% de validação, são 244 erros em 10.000 imagens. As confusões mais frequentes:
+
+- **4 lido como 9**: 18 vezes;
+- **8 lido como 3**: 11 vezes;
+- **3 lido como 5**: 11 vezes;
+- **7 lido como 9**: 10 vezes;
+- **5 lido como 3**: 10 vezes.
+
+Os dígitos mais fáceis foram o 6, com 99,6% de acerto, e o 1, com 99,3%. Os mais difíceis, o 8, com 95,7%, e o 5, com 96,5%. É a matriz de confusão da Aula 3 de volta, agora como ferramenta para ver onde o modelo erra. E quando se olham as imagens erradas, é comum que parte delas seja difícil até para uma pessoa — o que ajuda a entender por que 100% não é o alvo.
+
 <p class="nota">
   Fecha o Bloco 2. Você monta a rede (A4 e A5), faz ela treinar (A6) e agora
   sabe olhar o resultado e dizer o que fazer em seguida — que é a diferença entre
-  mexer em hiperparâmetro no escuro e ter um método. Leve isto para o MNIST: uma
-  mudança por vez, decisão na validação, teste só no fim.
+  mexer em hiperparâmetro no escuro e ter um método. Leve isto para o MNIST:
+  primeiro o treino, depois a validação, uma mudança por vez, e o teste só no fim.
 </p>
 
 ## Teste o que entendeu
@@ -251,6 +617,54 @@ Ligar <Termo id="dropout">dropout</Termo>, L2, early stopping e aumento de dados
     {
       texto: "Nenhuma das duas: seleção de feature exige treinar um modelo por subconjunto de features.",
       porque: "Isso funciona e é o método exaustivo, mas com 300 features é inviável. A vantagem da L1 é justamente entregar uma seleção como subproduto de um treino só.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a7-peso-l2"
+  pergunta="Com L2, um peso vale 4,0, o learning rate é 0,1, $\\lambda$ é 0,05 e o gradiente da loss para esse peso é zero. Quanto vale o peso depois de um passo?"
+  alternativas={[
+    {
+      texto: "3,96 — o peso é multiplicado por $1 - 2 \\times 0{,}1 \\times 0{,}05 = 0{,}99$.",
+      certa: true,
+      porque: "Isso. A cada passo o L2 faz o peso conservar uma fração fixa, aqui 99%. Mesmo sem gradiente nenhum vindo da loss, o peso murcha — é o weight decay.",
+    },
+    {
+      texto: "4,0 — com gradiente zero, o peso não se move.",
+      porque: "O gradiente da loss é zero, mas o da penalidade não: ele vale $2\\lambda w$ e existe sempre que o peso é diferente de zero. É justamente isso que faz um peso inútil encolher.",
+    },
+    {
+      texto: "3,995 — o peso perde learning rate vezes $\\lambda$, ou seja, 0,005.",
+      porque: "Esse é o passo do L1, que tira sempre o mesmo tanto, não importa o tamanho do peso. O L2 tira proporcionalmente ao peso: $2 \\times 0{,}1 \\times 0{,}05 \\times 4{,}0 = 0{,}04$.",
+    },
+    {
+      texto: "0 — o L2 zera de uma vez os pesos que não ajudam a reduzir o erro.",
+      porque: "Quem zera pesos é o L1. O L2 tira uma fração do peso a cada passo, então ele encolhe sem nunca chegar exatamente a zero.",
+    },
+  ]}
+/>
+
+<Quiz
+  id="a7-vazamento-pacientes"
+  pergunta="Um conjunto tem 1.000 exames de 100 pacientes, 10 de cada um. Os exames foram sorteados ao acaso entre treino e validação, e a validação deu ótima. Qual é o problema?"
+  alternativas={[
+    {
+      texto: "Vazamento: o mesmo paciente aparece dos dois lados, então a validação fica inflada. O certo é dividir por paciente — todos os exames de uma pessoa ficam do mesmo lado.",
+      certa: true,
+      porque: "Isso. É o caso do mesmo indivíduo nos dois lados. A validação deveria dizer se o modelo acerta pacientes novos, e esses pacientes não são novos.",
+    },
+    {
+      texto: "Nenhum: sortear ao acaso é exatamente o que se recomenda para dividir os dados.",
+      porque: "Sortear é o certo, mas aqui o sorteio separou exames, e não pacientes. Os exames de uma mesma pessoa caíram dos dois lados, e a validação passou a medir em parte quem o modelo já viu.",
+    },
+    {
+      texto: "Faltou estratificar: a proporção de doentes tem que ser a mesma nos dois conjuntos.",
+      porque: "Estratificar mantém a proporção de classes, o que importa quando há classe rara. Mas não impede o mesmo paciente de cair dos dois lados, que é o que inflou a validação.",
+    },
+    {
+      texto: "A validação é pequena demais, e por isso o número dela não é confiável.",
+      porque: "O tamanho mexe na margem de erro, para cima ou para baixo. Uma validação **ótima demais** aponta para outro lado: informação que passou do treino para a validação.",
     },
   ]}
 />
