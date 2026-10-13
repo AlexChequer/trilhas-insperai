@@ -661,12 +661,12 @@
       const ix = modo === "loss" ? [0, 1] : [2, 3];
       const vals = h.flatMap((p) => [p[ix[0]], p[ix[1]]]);
       const lo = Math.min(...vals), hi = Math.max(...vals);
-      const passo = [0.01, 0.02, 0.05, 0.1, 0.25, 0.5].find((p) => (hi - lo) / p <= 5) ?? 0.5;
+      const passo = [0.01, 0.02, 0.05, 0.1, 0.25, 0.5].find((p) => (hi - lo) / p <= 6) ?? 0.5;
       const min = Math.max(0, Math.floor(lo / passo - 1e-9) * passo);
       let max = Math.ceil(hi / passo + 1e-9) * passo;
       if (modo === "acc") max = Math.min(1, max);
       const fmt = modo === "loss"
-        ? (v: number) => num(v, passo < 0.1 ? 2 : 1)
+        ? (v: number) => num(v, passo < 0.1 || passo === 0.25 ? 2 : 1)
         : (v: number) => Math.round(v * 100) + "%";
       return { min, max, passo, fmt };
     }
@@ -763,7 +763,12 @@
       const xsMin = ancora === "start" ? [xt, xt + largMin] : ancora === "end" ? [xt - largMin, xt] : [xt - largMin / 2, xt + largMin / 2];
       const xsDist = direita ? [xr + 10, xr + 10 + largDist] : [xr - 10 - largDist, xr - 10];
       const cruzaX = xsMin[0] < xsDist[1] && xsDist[0] < xsMin[1];
-      if (modo === "loss" && cruzaX && yd > yt - 18 && yd < yt + altura + 2) yt = Math.max(yT, yV) + 40;
+      // Se embaixo não couber (curvas perto do pé do gráfico), ele sobe acima do
+      // rótulo da distância.
+      if (modo === "loss" && cruzaX && yd > yt - 18 && yd < yt + altura + 2) {
+        yt = Math.max(yT, yV) + 40;
+        if (yt + altura > M.topo + ph - 4) yt = Math.min(yT, yV, yd) - 26 - (juntas.length - 1) * 16;
+      }
       if (modo === "acc" && Math.abs(yt - yd) < altura + 6) yt = M.topo + ph - altura;
       juntas.forEach((t, i) => {
         partes.push(`<text class="g-minimo-txt" x="${xt.toFixed(1)}" y="${(yt + i * 16).toFixed(1)}" text-anchor="${ancora}" dominant-baseline="middle">${t}</text>`);
