@@ -7,7 +7,7 @@ tags: [aula, redes-neurais]
 
 # Aula 07 — Análise de Modelos
 
-**Status: ⬜ pendente** (0/2) · slug `aula-07`
+**Status: ✅ pronta** (3/3) · slug `aula-07`
 
 ## Objetivo
 
@@ -47,3 +47,23 @@ As duas visualizações continuam as mesmas. Erros comuns que entraram como
 caixa, além dos três acima: diminuir a rede para combater overfitting,
 regularizar demais, esquecer o `modelo.eval()`, early stopping sem restaurar os
 melhores pesos. Detalhes e adaptações em [[Log de Decisões]].
+
+## Viz das curvas de treino e validação (13/10/2026)
+
+`CurvasTreinoValidacao` entrou em "O treino-base em 30 epochs" e serve também
+aos três cenários (é a visualização 2 da lista acima, numa viz só, não lado a
+lado: o controle principal troca o cenário). O que se mexe: o cenário
+(treino-base 30 epochs · underfitting · overfitting), loss ou acurácia, e o
+slider "até o epoch N" com ▶. O que se vê: as duas curvas, a faixa entre elas,
+o marcador da menor loss de validação e, no painel, acurácias, distância em
+pontos e o diagnóstico com as frases do roteiro.
+
+Os números são de uma **nova execução** dos experimentos do roteiro (PyTorch,
+CPU; `Trilha de Trainees/aula-07/dados/mnist.json`), embutidos no componente.
+O treino-base dá 0,085 de menor loss de validação no epoch 10 (o roteiro diz
+0,086) e 0,120 no epoch 30 (o roteiro, 0,118); a página diz isso logo antes da
+viz. Underfitting e overfitting batem com o roteiro. **Pendente:** o cenário
+"bom" (512 neurônios + dropout 0,5, 50.000 imagens, `full_512_d0.5`) ainda não
+tinha terminado de rodar; quando existir, é uma entrada a mais em `CENARIOS` e
+um botão. Ver [[Log de Decisões]].
+

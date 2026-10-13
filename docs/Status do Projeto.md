@@ -8,7 +8,7 @@ sessão deve olhar._
 - **As três trilhas no ar:** Trainees (Aulas 1–10), **Deploy de Agentes (Aulas
   1–5)** desde 10/8/2026 — ver [[#Trilha de Agentes — Aulas 1 a 5]] — e
   **ML/DL Avançado**, que ganhou arco e Aula 1 em 11/9/2026 pela Bianca.
-- **Aulas 1 a 10 de trainees: COMPLETAS** — 25 visualizações funcionando.
+- **Aulas 1 a 10 de trainees: COMPLETAS** — 26 visualizações funcionando.
 - **Aulas 11, 12 e 13:** aparecem no arco da home como "em breve"; ainda sem
   página `.mdx`. As 11 e 12 dependem do conteúdo do Bloco 5, que está **em
   aberto** no próprio `roteiro.md`.
@@ -39,7 +39,7 @@ sessão deve olhar._
 | A4 | [[Aula 04]] | ✅ pronta | 2/2 ✅ |
 | A5 | [[Aula 05]] | ✅ pronta | 3/3 ✅ |
 | A6 | [[Aula 06]] | ✅ pronta | 2/2 ✅ |
-| A7 | [[Aula 07]] | ✅ pronta | 2/2 ✅ |
+| A7 | [[Aula 07]] | ✅ pronta | 3/3 ✅ |
 | A8 | [[Aula 08]] | ✅ pronta | 1/1 ✅ (era "sem viz" — ver [[Decisões Pendentes]]) |
 | A9 | [[Aula 09]] | ✅ pronta | 3/3 ✅ |
 | A10 | [[Aula 10]] | ✅ pronta | 2/2 ✅ |
@@ -47,7 +47,7 @@ sessão deve olhar._
 | A12 | [[Aula 12]] | ⬜ | em aberto |
 | A13 | [[Aula 13]] | ⬜ | 0/2 |
 
-Total no arco: **25 de 31** visualizações prontas (mais 1 fora do arco, na Aula 0). (Eram 30; a A8 ganhou uma
+Total no arco: **26 de 32** visualizações prontas (mais 1 fora do arco, na Aula 0). (Eram 30; a A8 ganhou uma
 visualização que não estava no plano — ver [[Decisões Pendentes]].)
 
 ## Aula 1 — visualizações prontas
@@ -109,6 +109,13 @@ irem para a página — é instrução que o aluno vai colar no terminal.
    "Simples demais" → "No ponto" → "Decorou o treino".
 7. **Dropout** — a mesma rede 1→12→12→1 treinada com cinco taxas. Em 0 ela decora
    (gap 0,19), em 0,05 a faixa fecha, em 0,30 ela para de aprender.
+7b. **CurvasTreinoValidacao** — as curvas de loss (ou acurácia) de treino e
+   validação do MNIST, epoch a epoch, em três cenários: o treino-base de 30
+   epochs, underfitting (2 neurônios) e overfitting (512 neurônios, 5.000
+   imagens). Slider "até o epoch N" com ▶, marcador da menor loss de validação
+   e a faixa da distância. Dados reais de uma nova execução dos experimentos do
+   roteiro (13/10/2026); falta o cenário "bom" (512 + dropout 0,5), que ainda
+   não tinha rodado.
 
 **A8 · Claude Code**
 8. **RevisaoCodigo** — dois códigos de ML gerados por IA que rodam e estão

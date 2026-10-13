@@ -8,6 +8,7 @@ objetivo: "Diagnosticar overfitting e underfitting pelas curvas de treino e vali
 import VizEmbed from "@/components/VizEmbed.astro";
 import ComplexidadeErro from "@/components/viz/trainees/ComplexidadeErro.astro";
 import Dropout from "@/components/viz/trainees/Dropout.astro";
+import CurvasTreinoValidacao from "@/components/viz/trainees/CurvasTreinoValidacao.astro";
 import Termo from "@/components/Termo.astro";
 import Caixa from "@/components/Caixa.astro";
 import Pergunta from "@/components/Pergunta.astro";
@@ -237,6 +238,12 @@ A resposta à pergunta da Aula 6 aparece quando o treino-base dela — a MLP de 
 
 O que a Aula 6 viu era isso: o começo do overfitting. O ponto mais baixo da validação é a hora de parar — a ideia do early stopping, mais abaixo.
 
+A visualização abaixo traz as curvas medidas, epoch a epoch. Ela vem de uma nova execução do mesmo treino, e por isso os números mudam um pouco: a menor loss de validação sai 0,085, também no epoch 10, e a do epoch 30 fica em 0,120. O desenho é o mesmo. Arraste **até o epoch N** para ver as curvas aparecerem como apareceriam durante o treino, e repare na faixa entre as duas — ela é a distância que o painel mede:
+
+<VizEmbed titulo="troque o cenário e ache o epoch em que a validação se descola do treino">
+  <CurvasTreinoValidacao />
+</VizEmbed>
+
 ### Os três cenários
 
 Três treinos medidos, cada um com o desenho de um diagnóstico. Os números são loss de treino, loss de validação, acurácia de treino e acurácia de validação:
@@ -244,6 +251,8 @@ Três treinos medidos, cada um com o desenho de um diagnóstico. Os números sã
 - **Underfitting** — 2 neurônios, 5.000 imagens: 1,07, 1,16, 63,8% e 61,6%. As duas curvas altas e coladas. Treinar mais quase não ajuda.
 - **Overfitting** — 512 neurônios, 5.000 imagens: 0,0004, 0,290, 100% e 94,4%. Treino no chão, validação longe e subindo. A distância entre as duas cresce com os epochs.
 - **Bom** — 512 neurônios, dropout 0,5, 50.000 imagens: 0,004, 0,081, 99,9% e 98,4%. Validação baixa e estável, com distância pequena para o treino.
+
+Os dois primeiros estão na visualização acima: troque o cenário para **Underfitting** e para **Overfitting** e compare o desenho com o do treino-base.
 
 ### Uma distância pequena é normal
 

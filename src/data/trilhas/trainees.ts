@@ -50,7 +50,7 @@ const BLOCOS: BlocoArco[] = [
       {
         n: "A7", slug: "aula-07", titulo: "Análise de Modelos",
         desc: "Diagnosticar overfitting e underfitting, e as regularizações que resolvem.",
-        prontas: 2, total: 2,
+        prontas: 3, total: 3,
       },
     ],
   },
