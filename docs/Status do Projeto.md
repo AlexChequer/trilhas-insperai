@@ -147,7 +147,7 @@ termos marcados caíram de 19 para 7 (regra de densidade documentada).
 | A4 | 7 | 3 | 3 | 1 | 6 |
 | A5 | 7 | 2 | 3 | 2 | 6 |
 | A6 | 7 | 2 | 4 | 1 | 6 |
-| A7 | 7 | 1 | 4 | 1 | 6 |
+| A7 | 8 | 4 | 8 | 2 | 8 |
 | A8 | 6 | 0 | 3 | 1 | 5 |
 | A9 | 7 | 1 | 3 | 1 | 6 |
 | A10 | 6 | 0 | 4 | 1 | 5 |
